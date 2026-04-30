@@ -1,0 +1,67 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  /*
+   * Variáveis em formato HSL puro (sem hsl()).
+   * O Tailwind v3 injeta o hsl() via tailwind.config.ts:
+   *   "hsl(var(--border) / <alpha-value>)"
+   * Isso permite usar modificadores de opacidade como border-border/50.
+   */
+  :root {
+    /* Tema escuro como padrão — identidade Osorio Digital */
+    --background:            0 0% 4%;        /* #0A0A0A */
+    --foreground:            60 5% 96%;      /* #F5F5F0 */
+
+    --card:                  0 0% 10%;       /* #1A1A1A */
+    --card-foreground:       60 5% 96%;
+
+    --popover:               0 0% 10%;
+    --popover-foreground:    60 5% 96%;
+
+    --primary:               53 100% 46%;   /* #EACE00 amarelo marca */
+    --primary-foreground:    0 0% 4%;
+
+    --secondary:             0 0% 27%;      /* #454545 cinza marca */
+    --secondary-foreground:  60 5% 96%;
+
+    --muted:                 0 0% 15%;
+    --muted-foreground:      0 0% 55%;
+
+    --accent:                0 0% 15%;
+    --accent-foreground:     60 5% 96%;
+
+    --destructive:           0 72% 51%;
+    --destructive-foreground:60 5% 96%;
+
+    --border:                0 0% 18%;      /* borda sutil escura */
+    --input:                 0 0% 20%;
+    --ring:                  53 100% 46%;   /* foco em amarelo */
+
+    --radius:                0.5rem;
+
+    /* Gráficos */
+    --chart-1:               53 100% 46%;
+    --chart-2:               207 90% 54%;
+    --chart-3:               160 84% 39%;
+    --chart-4:               291 64% 42%;
+    --chart-5:               0 72% 51%;
+  }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

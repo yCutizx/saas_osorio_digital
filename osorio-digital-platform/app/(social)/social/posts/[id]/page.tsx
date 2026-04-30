@@ -1,0 +1,213 @@
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { ArrowLeft, ExternalLink, Hash } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { AppLayout } from '@/components/layout/app-layout'
+import { createClient } from '@/lib/supabase/server'
+import { STATUS_CONFIG } from '@/components/calendar/calendar-grid'
+import { ApprovalButtons, CommentBox, StatusChanger } from './post-interactions'
+import { cn } from '@/lib/utils'
+
+const PLATFORM_LABEL: Record<string, string> = {
+  instagram: 'Instagram', facebook: 'Facebook',
+  linkedin: 'LinkedIn', tiktok: 'TikTok', twitter: 'Twitter',
+}
+
+const COMMENT_TYPE_CONFIG = {
+  comment:   { label: 'Comentário', classes: 'border-white/10 bg-white/5' },
+  approval:  { label: 'Aprovação',  classes: 'border-green-500/30 bg-green-500/10' },
+  rejection: { label: 'Reprovação', classes: 'border-red-500/30 bg-red-500/10' },
+}
+
+interface PageProps {
+  params: { id: string }
+}
+
+export default async function PostDetailPage({ params }: PageProps) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+
+  // Buscar o post
+  const { data: post } = await supabase
+    .from('content_posts')
+    .select('*, clients(name), profiles(full_name)')
+    .eq('id', params.id)
+    .single()
+
+  if (!post) notFound()
+
+  // Verificar acesso ao cliente deste post
+  if (profile?.role !== 'admin') {
+    const { data: assignment } = await supabase
+      .from('client_assignments')
+      .select('id')
+      .eq('client_id', post.client_id)
+      .eq('user_id', user.id)
+      .single()
+    if (!assignment) notFound()
+  }
+
+  // Buscar comentários
+  const { data: comments } = await supabase
+    .from('post_comments')
+    .select('*, profiles(full_name, role)')
+    .eq('post_id', params.id)
+    .order('created_at', { ascending: true })
+
+  const role     = profile?.role ?? 'client'
+  const isClient = role === 'client'
+  const canEdit  = ['admin', 'social_media'].includes(role)
+  const statusCfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
+
+  const backHref = isClient ? '/client/calendar' : '/social/dashboard'
+
+  return (
+    <AppLayout>
+      <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* Navegação */}
+        <div className="flex items-center justify-between">
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {isClient ? 'Voltar ao Calendário' : 'Voltar ao Dashboard'}
+          </Link>
+          {canEdit && (
+            <StatusChanger postId={post.id} currentStatus={post.status} />
+          )}
+        </div>
+
+        {/* Card principal do post */}
+        <Card className="bg-card border-border">
+          <CardContent className="p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <h1 className="text-foreground font-semibold text-lg leading-tight">{post.title}</h1>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span>{PLATFORM_LABEL[post.platform] ?? post.platform}</span>
+                  <span>·</span>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  <span>{(post.clients as any)?.name ?? '—'}</span>
+                  {post.scheduled_at && (
+                    <>
+                      <span>·</span>
+                      <span>
+                        {format(parseISO(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium shrink-0', statusCfg.chip)}>
+                {statusCfg.label}
+              </span>
+            </div>
+
+            {/* Mídia */}
+            {post.media_url && (
+              <a
+                href={post.media_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-brand-yellow hover:text-brand-yellow/80 transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver arquivo de mídia
+              </a>
+            )}
+
+            {/* Caption */}
+            {post.caption && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Caption</p>
+                <p className="text-foreground text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
+                  {post.caption}
+                </p>
+              </div>
+            )}
+
+            {/* Hashtags */}
+            {post.hashtags && post.hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {(post.hashtags as string[]).map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-0.5 text-xs text-brand-yellow/70 bg-brand-yellow/10 px-2 py-0.5 rounded-full">
+                    <Hash className="h-2.5 w-2.5" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Ações de aprovação (somente para cliente) */}
+            {isClient && (
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-3">Sua avaliação</p>
+                <ApprovalButtons postId={post.id} currentStatus={post.status} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Seção de comentários */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            Histórico de Comentários
+            {comments?.length ? (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                ({comments.length})
+              </span>
+            ) : null}
+          </h2>
+
+          {!comments?.length ? (
+            <p className="text-muted-foreground text-sm">Nenhum comentário ainda.</p>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((c) => {
+                const cfg = COMMENT_TYPE_CONFIG[c.type as keyof typeof COMMENT_TYPE_CONFIG]
+                  ?? COMMENT_TYPE_CONFIG.comment
+                return (
+                  <div key={c.id} className={cn('rounded-xl border p-4 space-y-1', cfg.classes)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-foreground">
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {(c.profiles as any)?.full_name ?? 'Usuário'}
+                        </span>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/50">
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {format(parseISO(c.created_at), "dd/MM 'às' HH:mm")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{c.content}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Caixa de comentário (não-cliente) */}
+          {!isClient && (
+            <div className="pt-2">
+              <CommentBox postId={post.id} />
+            </div>
+          )}
+        </div>
+
+      </div>
+    </AppLayout>
+  )
+}
