@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -20,18 +20,20 @@ interface NavItem {
 
 const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
   admin: [
-    { label: 'Dashboard',  href: '/admin/dashboard',   icon: LayoutDashboard },
-    { label: 'Clientes',   href: '/admin/clients',     icon: Users },
-    { label: 'Tráfego',    href: '/traffic/dashboard', icon: TrendingUp },
-    { label: 'Calendário', href: '/social/dashboard',  icon: Calendar },
-    { label: 'Insights',   href: '/admin/insights',    icon: Lightbulb },
-    { label: 'Pesquisas',  href: '/admin/research',    icon: FileSearch },
+    { label: 'Dashboard',  href: '/admin/dashboard',      icon: LayoutDashboard },
+    { label: 'Clientes',   href: '/admin/clients',        icon: Users },
+    { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
+    { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
+    { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
+    { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
+    { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
   ],
   traffic_manager: [
-    { label: 'Tráfego',    href: '/traffic/dashboard', icon: TrendingUp },
-    { label: 'Calendário', href: '/social/dashboard',  icon: Calendar },
-    { label: 'Insights',   href: '/traffic/insights',  icon: Lightbulb },
-    { label: 'Pesquisas',  href: '/traffic/research',  icon: FileSearch },
+    { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
+    { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
+    { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
+    { label: 'Insights',   href: '/traffic/insights',     icon: Lightbulb },
+    { label: 'Pesquisas',  href: '/traffic/research',     icon: FileSearch },
   ],
   social_media: [
     { label: 'Calendário', href: '/social/dashboard',  icon: Calendar },
@@ -82,19 +84,18 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
   return (
     <aside
       className={cn(
-        'relative flex flex-col h-screen bg-[#0f0f0f] border-r border-white/5 transition-all duration-300',
+        'relative flex flex-col h-screen bg-[#0A0A0A] border-r border-[#222] transition-all duration-300',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-white/5 shrink-0">
-        <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-brand-black font-bold text-sm">O</span>
+      <div className="flex items-center gap-3 px-4 h-16 border-b border-[#222] shrink-0">
+        <div className="w-8 h-8 bg-[#EACE00] rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(234,206,0,0.3)]">
+          <span className="text-black font-black text-sm">O</span>
         </div>
         {!collapsed && (
-          <span className="font-display text-white text-lg leading-none flex-1">
-            Osorio<br />
-            <span className="text-brand-yellow text-sm font-sans font-normal">Digital</span>
+          <span className="text-white font-bold text-base tracking-tight flex-1">
+            Osorio <span className="text-[#EACE00]">Digital</span>
           </span>
         )}
         {/* Close button on mobile overlay */}
@@ -120,10 +121,10 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
               href={item.href}
               onClick={onClose}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all',
                 isActive
-                  ? 'bg-brand-yellow text-brand-black font-semibold shadow-sm'
-                  : 'text-white/50 hover:bg-white/5 hover:text-white'
+                  ? 'bg-[#EACE00] text-black font-bold shadow-[0_2px_12px_rgba(234,206,0,0.2)]'
+                  : 'text-white/40 hover:bg-white/5 hover:text-white'
               )}
               title={collapsed ? item.label : undefined}
             >
@@ -135,17 +136,17 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
       </nav>
 
       {/* Rodapé */}
-      <div className="shrink-0 border-t border-white/5 p-3 space-y-1">
+      <div className="shrink-0 border-t border-[#222] p-3 space-y-1">
         {!collapsed && (
-          <div className="px-3 py-2">
-            <p className="text-white text-sm font-medium truncate">{userName}</p>
-            <p className="text-white/40 text-xs truncate">{userEmail}</p>
+          <div className="px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 mb-1">
+            <p className="text-white text-sm font-semibold truncate">{userName}</p>
+            <p className="text-white/30 text-xs truncate mt-0.5">{userEmail}</p>
           </div>
         )}
         <button
           onClick={handleLogout}
           className={cn(
-            'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-red-500/10 hover:text-red-400 transition-all',
+            'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/40 hover:bg-red-500/10 hover:text-red-400 transition-all',
             collapsed && 'justify-center'
           )}
           title={collapsed ? 'Sair' : undefined}
