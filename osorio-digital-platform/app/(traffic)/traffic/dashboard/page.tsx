@@ -1,18 +1,22 @@
+'use server'
+
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { subDays, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { DollarSign, Target, TrendingUp, MousePointerClick, PlusCircle, BarChart2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AppLayout } from '@/components/layout/app-layout'
-import { createClient } from '@/lib/supabase/server'
+import {
+  DollarSign, TrendingUp, MousePointerClick,
+  PlusCircle, BarChart2, AlertTriangle, CheckCircle2,
+  XCircle, Zap, Eye, ArrowUpRight, ArrowDownRight,
+} from 'lucide-react'
+import { AppLayout }      from '@/components/layout/app-layout'
+import { createClient }   from '@/lib/supabase/server'
 import { TrafficFilters } from './traffic-filters'
-import { TrafficCharts } from './traffic-charts'
-import { formatCurrency, formatNumber } from '@/lib/utils'
-import type { SpendDataPoint } from '@/components/charts/spend-area-chart'
-import type { CampaignDataPoint } from '@/components/charts/campaign-bar-chart'
+import { TrafficCharts }  from './traffic-charts'
+import { formatCurrency } from '@/lib/utils'
+import type { DailyPoint, CampaignRow } from './traffic-charts'
 
-// ── tipos internos ──────────────────────────────────────────
+// ── tipos ───────────────────────────────────────────────────────────────────
 type Report = {
   id: string
   campaign_id: string
@@ -26,62 +30,121 @@ type Report = {
   campaigns: { name: string; platform: string } | null
 }
 
-// ── agregações ──────────────────────────────────────────────
+// ── builders ────────────────────────────────────────────────────────────────
 function computeStats(reports: Report[]) {
-  const totalSpend       = reports.reduce((s, r) => s + r.spend, 0)
-  const totalRevenue     = reports.reduce((s, r) => s + (r.revenue ?? 0), 0)
-  const totalConversions = reports.reduce((s, r) => s + r.conversions, 0)
-  const totalClicks      = reports.reduce((s, r) => s + r.clicks, 0)
-  const totalImpressions = reports.reduce((s, r) => s + r.impressions, 0)
-  const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0
-  const ctr  = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
-
-  return { totalSpend, totalRevenue, totalConversions, roas, ctr }
+  const spend       = reports.reduce((s, r) => s + r.spend, 0)
+  const revenue     = reports.reduce((s, r) => s + (r.revenue ?? 0), 0)
+  const conversions = reports.reduce((s, r) => s + r.conversions, 0)
+  const clicks      = reports.reduce((s, r) => s + r.clicks, 0)
+  const impressions = reports.reduce((s, r) => s + r.impressions, 0)
+  const roas = spend > 0 ? revenue / spend : 0
+  const ctr  = impressions > 0 ? (clicks / impressions) * 100 : 0
+  const cpc  = clicks > 0 ? spend / clicks : 0
+  const cpa  = conversions > 0 ? spend / conversions : 0
+  return { spend, revenue, conversions, clicks, impressions, roas, ctr, cpc, cpa }
 }
 
-function buildAreaData(reports: Report[]): SpendDataPoint[] {
-  const map = new Map<string, SpendDataPoint>()
-
+function buildDailyData(reports: Report[]): DailyPoint[] {
+  const map = new Map<string, DailyPoint>()
   for (const r of reports) {
-    const label = format(parseISO(r.period_start), 'dd/MM', { locale: ptBR })
-    const existing = map.get(r.period_start) ?? { date: label, investimento: 0, receita: 0 }
+    const existing = map.get(r.period_start) ?? {
+      date:         format(parseISO(r.period_start), 'dd/MM', { locale: ptBR }),
+      investimento: 0, conversoes: 0, cliques: 0, impressoes: 0,
+    }
     existing.investimento += r.spend
-    existing.receita      += r.revenue ?? 0
+    existing.conversoes   += r.conversions
+    existing.cliques      += r.clicks
+    existing.impressoes   += r.impressions
     map.set(r.period_start, existing)
   }
-
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, v]) => v)
 }
 
-function buildCampaignData(reports: Report[]): CampaignDataPoint[] {
-  const map = new Map<string, CampaignDataPoint>()
-
+function buildCampaignRows(reports: Report[]): CampaignRow[] {
+  const map = new Map<string, {
+    name: string; platform: string
+    spend: number; revenue: number; clicks: number; impressions: number; conversions: number
+  }>()
   for (const r of reports) {
-    const key  = r.campaign_id
-    const name = r.campaigns?.name ?? 'Sem campanha'
-    const plat = r.campaigns?.platform ?? 'other'
-
+    const key = r.campaign_id
     const existing = map.get(key) ?? {
-      campanha: name, plataforma: plat,
-      investimento: 0, receita: 0, conversoes: 0,
+      name: r.campaigns?.name ?? 'Sem campanha',
+      platform: r.campaigns?.platform ?? 'other',
+      spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0,
     }
-    existing.investimento += r.spend
-    existing.receita      += r.revenue ?? 0
-    existing.conversoes   += r.conversions
+    existing.spend       += r.spend
+    existing.revenue     += r.revenue ?? 0
+    existing.clicks      += r.clicks
+    existing.impressions += r.impressions
+    existing.conversions += r.conversions
     map.set(key, existing)
   }
-
-  return Array.from(map.values()).sort((a, b) => b.investimento - a.investimento)
+  return Array.from(map.entries()).map(([id, c]) => ({
+    id,
+    name:        c.name,
+    platform:    c.platform,
+    spend:       c.spend,
+    revenue:     c.revenue,
+    clicks:      c.clicks,
+    impressions: c.impressions,
+    conversions: c.conversions,
+    ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+    cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
+    cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
+    roas: c.spend > 0 ? c.revenue / c.spend : 0,
+  })).sort((a, b) => b.spend - a.spend)
 }
 
-// ── busca de dados ──────────────────────────────────────────
-async function fetchDashboardData(period: number, clientId?: string) {
-  const supabase = await createClient()
+function buildAlerts(stats: ReturnType<typeof computeStats>) {
+  const alerts: { level: 'critico' | 'atencao' | 'ok'; msg: string }[] = []
 
-  const startDate = format(subDays(new Date(), period), 'yyyy-MM-dd')
-  const endDate   = format(new Date(), 'yyyy-MM-dd')
+  if (stats.roas < 1 && stats.spend > 0)
+    alerts.push({ level: 'critico', msg: `ROAS abaixo de 1x — você está gastando mais do que retornando.` })
+  else if (stats.roas < 2 && stats.spend > 0)
+    alerts.push({ level: 'atencao', msg: `ROAS de ${stats.roas.toFixed(2)}x — ainda abaixo do ideal (≥ 2x).` })
+  else if (stats.spend > 0)
+    alerts.push({ level: 'ok', msg: `ROAS saudável: ${stats.roas.toFixed(2)}x no período.` })
+
+  if (stats.ctr < 1 && stats.impressions > 0)
+    alerts.push({ level: 'critico', msg: `CTR crítico: ${stats.ctr.toFixed(2)}%. Criativos precisam de revisão urgente.` })
+  else if (stats.ctr < 2 && stats.impressions > 0)
+    alerts.push({ level: 'atencao', msg: `CTR de ${stats.ctr.toFixed(2)}% — considere testar novos criativos.` })
+
+  if (stats.cpc > 15 && stats.clicks > 0)
+    alerts.push({ level: 'atencao', msg: `CPC médio alto: ${formatCurrency(stats.cpc)} por clique.` })
+
+  return alerts
+}
+
+function buildInsights(dailyData: DailyPoint[], campaignRows: CampaignRow[], stats: ReturnType<typeof computeStats>) {
+  const insights: string[] = []
+
+  if (campaignRows.length > 0) {
+    const best = campaignRows[0]
+    insights.push(`Melhor campanha: "${best.name}" com ${formatCurrency(best.spend)} investidos e ${best.conversions} conversão(ões).`)
+  }
+
+  if (dailyData.length >= 2) {
+    const peak = dailyData.reduce((prev, curr) => curr.investimento > prev.investimento ? curr : prev)
+    insights.push(`Pico de investimento em ${peak.date}: ${formatCurrency(peak.investimento)}.`)
+  }
+
+  if (stats.ctr >= 3)
+    insights.push(`CTR acima da média do mercado (${stats.ctr.toFixed(2)}%) — criativos performando bem.`)
+
+  if (stats.conversions > 0 && stats.cpa > 0)
+    insights.push(`Custo por aquisição médio: ${formatCurrency(stats.cpa)} por conversão.`)
+
+  return insights
+}
+
+// ── fetch ────────────────────────────────────────────────────────────────────
+async function fetchDashboardData(period: number, clientId?: string) {
+  const supabase   = await createClient()
+  const startDate  = format(subDays(new Date(), period), 'yyyy-MM-dd')
+  const endDate    = format(new Date(), 'yyyy-MM-dd')
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -89,9 +152,7 @@ async function fetchDashboardData(period: number, clientId?: string) {
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  // Clientes acessíveis
   let clientsQuery = supabase.from('clients').select('id, name').eq('active', true).order('name')
-
   if (profile?.role !== 'admin') {
     const { data: assignments } = await supabase
       .from('client_assignments').select('client_id').eq('user_id', user.id)
@@ -99,10 +160,8 @@ async function fetchDashboardData(period: number, clientId?: string) {
     if (ids.length === 0) return { clients: [], reports: [], profile }
     clientsQuery = clientsQuery.in('id', ids)
   }
-
   const { data: clients } = await clientsQuery
 
-  // Relatórios
   let reportsQuery = supabase
     .from('traffic_reports')
     .select('id, campaign_id, client_id, period_start, spend, revenue, impressions, clicks, conversions, campaigns(name, platform)')
@@ -117,17 +176,47 @@ async function fetchDashboardData(period: number, clientId?: string) {
   }
 
   const { data: reports } = await reportsQuery
-
   return { clients: clients ?? [], reports: (reports ?? []) as unknown as Report[], profile }
 }
 
-// ── página ──────────────────────────────────────────────────
-interface PageProps {
-  searchParams: { period?: string; client?: string }
-}
-
+// ── helpers de render ────────────────────────────────────────────────────────
 const PLATFORM_LABEL: Record<string, string> = {
   meta: 'Meta', google: 'Google', tiktok: 'TikTok', linkedin: 'LinkedIn', other: 'Outro',
+}
+
+function AlertIcon({ level }: { level: 'critico' | 'atencao' | 'ok' }) {
+  if (level === 'critico') return <XCircle    className="h-4 w-4 text-red-400 shrink-0"    />
+  if (level === 'atencao') return <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
+  return                          <CheckCircle2  className="h-4 w-4 text-green-400 shrink-0"  />
+}
+
+function alertBg(level: 'critico' | 'atencao' | 'ok') {
+  if (level === 'critico') return 'bg-red-500/8 border-red-500/20'
+  if (level === 'atencao') return 'bg-yellow-500/8 border-yellow-500/20'
+  return 'bg-green-500/8 border-green-500/20'
+}
+
+function DiagBadge({ label, value, status }: { label: string; value: string; status: 'critico' | 'atencao' | 'ok' }) {
+  const colors = {
+    critico: 'bg-red-500/10 border-red-500/25 text-red-400',
+    atencao: 'bg-yellow-500/10 border-yellow-500/25 text-yellow-400',
+    ok:      'bg-green-500/10 border-green-500/25 text-green-400',
+  }
+  const labels = { critico: 'Crítico', atencao: 'Atenção', ok: 'Tudo certo' }
+  return (
+    <div className="rounded-xl bg-[#111] border border-white/5 p-4 flex flex-col gap-2">
+      <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
+      <span className="text-xl font-bold text-white">{value}</span>
+      <span className={`self-start text-xs font-medium px-2 py-0.5 rounded-full border ${colors[status]}`}>
+        {labels[status]}
+      </span>
+    </div>
+  )
+}
+
+// ── page ─────────────────────────────────────────────────────────────────────
+interface PageProps {
+  searchParams: { period?: string; client?: string }
 }
 
 export default async function TrafficDashboardPage({ searchParams }: PageProps) {
@@ -138,48 +227,27 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   if (!data) return null
 
   const { clients, reports, profile } = data
-  const stats       = computeStats(reports)
-  const areaData    = buildAreaData(reports)
-  const campaignData = buildCampaignData(reports)
-
-  const statCards = [
-    {
-      label:  'Total Investido',
-      value:  formatCurrency(stats.totalSpend),
-      icon:   DollarSign,
-      color:  'text-brand-yellow',
-      bg:     'bg-brand-yellow/10',
-    },
-    {
-      label:  'Conversões',
-      value:  formatNumber(stats.totalConversions),
-      icon:   Target,
-      color:  'text-green-400',
-      bg:     'bg-green-400/10',
-    },
-    {
-      label:  'ROAS Médio',
-      value:  `${stats.roas.toFixed(2).replace('.', ',')}x`,
-      icon:   TrendingUp,
-      color:  'text-blue-400',
-      bg:     'bg-blue-400/10',
-    },
-    {
-      label:  'CTR Médio',
-      value:  `${stats.ctr.toFixed(2).replace('.', ',')}%`,
-      icon:   MousePointerClick,
-      color:  'text-purple-400',
-      bg:     'bg-purple-400/10',
-    },
-  ]
-
   const isAdmin = profile?.role === 'admin'
+  const canEdit = isAdmin || profile?.role === 'traffic_manager'
+
+  const stats        = computeStats(reports)
+  const dailyData    = buildDailyData(reports)
+  const campaignRows = buildCampaignRows(reports)
+  const alerts       = buildAlerts(stats)
+  const insights     = buildInsights(dailyData, campaignRows, stats)
+
+  const ctrStatus: 'critico' | 'atencao' | 'ok' =
+    stats.ctr < 1 ? 'critico' : stats.ctr < 2 ? 'atencao' : 'ok'
+  const roasStatus: 'critico' | 'atencao' | 'ok' =
+    stats.roas < 1 ? 'critico' : stats.roas < 2 ? 'atencao' : 'ok'
+  const cpaStatus: 'critico' | 'atencao' | 'ok' =
+    stats.cpa > 80 ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok'
 
   return (
     <AppLayout pageTitle="Gestão de Tráfego">
-      <div className="space-y-6">
+      <div className="space-y-5">
 
-        {/* Cabeçalho com filtros e botão */}
+        {/* ── Cabeçalho / Filtros ─────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Suspense fallback={null}>
             <TrafficFilters
@@ -188,7 +256,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
               currentClientId={clientId ?? null}
             />
           </Suspense>
-          {(isAdmin || profile?.role === 'traffic_manager') && (
+          {canEdit && (
             <Link
               href="/traffic/reports/new"
               className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm shrink-0"
@@ -199,19 +267,19 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
           )}
         </div>
 
-        {/* Estado vazio */}
+        {/* ── Estado vazio ─────────────────────────────────────────── */}
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
               <BarChart2 className="h-7 w-7 text-brand-yellow/60" />
             </div>
-            <h3 className="text-foreground font-semibold mb-1">Nenhum dado no período</h3>
-            <p className="text-muted-foreground text-sm mb-6 max-w-sm">
+            <h3 className="text-white font-semibold mb-1">Nenhum dado no período</h3>
+            <p className="text-white/40 text-sm mb-6 max-w-sm">
               {clients.length === 0
                 ? 'Você ainda não tem clientes atribuídos.'
-                : `Não há relatórios nos últimos ${period} dias. Adicione um relatório ou rode o SQL de dados de exemplo.`}
+                : `Não há relatórios nos últimos ${period} dias.`}
             </p>
-            {(isAdmin || profile?.role === 'traffic_manager') && clients.length > 0 && (
+            {canEdit && clients.length > 0 && (
               <Link
                 href="/traffic/reports/new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
@@ -223,86 +291,157 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
           </div>
         ) : (
           <>
-            {/* Cards de métricas */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {statCards.map((card) => (
-                <Card key={card.label} className="bg-card border-border">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-                    <CardTitle className="text-xs font-medium text-muted-foreground">
-                      {card.label}
-                    </CardTitle>
+            {/* ── Hero Card ──────────────────────────────────────────── */}
+            <div className="rounded-2xl bg-gradient-to-br from-[#EACE00]/15 to-[#EACE00]/5 border border-[#EACE00]/20 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-white/50 uppercase tracking-wider mb-1">Resultado principal</p>
+                <div className="flex items-end gap-3">
+                  <span className="text-6xl font-black text-white leading-none">
+                    {stats.conversions.toLocaleString('pt-BR')}
+                  </span>
+                  <span className="text-white/60 text-base pb-1">
+                    conversõe{stats.conversions !== 1 ? 's' : ''} gerada{stats.conversions !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <p className="text-white/40 text-sm mt-2">
+                  em {period} dias · {formatCurrency(stats.spend)} investidos
+                </p>
+              </div>
+              <div className="flex flex-col items-start sm:items-end gap-1">
+                <span className="text-xs text-white/40 uppercase tracking-wider">ROAS geral</span>
+                <span className={`text-3xl font-bold ${stats.roas >= 2 ? 'text-green-400' : stats.roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}`}>
+                  {stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'}
+                </span>
+                {stats.roas >= 2 && <span className="text-green-400 text-xs flex items-center gap-1"><ArrowUpRight className="h-3 w-3" />Acima da meta</span>}
+                {stats.roas > 0 && stats.roas < 2 && <span className="text-yellow-400 text-xs flex items-center gap-1"><ArrowDownRight className="h-3 w-3" />Abaixo da meta</span>}
+              </div>
+            </div>
+
+            {/* ── KPI Cards secundários ─────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { label: 'Investimento',  value: formatCurrency(stats.spend),       icon: DollarSign,       color: 'text-brand-yellow', bg: 'bg-brand-yellow/10' },
+                { label: 'Impressões',    value: stats.impressions >= 1000 ? `${(stats.impressions / 1000).toFixed(1)}k` : String(stats.impressions), icon: Eye, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+                { label: 'CPC Médio',     value: stats.cpc > 0 ? formatCurrency(stats.cpc) : '—',           icon: MousePointerClick, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+                { label: 'CTR Médio',     value: stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—', icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-400/10' },
+              ].map((card) => (
+                <div key={card.label} className="rounded-2xl bg-[#111] border border-white/5 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-white/40 uppercase tracking-wider">{card.label}</span>
                     <div className={`p-1.5 rounded-lg ${card.bg}`}>
                       <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
                     </div>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    <div className="text-2xl font-bold text-foreground">{card.value}</div>
-                    <p className="text-xs text-muted-foreground mt-0.5">últimos {period} dias</p>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="text-2xl font-bold text-white">{card.value}</div>
+                  <p className="text-xs text-white/30 mt-0.5">últimos {period} dias</p>
+                </div>
               ))}
             </div>
 
-            {/* Gráficos */}
-            <TrafficCharts areaData={areaData} campaignData={campaignData} />
+            {/* ── Alertas de performance ────────────────────────────── */}
+            {alerts.length > 0 && (
+              <div className="space-y-2">
+                {alerts.map((a, i) => (
+                  <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm text-white/80 ${alertBg(a.level)}`}>
+                    <AlertIcon level={a.level} />
+                    {a.msg}
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Tabela de relatórios recentes */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Relatórios Recentes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        {['Data', 'Campanha', 'Plataforma', 'Investido', 'Receita', 'Conversões', 'ROAS'].map((h) => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {reports.slice(0, 20).map((r) => {
-                        const roas = r.spend > 0 && r.revenue ? r.revenue / r.spend : 0
-                        return (
-                          <tr key={r.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
-                              {format(parseISO(r.period_start), 'dd/MM/yyyy')}
-                            </td>
-                            <td className="px-4 py-3 text-foreground max-w-[180px] truncate">
-                              {r.campaigns?.name ?? '—'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/60">
-                                {PLATFORM_LABEL[r.campaigns?.platform ?? ''] ?? '—'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-foreground whitespace-nowrap">
-                              {formatCurrency(r.spend)}
-                            </td>
-                            <td className="px-4 py-3 text-green-400 whitespace-nowrap">
-                              {r.revenue ? formatCurrency(r.revenue) : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-foreground text-center">
-                              {r.conversions}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className={roas >= 2 ? 'text-green-400' : roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}>
-                                {roas > 0 ? `${roas.toFixed(2).replace('.', ',')}x` : '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+            {/* ── Gráficos ─────────────────────────────────────────── */}
+            <TrafficCharts dailyData={dailyData} campaignRows={campaignRows} />
+
+            {/* ── Destaques do período ──────────────────────────────── */}
+            {insights.length > 0 && (
+              <div className="rounded-2xl bg-[#111] border border-white/5 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap className="h-4 w-4 text-brand-yellow" />
+                  <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Destaques do período</h3>
                 </div>
-              </CardContent>
-            </Card>
+                <ul className="space-y-2">
+                  {insights.map((ins, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                      <span className="text-brand-yellow mt-0.5">•</span>
+                      {ins}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* ── Diagnóstico automático ────────────────────────────── */}
+            {stats.spend > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-3">Diagnóstico automático</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <DiagBadge label="CTR"  value={stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—'}     status={ctrStatus}  />
+                  <DiagBadge label="ROAS" value={stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'}    status={roasStatus} />
+                  <DiagBadge label="CPA"  value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}                          status={cpaStatus}  />
+                </div>
+              </div>
+            )}
+
+            {/* ── Tabela de campanhas ───────────────────────────────── */}
+            <div className="rounded-2xl bg-[#111] border border-white/5 overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/5">
+                <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Campanhas detalhadas</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      {['Campanha', 'Plataforma', 'Status', 'Investido', 'CTR', 'CPC', 'Resultados', 'CPA', 'ROAS'].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-white/30 whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {campaignRows.map((c) => {
+                      const roasOk  = c.roas >= 2
+                      const roasWarn = c.roas >= 1 && c.roas < 2
+                      const status  = roasOk ? 'ok' : roasWarn ? 'atencao' : 'critico'
+                      const statusLabel = { ok: 'Ativo', atencao: 'Atenção', critico: 'Crítico' }
+                      const statusColor = { ok: 'text-green-400 bg-green-400/10', atencao: 'text-yellow-400 bg-yellow-400/10', critico: 'text-red-400 bg-red-400/10' }
+                      return (
+                        <tr key={c.id} className="hover:bg-white/3 transition-colors">
+                          <td className="px-4 py-3 text-white font-medium max-w-[160px] truncate">{c.name}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/50">
+                              {PLATFORM_LABEL[c.platform] ?? c.platform}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[status]}`}>
+                              {statusLabel[status]}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-white whitespace-nowrap">{formatCurrency(c.spend)}</td>
+                          <td className="px-4 py-3 text-white/70 whitespace-nowrap">
+                            {c.ctr > 0 ? `${c.ctr.toFixed(2).replace('.', ',')}%` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-white/70 whitespace-nowrap">
+                            {c.cpc > 0 ? formatCurrency(c.cpc) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-white text-center">{c.conversions}</td>
+                          <td className="px-4 py-3 text-white/70 whitespace-nowrap">
+                            {c.cpa > 0 ? formatCurrency(c.cpa) : '—'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}>
+                              {c.roas > 0 ? `${c.roas.toFixed(2).replace('.', ',')}x` : '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </>
         )}
       </div>

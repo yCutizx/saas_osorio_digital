@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -44,14 +44,15 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
 const CLIENT_NAV: NavItem[] = [
   { label: 'Meu Painel', href: '/client/home',     icon: LayoutDashboard },
   { label: 'Calendário', href: '/client/calendar', icon: Calendar },
+  { label: 'Anúncios',   href: '/client/ads',      icon: BarChart2 },
   { label: 'Insights',   href: '/client/insights', icon: Lightbulb },
   { label: 'Pesquisas',  href: '/client/research', icon: FileSearch },
 ]
 
 const CLIENT_NAV_COUNT: Record<string, number> = {
   basico:  1,
-  pro:     2,
-  premium: 4,
+  pro:     3,
+  premium: 5,
 }
 
 interface SidebarProps {

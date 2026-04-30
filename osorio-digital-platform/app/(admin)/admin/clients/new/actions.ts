@@ -10,6 +10,7 @@ const Schema = z.object({
   industry:            z.string().min(1, 'Selecione um segmento'),
   contact_email:       z.string().email('E-mail inválido'),
   contact_phone:       z.string().optional(),
+  password:            z.string().min(8, 'Mínimo de 8 caracteres.').optional().or(z.literal('')),
   plan:                z.enum(['basico', 'pro', 'premium'] as const),
   traffic_manager_id:  z.string().uuid('Selecione um gestor de tráfego'),
   social_media_id:     z.string().uuid('Selecione um social media'),
@@ -45,6 +46,7 @@ export async function createClientAction(
     industry:           formData.get('industry'),
     contact_email:      formData.get('contact_email'),
     contact_phone:      formData.get('contact_phone') || undefined,
+    password:           formData.get('password') || '',
     plan:               formData.get('plan'),
     traffic_manager_id: formData.get('traffic_manager_id'),
     social_media_id:    formData.get('social_media_id'),
@@ -75,7 +77,7 @@ export async function createClientAction(
   }
 
   // 2. Criar usuário no Supabase Auth
-  const tempPassword = generateTempPassword()
+  const tempPassword = d.password || generateTempPassword()
 
   const { data: authData, error: authErr } = await adminSupabase.auth.admin.createUser({
     email:         d.contact_email,
