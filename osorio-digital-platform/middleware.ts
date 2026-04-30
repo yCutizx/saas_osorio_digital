@@ -1,43 +1,26 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/reset-password']
+const PUBLIC = ['/login', '/reset-password', '/_next', '/favicon.ico']
 
-/**
- * Middleware minimalista para Edge Runtime da Vercel.
- *
- * Não usa @supabase/ssr nem faz chamadas de rede — apenas verifica a
- * presença do cookie de sessão do Supabase para proteger rotas privadas.
- * A validação real do JWT e do papel do usuário ocorre nos Server Components
- * de cada página via createClient() + supabase.auth.getUser().
- *
- * Cookies criados por @supabase/ssr seguem o padrão:
- *   sb-<project-ref>-auth-token          (token completo)
- *   sb-<project-ref>-auth-token.0 / .1   (token dividido em chunks)
- */
-export function middleware(request: NextRequest) {
+export function middleware(request: import('next/server').NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Rotas públicas — sempre acessíveis
-  if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) {
+  if (PUBLIC.some((p) => pathname.startsWith(p))) {
     return NextResponse.next()
   }
 
-  // Verifica se existe algum cookie de sessão do Supabase
-  const hasSession = request.cookies.getAll().some(
-    (c) => c.name.startsWith('sb-') && c.name.includes('auth-token')
-  )
+  // @supabase/ssr stores the session in a cookie whose name contains "auth-token".
+  // It may also be chunked (…auth-token.0, auth-token.1, …).
+  const cookies = request.cookies.getAll()
+  const hasSession = cookies.some((c) => c.name.includes('auth-token'))
 
   if (!hasSession) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 }
