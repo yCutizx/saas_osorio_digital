@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd osorio-digital-platform && npm run build",
+  "outputDirectory": "osorio-digital-platform/.next",
+  "installCommand": "cd osorio-digital-platform && npm install",
+  "framework": "nextjs"
+}
