@@ -128,7 +128,7 @@ function DiagBadge({ label, value, status }: { label: string; value: string; sta
 
 // ── page ──────────────────────────────────────────────────────────────────────
 export default async function ClientAdsPage() {
-  await requireMinPlan('pro')
+  await requireMinPlan('basico')
 
   const supabase  = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
