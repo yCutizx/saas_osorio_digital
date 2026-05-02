@@ -53,8 +53,8 @@ const CLIENT_NAV: NavItem[] = [
 
 const CLIENT_NAV_COUNT: Record<string, number> = {
   basico:  2,   // Dashboard + Anúncios
-  pro:     3,   // + Calendário
-  premium: 5,   // + Insights + Pesquisas
+  pro:     5,   // + Calendário + Insights + Pesquisas (igual ao Premium)
+  premium: 5,   // + Calendário + Insights + Pesquisas
 }
 
 interface SidebarProps {

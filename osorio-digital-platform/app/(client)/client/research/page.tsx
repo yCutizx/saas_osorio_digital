@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 import { requireMinPlan } from '@/lib/client-plan'
 
 export default async function ClientResearchPage() {
-  await requireMinPlan('premium')
+  await requireMinPlan('pro')
 
   const supabase = await createClient()
 

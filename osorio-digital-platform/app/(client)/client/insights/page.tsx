@@ -8,7 +8,7 @@ import { requireMinPlan } from '@/lib/client-plan'
 import { InsightCard } from './insight-card'
 
 export default async function ClientInsightsPage() {
-  await requireMinPlan('premium')
+  await requireMinPlan('pro')
 
   const supabase = await createClient()
 
