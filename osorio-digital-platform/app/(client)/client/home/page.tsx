@@ -1,12 +1,10 @@
 import Link from 'next/link'
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowRight, Clock, TrendingUp, DollarSign, Target, AlertTriangle } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { ArrowRight, Clock, TrendingUp, DollarSign, Target, AlertTriangle, Zap } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { cn } from '@/lib/utils'
 import type { ClientPlan } from '@/lib/client-plan'
 
 const PLATFORM_LABEL: Record<string, string> = {
@@ -14,10 +12,10 @@ const PLATFORM_LABEL: Record<string, string> = {
   linkedin: 'LinkedIn', tiktok: 'TikTok', twitter: 'Twitter',
 }
 
-const PLAN_LABEL: Record<string, { label: string; classes: string }> = {
-  basico:  { label: 'Básico',  classes: 'bg-white/10 text-white/60' },
-  pro:     { label: 'Pro',     classes: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' },
-  premium: { label: 'Premium', classes: 'bg-brand-yellow/20 text-brand-yellow border border-brand-yellow/30' },
+const PLAN_CONFIG: Record<string, { label: string; classes: string }> = {
+  basico:  { label: 'Básico',  classes: 'bg-white/8 text-white/50 border border-white/10' },
+  pro:     { label: 'Pro',     classes: 'bg-blue-500/15 text-blue-400 border border-blue-500/25' },
+  premium: { label: 'Premium', classes: 'bg-[#EACE00]/15 text-[#EACE00] border border-[#EACE00]/25' },
 }
 
 async function fetchHomeData() {
@@ -61,11 +59,8 @@ async function fetchHomeData() {
   const monthStart = format(startOfMonth(now), 'yyyy-MM-dd')
   const monthEnd   = format(endOfMonth(now), 'yyyy-MM-dd')
 
-  // KPIs do mês — via relatórios de tráfego
   const { data: campaigns } = await supabase
-    .from('campaigns')
-    .select('id')
-    .eq('client_id', clientId)
+    .from('campaigns').select('id').eq('client_id', clientId)
 
   let kpis: { spend: number; revenue: number; conversions: number; roas: number } | null = null
 
@@ -89,7 +84,6 @@ async function fetchHomeData() {
     }
   }
 
-  // Posts pendentes de aprovação
   const [{ data: pendingPosts }, { count: pendingTotal }] = await Promise.all([
     supabase
       .from('content_posts')
@@ -105,7 +99,6 @@ async function fetchHomeData() {
       .eq('status', 'pending_approval'),
   ])
 
-  // Último insight publicado (só para Premium)
   let latestInsight: { id: string; title: string; content: string; published_at: string | null } | null = null
   if (plan === 'premium') {
     const { data: insight } = await supabase
@@ -138,86 +131,70 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
   const { userName, clientName, plan, kpis, pendingPosts, pendingTotal, latestInsight, currentMonthLabel } =
     await fetchHomeData()
 
-  const planCfg = PLAN_LABEL[plan] ?? PLAN_LABEL.basico
+  const planCfg    = PLAN_CONFIG[plan] ?? PLAN_CONFIG.basico
+  const firstName  = userName ? userName.split(' ')[0] : ''
   const showUpgrade = searchParams.upgrade === '1'
 
   return (
     <AppLayout pageTitle="Meu Painel">
-      <div className="space-y-8">
+      <div className="space-y-6">
 
-        {/* Banner de upgrade bloqueado */}
+        {/* Banner de upgrade */}
         {showUpgrade && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/8 border border-amber-500/25 text-amber-400 text-sm">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>
-              Esta funcionalidade não está disponível no seu plano atual.{' '}
-              <span className="font-medium">Entre em contato com a equipe para fazer upgrade.</span>
+              Esta funcionalidade não está disponível no seu plano.{' '}
+              <span className="font-bold">Entre em contato com a equipe para fazer upgrade.</span>
             </span>
           </div>
         )}
 
         {/* Boas-vindas */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">
-              Olá{userName ? `, ${userName.split(' ')[0]}` : ''}! 👋
-            </h1>
-            {clientName && (
-              <p className="text-muted-foreground text-sm">
-                Aqui está o resumo de <span className="text-foreground font-medium">{clientName}</span> em {currentMonthLabel}.
-              </p>
-            )}
+        <div className="rounded-2xl bg-gradient-to-br from-[#EACE00]/10 to-transparent border border-[#EACE00]/15 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-white/40 text-sm uppercase tracking-wider">Bem-vindo de volta</p>
+              <h1 className="text-3xl font-black text-white leading-tight">
+                {firstName ? (
+                  <><span className="text-[#EACE00]">{firstName}</span>, olá!</>
+                ) : 'Olá!'}
+              </h1>
+              {clientName && (
+                <p className="text-white/50 text-sm mt-2">
+                  Resumo de <span className="text-white font-semibold">{clientName}</span> em{' '}
+                  <span className="text-white/70 capitalize">{currentMonthLabel}</span>.
+                </p>
+              )}
+            </div>
+            <span className={`text-xs px-3 py-1 rounded-full font-semibold shrink-0 ${planCfg.classes}`}>
+              Plano {planCfg.label}
+            </span>
           </div>
-          <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium shrink-0', planCfg.classes)}>
-            Plano {planCfg.label}
-          </span>
         </div>
 
         {/* KPIs do mês */}
         {kpis && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                label: 'Investimento',
-                value: `R$ ${kpis.spend.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                icon: DollarSign,
-                color: 'text-brand-yellow',
-                bg:    'bg-brand-yellow/10',
-              },
-              {
-                label: 'Receita',
-                value: `R$ ${kpis.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                icon: TrendingUp,
-                color: 'text-green-400',
-                bg:    'bg-green-500/10',
-              },
-              {
-                label: 'ROAS',
-                value: `${kpis.roas.toFixed(2)}x`,
-                icon: Target,
-                color: 'text-blue-400',
-                bg:    'bg-blue-500/10',
-              },
-              {
-                label: 'Conversões',
-                value: kpis.conversions.toLocaleString('pt-BR'),
-                icon: Target,
-                color: 'text-purple-400',
-                bg:    'bg-purple-500/10',
-              },
-            ].map(({ label, value, icon: Icon, color, bg }) => (
-              <Card key={label} className="bg-card border-border">
-                <CardContent className="p-4 flex items-start gap-3">
-                  <div className={cn('p-2 rounded-lg shrink-0', bg)}>
-                    <Icon className={cn('h-4 w-4', color)} />
+          <div>
+            <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-3">Desempenho do mês</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { label: 'Investimento', value: `R$ ${kpis.spend.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, icon: DollarSign, color: 'text-[#EACE00]',  bg: 'bg-[#EACE00]/10',  border: 'border-[#EACE00]/15' },
+                { label: 'Receita',      value: `R$ ${kpis.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/15' },
+                { label: 'ROAS',         value: `${kpis.roas.toFixed(2)}x`,                                                 icon: Target,     color: 'text-blue-400',  bg: 'bg-blue-500/10',  border: 'border-blue-500/15' },
+                { label: 'Conversões',   value: kpis.conversions.toLocaleString('pt-BR'),                                   icon: Target,     color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/15' },
+              ].map(({ label, value, icon: Icon, color, bg, border }) => (
+                <div key={label} className={`rounded-2xl bg-[#111] border ${border} p-4`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
+                    <div className={`p-1.5 rounded-lg ${bg}`}>
+                      <Icon className={`h-3.5 w-3.5 ${color}`} />
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-lg font-bold text-foreground mt-0.5 leading-none">{value}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <p className={`text-2xl font-black ${color}`}>{value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -226,15 +203,15 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse" />
-                <h2 className="text-sm font-semibold text-foreground">
+                <div className="w-2 h-2 rounded-full bg-[#EACE00] animate-pulse" />
+                <h2 className="text-sm font-bold text-white">
                   {pendingTotal === 1 ? '1 post aguarda' : `${pendingTotal} posts aguardam`} sua aprovação
                 </h2>
               </div>
               {plan !== 'basico' && (
                 <Link
                   href="/client/calendar"
-                  className="text-xs text-brand-yellow hover:underline flex items-center gap-1"
+                  className="text-xs text-[#EACE00]/70 hover:text-[#EACE00] flex items-center gap-1 transition-colors"
                 >
                   Ver calendário <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -246,11 +223,11 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
                 <Link
                   key={post.id}
                   href={`/client/posts/${post.id}`}
-                  className="flex items-center justify-between gap-3 p-4 rounded-xl border border-brand-yellow/30 bg-brand-yellow/5 hover:bg-brand-yellow/10 transition-colors group"
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[#EACE00]/25 bg-[#EACE00]/5 hover:bg-[#EACE00]/10 hover:border-[#EACE00]/50 transition-all group"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-sm font-semibold text-white truncate">{post.title}</p>
+                    <p className="text-xs text-white/40 mt-0.5">
                       {PLATFORM_LABEL[post.platform] ?? post.platform}
                       {post.scheduled_at && (
                         ` · ${format(parseISO(post.scheduled_at), "d 'de' MMM", { locale: ptBR })}`
@@ -258,15 +235,15 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Clock className="h-3.5 w-3.5 text-brand-yellow" />
-                    <ArrowRight className="h-3 w-3 text-brand-yellow group-hover:translate-x-0.5 transition-transform" />
+                    <Clock className="h-3.5 w-3.5 text-[#EACE00]" />
+                    <ArrowRight className="h-3 w-3 text-[#EACE00] group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </Link>
               ))}
             </div>
 
             {pendingTotal > 3 && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/30">
                 +{pendingTotal - 3} mais aguardando aprovação
               </p>
             )}
@@ -276,23 +253,26 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
         {/* Último insight (Premium) */}
         {latestInsight && (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Último Insight</h2>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-[#EACE00]" />
+              <h2 className="text-xs font-bold text-white/40 uppercase tracking-wider">Último Insight</h2>
+            </div>
             <Link
               href="/client/insights"
-              className="block p-5 rounded-xl bg-card border border-border hover:border-brand-yellow/40 transition-colors group"
+              className="block p-5 rounded-2xl bg-[#111] border border-[#222] hover:border-[#EACE00]/40 hover:shadow-[0_0_20px_rgba(234,206,0,0.05)] transition-all group"
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-brand-yellow transition-colors">
+                  <h3 className="text-sm font-bold text-white group-hover:text-[#EACE00] transition-colors">
                     {latestInsight.title}
                   </h3>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-brand-yellow group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ArrowRight className="h-4 w-4 text-white/30 group-hover:text-[#EACE00] group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                <p className="text-sm text-white/40 line-clamp-3 leading-relaxed">
                   {latestInsight.content}
                 </p>
                 {latestInsight.published_at && (
-                  <p className="text-xs text-muted-foreground/60">
+                  <p className="text-xs text-white/20">
                     {format(parseISO(latestInsight.published_at), "d 'de' MMMM yyyy", { locale: ptBR })}
                   </p>
                 )}
@@ -301,13 +281,18 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* Estado vazio sem dados */}
+        {/* Estado vazio */}
         {!kpis && pendingTotal === 0 && !latestInsight && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <TrendingUp className="h-10 w-10 text-white/20" />
-            <p className="text-muted-foreground text-sm">
-              Seus dados aparecerão aqui assim que a equipe registrar atividades.
-            </p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+            <div className="w-16 h-16 bg-[#EACE00]/10 rounded-2xl flex items-center justify-center">
+              <TrendingUp className="h-7 w-7 text-[#EACE00]/50" />
+            </div>
+            <div>
+              <p className="text-white font-semibold mb-1">Aguardando dados</p>
+              <p className="text-white/30 text-sm max-w-xs">
+                Seus dados aparecerão aqui assim que a equipe registrar atividades.
+              </p>
+            </div>
           </div>
         )}
 

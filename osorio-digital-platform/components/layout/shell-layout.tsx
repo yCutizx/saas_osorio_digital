@@ -21,7 +21,7 @@ export function ShellLayout({
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-brand-black overflow-hidden">
+    <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex shrink-0">

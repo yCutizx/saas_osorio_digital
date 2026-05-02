@@ -28,25 +28,25 @@ export function Header({ userName, userRole, avatarUrl, pageTitle, onMenuOpen }:
     .toUpperCase()
 
   return (
-    <header className="h-16 bg-brand-black border-b border-white/5 flex items-center justify-between px-4 md:px-6 shrink-0">
+    <header className="h-16 bg-[#0A0A0A] border-b border-[#1e1e1e] flex items-center justify-between px-4 md:px-6 shrink-0">
       <div className="flex items-center gap-3">
         {/* Hamburger — mobile only */}
         <button
           onClick={onMenuOpen}
-          className="md:hidden p-2 rounded-lg text-white/50 hover:bg-white/5 hover:text-white transition-colors"
+          className="md:hidden p-2 rounded-lg text-white/40 hover:bg-white/5 hover:text-white transition-colors"
           aria-label="Abrir menu"
         >
           <Menu className="h-5 w-5" />
         </button>
 
         {pageTitle && (
-          <h1 className="text-white font-semibold text-base md:text-lg">{pageTitle}</h1>
+          <h1 className="text-white font-bold text-base md:text-xl">{pageTitle}</h1>
         )}
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
         <button
-          className="relative text-white/40 hover:text-white transition-colors"
+          className="relative text-white/25 hover:text-white transition-colors"
           aria-label="Notificações"
         >
           <Bell className="h-5 w-5" />
@@ -54,12 +54,12 @@ export function Header({ userName, userRole, avatarUrl, pageTitle, onMenuOpen }:
 
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
-            <p className="text-white text-sm font-medium leading-none">{userName}</p>
-            <p className="text-white/40 text-xs mt-0.5">{ROLE_LABELS[userRole]}</p>
+            <p className="text-white text-sm font-semibold leading-none">{userName}</p>
+            <p className="text-white/35 text-xs mt-0.5">{ROLE_LABELS[userRole]}</p>
           </div>
-          <Avatar className="h-8 w-8 border border-white/10">
+          <Avatar className="h-8 w-8 border border-[#EACE00]/30">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} />}
-            <AvatarFallback className="bg-brand-yellow text-brand-black text-xs font-bold">
+            <AvatarFallback className="bg-[#EACE00] text-black text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>

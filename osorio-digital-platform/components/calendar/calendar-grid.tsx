@@ -21,18 +21,17 @@ export type CalendarPost = {
 export type PostsByDate = Record<string, CalendarPost[]>
 
 interface Props {
-  currentMonth: string    // "2026-04"
+  currentMonth: string
   postsByDate:  PostsByDate
-  baseHref:     string    // "/social" ou "/client"
+  baseHref:     string
 }
 
-// Cores por status — usadas no chip e na legenda
 export const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: string }> = {
-  draft:            { chip: 'bg-white/10 text-white/50',                   dot: 'bg-white/30',   label: 'Rascunho'   },
-  pending_approval: { chip: 'bg-brand-yellow/25 text-brand-yellow border border-brand-yellow/30', dot: 'bg-brand-yellow', label: 'Aguardando' },
-  approved:         { chip: 'bg-green-500/20 text-green-400',               dot: 'bg-green-400',  label: 'Aprovado'   },
-  rejected:         { chip: 'bg-red-500/20 text-red-400',                   dot: 'bg-red-400',    label: 'Reprovado'  },
-  published:        { chip: 'bg-blue-500/20 text-blue-400',                 dot: 'bg-blue-400',   label: 'Publicado'  },
+  draft:            { chip: 'bg-white/8 text-white/40',                                                dot: 'bg-white/25',   label: 'Rascunho'   },
+  pending_approval: { chip: 'bg-[#EACE00]/20 text-[#EACE00] border border-[#EACE00]/30',              dot: 'bg-[#EACE00]',  label: 'Aguardando' },
+  approved:         { chip: 'bg-green-500/20 text-green-400 border border-green-500/20',               dot: 'bg-green-400',  label: 'Aprovado'   },
+  rejected:         { chip: 'bg-red-500/20 text-red-400 border border-red-500/20',                     dot: 'bg-red-400',    label: 'Reprovado'  },
+  published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',                  dot: 'bg-blue-400',   label: 'Publicado'  },
 }
 
 const PLATFORM_SHORT: Record<string, string> = {
@@ -46,13 +45,11 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
   const router = useRouter()
   const params = useSearchParams()
 
-  // Garante que a data seja parseada sem problemas de timezone
   const monthDate  = new Date(`${currentMonth}-01T12:00:00`)
   const firstDay   = startOfMonth(monthDate)
   const lastDay    = endOfMonth(monthDate)
   const days       = eachDayOfInterval({ start: firstDay, end: lastDay })
 
-  // Segunda-feira como primeiro dia (domingo=0 vira 6, outros diminuem 1)
   const rawStartDay  = getDay(firstDay)
   const startOffset  = rawStartDay === 0 ? 6 : rawStartDay - 1
   const emptyBefore  = Array<null>(startOffset).fill(null)
@@ -60,7 +57,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
   function navigate(delta: number) {
     const next = new Date(monthDate)
     next.setMonth(next.getMonth() + delta)
-    const newMonth  = format(next, 'yyyy-MM')
+    const newMonth   = format(next, 'yyyy-MM')
     const nextParams = new URLSearchParams(params.toString())
     nextParams.set('month', newMonth)
     router.push(`${baseHref}/dashboard?${nextParams.toString()}`)
@@ -70,20 +67,20 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
     <div className="space-y-4">
       {/* Navegação de mês */}
       <div className="flex items-center justify-between">
-        <h3 className="text-foreground font-semibold capitalize">
+        <h3 className="text-white font-bold text-base capitalize">
           {format(monthDate, 'MMMM yyyy', { locale: ptBR })}
         </h3>
         <div className="flex gap-1">
           <button
             onClick={() => navigate(-1)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
             aria-label="Mês anterior"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => navigate(1)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-colors"
             aria-label="Próximo mês"
           >
             <ChevronRight className="h-4 w-4" />
@@ -91,10 +88,10 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
         </div>
       </div>
 
-      {/* Cabeçalho dos dias da semana */}
+      {/* Cabeçalho dias da semana */}
       <div className="grid grid-cols-7 gap-1">
         {DAY_NAMES.map((d) => (
-          <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">
+          <div key={d} className="text-center text-xs font-bold text-white/25 uppercase tracking-wider py-2">
             {d}
           </div>
         ))}
@@ -102,12 +99,10 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-1">
-        {/* Células vazias antes do dia 1 */}
         {emptyBefore.map((_, i) => (
           <div key={`empty-${i}`} className="min-h-[90px] lg:min-h-[110px]" />
         ))}
 
-        {/* Dias do mês */}
         {days.map((day) => {
           const dateKey  = format(day, 'yyyy-MM-dd')
           const dayPosts = postsByDate[dateKey] ?? []
@@ -117,23 +112,21 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
             <div
               key={dateKey}
               className={cn(
-                'min-h-[90px] lg:min-h-[110px] p-1.5 rounded-lg border transition-colors',
+                'min-h-[90px] lg:min-h-[110px] p-1.5 rounded-xl border transition-colors',
                 today
-                  ? 'border-brand-yellow/50 bg-brand-yellow/5'
-                  : 'border-border bg-card/40 hover:border-white/15'
+                  ? 'border-[#EACE00]/50 bg-[#EACE00]/5'
+                  : 'border-[#1e1e1e] bg-[#0d0d0d] hover:border-[#2a2a2a]'
               )}
             >
-              {/* Número do dia */}
               <span className={cn(
-                'text-xs font-medium block mb-1 w-5 h-5 flex items-center justify-center rounded-full',
+                'text-xs font-bold block mb-1 w-5 h-5 flex items-center justify-center rounded-full',
                 today
-                  ? 'bg-brand-yellow text-brand-black font-bold'
-                  : 'text-muted-foreground'
+                  ? 'bg-[#EACE00] text-black'
+                  : 'text-white/30'
               )}>
                 {format(day, 'd')}
               </span>
 
-              {/* Posts do dia */}
               <div className="space-y-0.5">
                 {dayPosts.slice(0, 3).map((post) => {
                   const cfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
@@ -147,7 +140,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
                       )}
                       title={post.title}
                     >
-                      <span className="font-bold shrink-0 opacity-70">
+                      <span className="font-bold shrink-0 opacity-60">
                         {PLATFORM_SHORT[post.platform] ?? 'XX'}
                       </span>
                       <span className="truncate">{post.title}</span>
@@ -155,7 +148,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
                   )
                 })}
                 {dayPosts.length > 3 && (
-                  <p className="text-[10px] text-muted-foreground pl-1">
+                  <p className="text-[10px] text-white/25 pl-1">
                     +{dayPosts.length - 3}
                   </p>
                 )}
@@ -166,11 +159,11 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref }: Props) {
       </div>
 
       {/* Legenda */}
-      <div className="flex flex-wrap gap-4 pt-1 border-t border-border">
+      <div className="flex flex-wrap gap-4 pt-3 border-t border-[#1e1e1e]">
         {Object.entries(STATUS_CONFIG).map(([, cfg]) => (
           <div key={cfg.label} className="flex items-center gap-1.5">
             <div className={cn('w-2 h-2 rounded-full', cfg.dot)} />
-            <span className="text-xs text-muted-foreground">{cfg.label}</span>
+            <span className="text-xs text-white/30">{cfg.label}</span>
           </div>
         ))}
       </div>
