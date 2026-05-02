@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
 const schema = z.object({
+  id:          z.string().uuid(),
   title:       z.string().min(3, 'Título muito curto.'),
   description: z.string().optional(),
   file_url:    z.string().url('URL inválida.').optional().or(z.literal('')),
@@ -20,7 +21,7 @@ export type FormState = {
   errors?:  Record<string, string[]>
 }
 
-export async function createResearchAction(
+export async function updateResearchAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -34,10 +35,14 @@ export async function createResearchAction(
 
   if (!ALLOWED.includes(profile?.role ?? '')) return { message: 'Acesso negado.' }
 
-  // Upload de PDF (prioritário) ou link externo
-  const pdfFile   = formData.get('pdf_file') as File | null
+  const id = formData.get('id') as string
+
+  // Upload novo PDF ou manter URL existente
+  const pdfFile     = formData.get('pdf_file') as File | null
   const externalUrl = (formData.get('file_url') as string)?.trim()
-  let finalFileUrl: string | null = null
+  const keepCurrent = formData.get('keep_file_url') as string  // URL atual passada como hidden
+
+  let finalFileUrl: string = keepCurrent
 
   if (pdfFile && pdfFile.size > 0) {
     if (pdfFile.type !== 'application/pdf') {
@@ -46,8 +51,8 @@ export async function createResearchAction(
     if (pdfFile.size > 50 * 1024 * 1024) {
       return { message: 'Arquivo muito grande. Máximo 50 MB.' }
     }
-    const safeName  = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const filePath  = `${Date.now()}-${safeName}`
+    const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${Date.now()}-${safeName}`
 
     const { data: uploaded, error: uploadErr } = await supabase.storage
       .from('research')
@@ -59,11 +64,12 @@ export async function createResearchAction(
     finalFileUrl = urlData.publicUrl
   } else if (externalUrl) {
     finalFileUrl = externalUrl
-  } else {
-    return { message: 'Envie um arquivo PDF ou forneça um link externo.' }
   }
 
+  if (!finalFileUrl) return { message: 'Envie um arquivo PDF ou forneça um link externo.' }
+
   const parsed = schema.safeParse({
+    id,
     title:       formData.get('title'),
     description: (formData.get('description') as string) || undefined,
     file_url:    finalFileUrl,
@@ -78,14 +84,13 @@ export async function createResearchAction(
   const d    = parsed.data
   const tags = (d.tags_raw ?? '').split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
 
-  const { error } = await supabase.from('market_research').insert({
-    author_id:   user.id,
+  const { error } = await supabase.from('market_research').update({
     title:       d.title,
     description: d.description ?? null,
     file_url:    finalFileUrl,
     client_id:   d.client_id || null,
     tags:        tags.length > 0 ? tags : null,
-  })
+  }).eq('id', id)
 
   if (error) return { message: error.message }
 

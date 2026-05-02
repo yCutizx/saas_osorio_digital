@@ -3,43 +3,38 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-export async function togglePublishAction(formData: FormData): Promise<void> {
+const ALLOWED = ['admin', 'traffic_manager', 'social_media']
+
+async function getAllowedRole() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
+  if (!user) return null
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
+  if (!ALLOWED.includes(profile?.role ?? '')) return null
+  return { supabase, user }
+}
 
-  if (profile?.role !== 'admin') return
+export async function togglePublishAction(formData: FormData): Promise<void> {
+  const ctx = await getAllowedRole()
+  if (!ctx) return
 
   const id        = formData.get('id') as string
   const published = formData.get('published') === 'true'
 
-  await supabase
+  await ctx.supabase
     .from('insights')
-    .update({
-      published,
-      published_at: published ? new Date().toISOString() : null,
-    })
+    .update({ published, published_at: published ? new Date().toISOString() : null })
     .eq('id', id)
 
   revalidatePath('/admin/insights')
 }
 
 export async function deleteInsightAction(formData: FormData): Promise<void> {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-
-  if (profile?.role !== 'admin') return
+  const ctx = await getAllowedRole()
+  if (!ctx) return
 
   const id = formData.get('id') as string
-  await supabase.from('insights').delete().eq('id', id)
+  await ctx.supabase.from('insights').delete().eq('id', id)
   revalidatePath('/admin/insights')
 }

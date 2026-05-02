@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
 const schema = z.object({
+  id:        z.string().uuid(),
   title:     z.string().min(3, 'Título muito curto.'),
   content:   z.string().min(10, 'Conteúdo muito curto.'),
   cover_url: z.string().url('URL inválida.').optional().or(z.literal('')),
@@ -20,7 +21,7 @@ export type FormState = {
   errors?:  Record<string, string[]>
 }
 
-export async function createInsightAction(
+export async function updateInsightAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -35,6 +36,7 @@ export async function createInsightAction(
   if (!ALLOWED.includes(profile?.role ?? '')) return { message: 'Acesso negado.' }
 
   const parsed = schema.safeParse({
+    id:        formData.get('id'),
     title:     formData.get('title'),
     content:   formData.get('content'),
     cover_url: (formData.get('cover_url') as string) || '',
@@ -50,15 +52,14 @@ export async function createInsightAction(
   const tags      = (d.tags_raw ?? '').split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
   const published = d.published === 'on'
 
-  const { error } = await supabase.from('insights').insert({
-    author_id:    user.id,
+  const { error } = await supabase.from('insights').update({
     title:        d.title,
     content:      d.content,
     cover_url:    d.cover_url || null,
     tags:         tags.length > 0 ? tags : null,
     published,
     published_at: published ? new Date().toISOString() : null,
-  })
+  }).eq('id', d.id)
 
   if (error) return { message: error.message }
 

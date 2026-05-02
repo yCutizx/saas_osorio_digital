@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Plus, Eye, EyeOff, Trash2, Lightbulb } from 'lucide-react'
+import { Plus, Eye, EyeOff, Trash2, Lightbulb, Pencil } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { togglePublishAction, deleteInsightAction } from './actions'
+
+const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
 export default async function AdminInsightsPage() {
   const supabase = await createClient()
@@ -17,7 +19,7 @@ export default async function AdminInsightsPage() {
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  if (profile?.role !== 'admin') redirect('/admin/dashboard')
+  if (!ALLOWED.includes(profile?.role ?? '')) redirect('/admin/dashboard')
 
   const { data: insights } = await supabase
     .from('insights')
@@ -90,6 +92,14 @@ export default async function AdminInsightsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/admin/insights/${insight.id}/edit`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Link>
+
                   <form action={togglePublishAction}>
                     <input type="hidden" name="id" value={insight.id} />
                     <input type="hidden" name="published" value={(!insight.published).toString()} />

@@ -32,14 +32,14 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
     { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
-    { label: 'Insights',   href: '/traffic/insights',     icon: Lightbulb },
-    { label: 'Pesquisas',  href: '/traffic/research',     icon: FileSearch },
+    { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
+    { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
   ],
   social_media: [
     { label: 'Calendário', href: '/social/dashboard',  icon: Calendar },
     { label: 'Tráfego',    href: '/traffic/dashboard', icon: TrendingUp },
-    { label: 'Insights',   href: '/social/insights',   icon: Lightbulb },
-    { label: 'Pesquisas',  href: '/social/research',   icon: FileSearch },
+    { label: 'Insights',   href: '/admin/insights',    icon: Lightbulb },
+    { label: 'Pesquisas',  href: '/admin/research',    icon: FileSearch },
   ],
 }
 

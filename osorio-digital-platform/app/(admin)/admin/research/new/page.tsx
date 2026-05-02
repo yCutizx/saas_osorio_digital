@@ -15,7 +15,8 @@ export default async function NewResearchPage() {
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  if (profile?.role !== 'admin') redirect('/admin/dashboard')
+  const ALLOWED = ['admin', 'traffic_manager', 'social_media']
+  if (!ALLOWED.includes(profile?.role ?? '')) redirect('/admin/dashboard')
 
   const { data: clients } = await supabase
     .from('clients')

@@ -1,7 +1,8 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { AlertCircle, Loader2, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { AlertCircle, Loader2, Send, Upload, FileText, X } from 'lucide-react'
 import { Input }    from '@/components/ui/input'
 import { Label }    from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,9 +32,12 @@ function FieldError({ messages }: { messages?: string[] }) {
 
 export function NewResearchForm({ clients }: { clients: Client[] }) {
   const [state, action] = useFormState<FormState, FormData>(createResearchAction, {})
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [useExternalUrl, setUseExternalUrl] = useState(false)
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} className="space-y-6" encType="multipart/form-data">
       {state.message && (
         <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-4 py-3 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -70,20 +74,82 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
         />
       </div>
 
-      {/* URL do arquivo */}
-      <div className="space-y-1.5">
-        <Label htmlFor="file_url" className="text-white/70 text-sm">
-          Link do Arquivo (PDF / Google Drive) <span className="text-red-400">*</span>
+      {/* Arquivo PDF */}
+      <div className="space-y-3">
+        <Label className="text-white/70 text-sm">
+          Arquivo PDF <span className="text-red-400">*</span>
         </Label>
-        <Input
-          id="file_url"
-          name="file_url"
-          type="url"
-          placeholder="https://drive.google.com/..."
-          required
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
-        />
-        <FieldError messages={state.errors?.file_url} />
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setUseExternalUrl(false); setSelectedFile(null) }}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+              !useExternalUrl
+                ? 'bg-brand-yellow/15 border-brand-yellow/40 text-brand-yellow'
+                : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+            }`}
+          >
+            Enviar PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => { setUseExternalUrl(true); setSelectedFile(null) }}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+              useExternalUrl
+                ? 'bg-brand-yellow/15 border-brand-yellow/40 text-brand-yellow'
+                : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
+            }`}
+          >
+            Link externo
+          </button>
+        </div>
+
+        {!useExternalUrl ? (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              name="pdf_file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+            />
+            {selectedFile ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <FileText className="h-4 w-4 text-green-400 shrink-0" />
+                <span className="text-sm text-green-300 flex-1 truncate">{selectedFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                  className="text-white/30 hover:text-red-400 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex flex-col items-center gap-2 p-6 rounded-lg border border-dashed border-white/15 hover:border-brand-yellow/40 hover:bg-brand-yellow/5 transition-colors"
+              >
+                <Upload className="h-7 w-7 text-white/30" />
+                <span className="text-sm text-white/50">Clique para selecionar um PDF</span>
+                <span className="text-xs text-white/30">Apenas PDF · Máximo 50 MB</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Input
+              name="file_url"
+              type="url"
+              placeholder="https://drive.google.com/..."
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            />
+            <FieldError messages={state.errors?.file_url} />
+          </div>
+        )}
       </div>
 
       {/* Cliente (opcional) */}

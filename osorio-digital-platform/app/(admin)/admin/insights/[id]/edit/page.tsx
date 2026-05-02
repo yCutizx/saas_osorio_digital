@@ -3,10 +3,12 @@ import { ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { NewInsightForm } from './new-insight-form'
+import { redirect, notFound } from 'next/navigation'
+import { EditInsightForm } from './edit-insight-form'
 
-export default async function NewInsightPage() {
+const ALLOWED = ['admin', 'traffic_manager', 'social_media']
+
+export default async function EditInsightPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,11 +17,18 @@ export default async function NewInsightPage() {
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  const ALLOWED = ['admin', 'traffic_manager', 'social_media']
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/admin/dashboard')
 
+  const { data: insight } = await supabase
+    .from('insights')
+    .select('id, title, content, cover_url, tags, published')
+    .eq('id', params.id)
+    .single()
+
+  if (!insight) notFound()
+
   return (
-    <AppLayout pageTitle="Novo Insight">
+    <AppLayout pageTitle="Editar Insight">
       <div className="max-w-2xl mx-auto space-y-6">
         <Link
           href="/admin/insights"
@@ -31,7 +40,7 @@ export default async function NewInsightPage() {
 
         <Card className="bg-card border-border">
           <CardContent className="p-6">
-            <NewInsightForm />
+            <EditInsightForm insight={insight} />
           </CardContent>
         </Card>
       </div>
