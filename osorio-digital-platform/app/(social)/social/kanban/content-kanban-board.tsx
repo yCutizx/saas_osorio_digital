@@ -327,7 +327,7 @@ function DeleteConfirm({ card, onClose }: { card: KanbanCard; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-sm p-6 space-y-4">
-        <p className="text-white text-sm">Excluir o card <strong>"{card.title}"</strong>? Esta ação não pode ser desfeita.</p>
+        <p className="text-white text-sm">Excluir o card <strong>&quot;{card.title}&quot;</strong>? Esta ação não pode ser desfeita.</p>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white transition-colors">Cancelar</button>
           <button onClick={handleDelete} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors">Excluir</button>
@@ -339,7 +339,7 @@ function DeleteConfirm({ card, onClose }: { card: KanbanCard; onClose: () => voi
 
 // ─── Main board ───────────────────────────────────────────────────────────────
 
-export function ContentKanbanBoard({ initialCards, members, clients, userRole }: Props) {
+export function ContentKanbanBoard({ initialCards, members, clients }: Props) {
   const [cards, setCards] = useState<KanbanCard[]>(initialCards)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
