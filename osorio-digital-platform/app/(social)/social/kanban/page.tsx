@@ -39,7 +39,8 @@ export default async function SocialKanbanPage() {
   return (
     <AppLayout pageTitle="Kanban de Conteúdo">
       <ContentKanbanBoard
-        initialCards={cards ?? []}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        initialCards={(cards ?? []) as any[]}
         members={members ?? []}
         clients={clients ?? []}
         userRole={profile!.role}

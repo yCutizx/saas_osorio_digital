@@ -50,7 +50,8 @@ export default async function AdminKanbanPage() {
   return (
     <AppLayout pageTitle="Kanban da Agência">
       <AgencyKanbanBoard
-        initialCards={cards ?? []}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        initialCards={(cards ?? []) as any[]}
         members={members ?? []}
         clients={clients ?? []}
         userRole={profile!.role}
