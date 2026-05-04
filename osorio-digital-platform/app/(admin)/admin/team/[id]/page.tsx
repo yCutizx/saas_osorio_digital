@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, Pencil, TrendingUp, Camera,
   CheckCircle2, Clock, Loader2 as Spinner, Trash2,
-  AlertTriangle, ChevronRight, Plus,
+  ChevronRight, Plus,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
