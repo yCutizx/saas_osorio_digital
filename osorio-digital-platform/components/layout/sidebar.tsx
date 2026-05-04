@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +28,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
     { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
+    { label: 'Kanban',     href: '/admin/kanban',         icon: LayoutList },
   ],
   traffic_manager: [
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
@@ -41,6 +42,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Tráfego',    href: '/traffic/dashboard', icon: TrendingUp },
     { label: 'Insights',   href: '/admin/insights',    icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',    icon: FileSearch },
+    { label: 'Kanban',     href: '/social/kanban',     icon: LayoutList },
   ],
 }
 
