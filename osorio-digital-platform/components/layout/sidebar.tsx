@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
-  LayoutDashboard, Users, TrendingUp, Calendar,
+  LayoutDashboard, Users, Users2, TrendingUp, Calendar,
   Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -22,6 +22,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
   admin: [
     { label: 'Dashboard',  href: '/admin/dashboard',      icon: LayoutDashboard },
     { label: 'Clientes',   href: '/admin/clients',        icon: Users },
+    { label: 'Equipe',     href: '/admin/team',           icon: Users2 },
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
     { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
