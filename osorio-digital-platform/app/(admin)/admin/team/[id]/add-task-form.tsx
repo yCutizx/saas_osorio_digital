@@ -1,7 +1,6 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useRef } from 'react'
 import { createTaskAction, type TaskFormState } from './actions'
 import { Input }    from '@/components/ui/input'
 import { Label }    from '@/components/ui/label'
@@ -25,18 +24,9 @@ function SubmitButton() {
 
 export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clients: Client[] }) {
   const [state, action] = useFormState<TaskFormState, FormData>(createTaskAction, {})
-  const formRef = useRef<HTMLFormElement>(null)
-
-  async function handleAction(formData: FormData) {
-    const result = await action(formData)
-    if (!result?.message && !result?.errors) {
-      formRef.current?.reset()
-    }
-    return result
-  }
 
   return (
-    <form ref={formRef} action={handleAction} className="space-y-4">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="assigned_to" value={assignedTo} />
 
       {state.message && (
