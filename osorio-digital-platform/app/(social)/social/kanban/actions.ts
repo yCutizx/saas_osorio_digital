@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -24,7 +25,52 @@ async function getCtx() {
   return { supabase, admin: createAdminClient(), user, role: profile!.role }
 }
 
+// ─── Board actions ─────────────────────────────────────────────────────────────
+
+const BoardSchema = z.object({
+  name:         z.string().min(1, 'Nome obrigatório'),
+  description:  z.string().optional(),
+  color:        z.string().min(1),
+  columns_json: z.string().min(1),
+})
+
+export async function createBoardAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const ctx = await getCtx()
+  if (!ctx) return { message: 'Não autorizado.' }
+
+  const result = BoardSchema.safeParse({
+    name:         formData.get('name'),
+    description:  (formData.get('description') as string) || undefined,
+    color:        formData.get('color'),
+    columns_json: formData.get('columns_json'),
+  })
+  if (!result.success) return { errors: result.error.flatten().fieldErrors as FormState['errors'] }
+
+  let columns: unknown
+  try { columns = JSON.parse(result.data.columns_json) } catch { return { message: 'Colunas inválidas.' } }
+
+  const { data, error } = await ctx.admin.from('kanban_boards').insert({
+    name:        result.data.name,
+    description: result.data.description ?? null,
+    color:       result.data.color,
+    board_type:  'content',
+    columns,
+    created_by:  ctx.user.id,
+  }).select('id').single()
+
+  if (error) return { message: error.message }
+
+  revalidatePath('/social/kanban')
+  redirect(`/social/kanban/${data.id}`)
+}
+
+// ─── Card actions ─────────────────────────────────────────────────────────────
+
 const CardSchema = z.object({
+  board_id:    z.string().uuid(),
   column_id:   z.string().min(1),
   title:       z.string().min(1, 'Título obrigatório'),
   description: z.string().optional(),
@@ -46,6 +92,7 @@ export async function createCardAction(
   if (!ctx) return { message: 'Não autorizado.' }
 
   const result = CardSchema.safeParse({
+    board_id:    formData.get('board_id'),
     column_id:   formData.get('column_id'),
     title:       formData.get('title'),
     description: (formData.get('description') as string) || undefined,
@@ -58,13 +105,13 @@ export async function createCardAction(
     platform:    (formData.get('platform') as string) || '',
     tags_raw:    (formData.get('tags_raw') as string) || undefined,
   })
-
   if (!result.success) return { errors: result.error.flatten().fieldErrors as FormState['errors'] }
 
   const d    = result.data
   const tags = d.tags_raw ? d.tags_raw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean) : []
 
   const { error } = await ctx.admin.from('kanban_cards').insert({
+    board_id:    d.board_id,
     board_type:  'content',
     column_id:   d.column_id,
     title:       d.title,
@@ -83,7 +130,7 @@ export async function createCardAction(
 
   if (error) return { message: error.message }
 
-  revalidatePath('/social/kanban')
+  revalidatePath(`/social/kanban/${d.board_id}`)
   return { success: true }
 }
 
@@ -98,6 +145,7 @@ export async function updateCardAction(
 
   const result = UpdateSchema.safeParse({
     card_id:     formData.get('card_id'),
+    board_id:    formData.get('board_id'),
     column_id:   formData.get('column_id'),
     title:       formData.get('title'),
     description: (formData.get('description') as string) || undefined,
@@ -110,7 +158,6 @@ export async function updateCardAction(
     platform:    (formData.get('platform') as string) || '',
     tags_raw:    (formData.get('tags_raw') as string) || undefined,
   })
-
   if (!result.success) return { errors: result.error.flatten().fieldErrors as FormState['errors'] }
 
   const d    = result.data
@@ -131,22 +178,22 @@ export async function updateCardAction(
 
   if (error) return { message: error.message }
 
-  revalidatePath('/social/kanban')
+  revalidatePath(`/social/kanban/${d.board_id}`)
   return { success: true }
 }
 
-export async function deleteCard(cardId: string): Promise<void> {
+export async function deleteCard(cardId: string, boardId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').delete().eq('id', cardId)
-  revalidatePath('/social/kanban')
+  revalidatePath(`/social/kanban/${boardId}`)
 }
 
 export async function moveCard(cardId: string, newColumnId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
 
-  await ctx.supabase.from('kanban_cards')
+  await ctx.admin.from('kanban_cards')
     .update({ column_id: newColumnId, position: Date.now() })
     .eq('id', cardId)
 
@@ -170,7 +217,7 @@ export async function moveCard(cardId: string, newColumnId: string): Promise<voi
         to:      clientEmail,
         subject: 'Novo conteúdo aguarda sua aprovação',
         html:    `<p>Olá${clientName ? `, <strong>${clientName}</strong>` : ''}!</p>
-                  <p>Um novo conteúdo <strong>"${card?.title}"</strong> está aguardando sua aprovação na plataforma Osorio Digital.</p>
+                  <p>Um novo conteúdo <strong>&quot;${card?.title}&quot;</strong> está aguardando sua aprovação na plataforma Osorio Digital.</p>
                   <p>Acesse a plataforma para revisar e aprovar.</p>`,
       }).catch(() => {/* silencia erros de e-mail */})
     }

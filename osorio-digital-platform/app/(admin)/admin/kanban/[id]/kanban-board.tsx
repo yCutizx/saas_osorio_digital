@@ -5,16 +5,29 @@ import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCorners, type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
-import {
-  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
-} from '@dnd-kit/sortable'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useFormState } from 'react-dom'
-import { createCardAction, updateCardAction, deleteCard, moveCard, type FormState } from './actions'
-import { Plus, X, GripVertical, Pencil, Trash2, Calendar, Tag, User, Building2, Film, Globe } from 'lucide-react'
+import { createCardAction, updateCardAction, deleteCard, moveCard, type FormState } from '../actions'
+import {
+  Plus, X, GripVertical, Pencil, Trash2, Calendar, Tag,
+  User, Building2, Film, Globe, ChevronLeft, Settings,
+} from 'lucide-react'
+import Link from 'next/link'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Column { id: string; label: string; color: string }
+
+interface Board {
+  id: string
+  name: string
+  description?: string | null
+  color: string
+  board_type: 'agency' | 'content'
+  columns: Column[]
+}
 
 interface KanbanCard {
   id: string
@@ -30,52 +43,32 @@ interface KanbanCard {
   format?: string | null
   platform?: string | null
   position: number
-  created_at: string
   clients?: { name: string } | null
   profiles?: { full_name: string } | null
 }
 
-interface Member { id: string; full_name: string; email: string }
+interface Member { id: string; full_name: string; email: string; role: string }
 interface Client { id: string; name: string }
 
 interface Props {
+  board: Board
   initialCards: KanbanCard[]
   members: Member[]
   clients: Client[]
-  userRole: string
 }
-
-// ─── Columns config ───────────────────────────────────────────────────────────
-
-const COLUMNS = [
-  { id: 'idea',        label: 'Ideia',      color: '#8b5cf6' },
-  { id: 'production',  label: 'Produção',   color: '#3b82f6' },
-  { id: 'approval',    label: 'Aprovação',  color: '#f59e0b' },
-  { id: 'scheduled',   label: 'Agendado',   color: '#06b6d4' },
-  { id: 'published',   label: 'Publicado',  color: '#22c55e' },
-]
 
 const PRIORITY_COLOR = { baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444' }
 const PRIORITY_LABEL = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
+const FORMAT_LABEL: Record<string, string> = { reels: 'Reels', feed: 'Feed', stories: 'Stories', carrossel: 'Carrossel' }
+const PLATFORM_LABEL: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn' }
 
-const FORMAT_LABEL: Record<string, string> = {
-  reels: 'Reels', feed: 'Feed', stories: 'Stories', carrossel: 'Carrossel',
-}
-const PLATFORM_LABEL: Record<string, string> = {
-  instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn',
-}
+// ─── Sortable card ────────────────────────────────────────────────────────────
 
-// ─── Card component ───────────────────────────────────────────────────────────
-
-function SortableCard({
-  card, onEdit, isDragging,
-}: { card: KanbanCard; onEdit: (c: KanbanCard) => void; isDragging?: boolean }) {
+function SortableCard({ card, onEdit, isDragging, isContent }: {
+  card: KanbanCard; onEdit: (c: KanbanCard) => void; isDragging?: boolean; isContent: boolean
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  }
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
   return (
     <div ref={setNodeRef} style={style} className="bg-[#111] border border-[#222] rounded-xl p-3 space-y-2 group">
       <div className="flex items-start gap-2">
@@ -84,25 +77,23 @@ function SortableCard({
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-white font-medium leading-snug">{card.title}</p>
-          {card.description && (
-            <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>
-          )}
+          {card.description && <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
         </div>
         <button onClick={() => onEdit(card)} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-white/30 hover:text-white">
           <Pencil className="h-3.5 w-3.5" />
         </button>
       </div>
-
       <div className="flex flex-wrap gap-1.5 pl-6">
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: PRIORITY_COLOR[card.priority] + '20', color: PRIORITY_COLOR[card.priority] }}>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+          style={{ background: PRIORITY_COLOR[card.priority] + '20', color: PRIORITY_COLOR[card.priority] }}>
           {PRIORITY_LABEL[card.priority]}
         </span>
-        {card.format && (
+        {isContent && card.format && (
           <span className="flex items-center gap-1 text-[10px] text-purple-400">
             <Film className="h-3 w-3" />{FORMAT_LABEL[card.format] ?? card.format}
           </span>
         )}
-        {card.platform && (
+        {isContent && card.platform && (
           <span className="flex items-center gap-1 text-[10px] text-cyan-400">
             <Globe className="h-3 w-3" />{PLATFORM_LABEL[card.platform] ?? card.platform}
           </span>
@@ -134,14 +125,9 @@ function SortableCard({
 
 // ─── Droppable column ─────────────────────────────────────────────────────────
 
-function DroppableColumn({
-  col, cards, onAdd, onEdit, activeId,
-}: {
-  col: typeof COLUMNS[0]
-  cards: KanbanCard[]
-  onAdd: (colId: string) => void
-  onEdit: (c: KanbanCard) => void
-  activeId: string | null
+function DroppableColumn({ col, cards, onAdd, onEdit, activeId, isContent }: {
+  col: Column; cards: KanbanCard[]; onAdd: (id: string) => void
+  onEdit: (c: KanbanCard) => void; activeId: string | null; isContent: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id })
   return (
@@ -156,11 +142,10 @@ function DroppableColumn({
           <Plus className="h-4 w-4" />
         </button>
       </div>
-
       <div ref={setNodeRef} className="flex-1 p-2 space-y-2">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} onEdit={onEdit} isDragging={activeId === card.id} />
+            <SortableCard key={card.id} card={card} onEdit={onEdit} isDragging={activeId === card.id} isContent={isContent} />
           ))}
         </SortableContext>
       </div>
@@ -172,29 +157,20 @@ function DroppableColumn({
 
 const INIT: FormState = {}
 
-function CardModal({
-  mode, card, defaultColId, members, clients, onClose, onDelete,
-}: {
-  mode: 'create' | 'edit'
-  card?: KanbanCard
-  defaultColId: string
-  members: Member[]
-  clients: Client[]
-  onClose: () => void
-  onDelete?: () => void
+function CardModal({ mode, card, defaultColId, boardId, members, clients, isContent, onClose, onDelete }: {
+  mode: 'create' | 'edit'; card?: KanbanCard; defaultColId: string; boardId: string
+  members: Member[]; clients: Client[]; isContent: boolean; onClose: () => void; onDelete?: () => void
 }) {
   const action = mode === 'create' ? createCardAction : updateCardAction
   const [state, dispatch] = useFormState(action, INIT)
 
-  useEffect(() => {
-    if (state.success) onClose()
-  }, [state.success]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state.success) onClose() }, [state.success]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222]">
-          <h2 className="text-white font-semibold">{mode === 'create' ? 'Novo Card de Conteúdo' : 'Editar Card'}</h2>
+          <h2 className="text-white font-semibold">{mode === 'create' ? 'Novo Card' : 'Editar Card'}</h2>
           <div className="flex gap-2">
             {onDelete && (
               <button onClick={onDelete} className="text-red-400/60 hover:text-red-400 transition-colors">
@@ -204,9 +180,9 @@ function CardModal({
             <button onClick={onClose} className="text-white/30 hover:text-white"><X className="h-4 w-4" /></button>
           </div>
         </div>
-
         <form action={dispatch} className="p-5 space-y-4">
           {mode === 'edit' && <input type="hidden" name="card_id" value={card!.id} />}
+          <input type="hidden" name="board_id" value={boardId} />
           <input type="hidden" name="column_id" value={card?.column_id ?? defaultColId} />
 
           {state.message && <p className="text-red-400 text-sm">{state.message}</p>}
@@ -219,35 +195,37 @@ function CardModal({
           </div>
 
           <div>
-            <label className="text-xs text-white/50 mb-1 block">Descrição / Briefing</label>
+            <label className="text-xs text-white/50 mb-1 block">{isContent ? 'Descrição / Briefing' : 'Descrição'}</label>
             <textarea name="description" defaultValue={card?.description ?? ''} rows={3}
               className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00] resize-none" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-white/50 mb-1 block">Formato</label>
-              <select name="format" defaultValue={card?.format ?? ''}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
-                <option value="">— Nenhum —</option>
-                <option value="reels">Reels</option>
-                <option value="feed">Feed</option>
-                <option value="stories">Stories</option>
-                <option value="carrossel">Carrossel</option>
-              </select>
+          {isContent && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Formato</label>
+                <select name="format" defaultValue={card?.format ?? ''}
+                  className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
+                  <option value="">— Nenhum —</option>
+                  <option value="reels">Reels</option>
+                  <option value="feed">Feed</option>
+                  <option value="stories">Stories</option>
+                  <option value="carrossel">Carrossel</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Plataforma</label>
+                <select name="platform" defaultValue={card?.platform ?? ''}
+                  className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
+                  <option value="">— Nenhuma —</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="linkedin">LinkedIn</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="text-xs text-white/50 mb-1 block">Plataforma</label>
-              <select name="platform" defaultValue={card?.platform ?? ''}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
-                <option value="">— Nenhuma —</option>
-                <option value="instagram">Instagram</option>
-                <option value="facebook">Facebook</option>
-                <option value="tiktok">TikTok</option>
-                <option value="linkedin">LinkedIn</option>
-              </select>
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -293,8 +271,7 @@ function CardModal({
 
           <div>
             <label className="text-xs text-white/50 mb-1 block">Tags (separadas por vírgula)</label>
-            <input name="tags_raw" defaultValue={card?.tags?.join(', ') ?? ''}
-              placeholder="ex: ugc, campanha"
+            <input name="tags_raw" defaultValue={card?.tags?.join(', ') ?? ''} placeholder="ex: urgente, revisão"
               className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]" />
           </div>
 
@@ -314,15 +291,12 @@ function CardModal({
   )
 }
 
-// ─── Delete confirmation ───────────────────────────────────────────────────────
+// ─── Delete card confirm ──────────────────────────────────────────────────────
 
-function DeleteConfirm({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
+function DeleteConfirm({ card, boardId, onClose }: { card: KanbanCard; boardId: string; onClose: () => void }) {
   const [, startT] = useTransition()
   function handleDelete() {
-    startT(async () => {
-      await deleteCard(card.id)
-      onClose()
-    })
+    startT(async () => { await deleteCard(card.id, boardId); onClose() })
   }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -339,115 +313,117 @@ function DeleteConfirm({ card, onClose }: { card: KanbanCard; onClose: () => voi
 
 // ─── Main board ───────────────────────────────────────────────────────────────
 
-export function ContentKanbanBoard({ initialCards, members, clients }: Props) {
+export function KanbanBoard({ board, initialCards, members, clients }: Props) {
   const [cards, setCards] = useState<KanbanCard[]>(initialCards)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
-  const [filterClient, setFilterClient]   = useState('')
-  const [filterPlatform, setFilterPlatform] = useState('')
+  const [filterMember, setFilterMember] = useState('')
+  const [filterClient, setFilterClient] = useState('')
 
   const [createColId, setCreateColId]       = useState<string | null>(null)
   const [editCard, setEditCard]             = useState<KanbanCard | null>(null)
   const [deleteCardItem, setDeleteCardItem] = useState<KanbanCard | null>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-
+  const sensors  = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const activeCard = cards.find((c) => c.id === activeId) ?? null
+  const isContent  = board.board_type === 'content'
 
   function cardsForCol(colId: string) {
-    return cards
-      .filter((c) => {
-        if (c.column_id !== colId) return false
-        if (filterClient   && c.client_id !== filterClient)     return false
-        if (filterPlatform && c.platform  !== filterPlatform)   return false
-        return true
-      })
-      .sort((a, b) => a.position - b.position)
+    return cards.filter((c) => {
+      if (c.column_id !== colId) return false
+      if (filterMember && c.assigned_to !== filterMember) return false
+      if (filterClient && c.client_id !== filterClient) return false
+      return true
+    }).sort((a, b) => a.position - b.position)
   }
 
-  function onDragStart({ active }: DragStartEvent) {
-    setActiveId(active.id as string)
-  }
+  function onDragStart({ active }: DragStartEvent) { setActiveId(active.id as string) }
 
   function onDragEnd({ active, over }: DragEndEvent) {
     setActiveId(null)
     if (!over) return
-
-    const activeCard = cards.find((c) => c.id === active.id)
-    if (!activeCard) return
-
-    const overId = over.id as string
-    const targetCol = COLUMNS.find((col) => col.id === overId)
-      ?? COLUMNS.find((col) => cards.find((c) => c.id === overId)?.column_id === col.id)
-
+    const ac = cards.find((c) => c.id === active.id)
+    if (!ac) return
+    const overId    = over.id as string
+    const targetCol = board.columns.find((col) => col.id === overId)
+      ?? board.columns.find((col) => cards.find((c) => c.id === overId)?.column_id === col.id)
     if (!targetCol) return
     const newColId = targetCol.id
 
     setCards((prev) => {
-      const sourceCards = prev.filter((c) => c.column_id === activeCard.column_id).sort((a, b) => a.position - b.position)
-      const destCards   = prev.filter((c) => c.column_id === newColId && c.id !== activeCard.id).sort((a, b) => a.position - b.position)
+      const srcCards  = prev.filter((c) => c.column_id === ac.column_id).sort((a, b) => a.position - b.position)
+      const destCards = prev.filter((c) => c.column_id === newColId && c.id !== ac.id).sort((a, b) => a.position - b.position)
 
-      if (activeCard.column_id === newColId) {
-        const overIdx   = sourceCards.findIndex((c) => c.id === overId)
-        const activeIdx = sourceCards.findIndex((c) => c.id === activeCard.id)
-        if (overIdx === -1 || activeIdx === overIdx) return prev
-        const reordered = arrayMove(sourceCards, activeIdx, overIdx).map((c, i) => ({ ...c, position: i }))
-        return prev.filter((c) => c.column_id !== newColId).concat(reordered)
+      if (ac.column_id === newColId) {
+        const oIdx = srcCards.findIndex((c) => c.id === overId)
+        const aIdx = srcCards.findIndex((c) => c.id === ac.id)
+        if (oIdx === -1 || aIdx === oIdx) return prev
+        return prev.filter((c) => c.column_id !== newColId)
+          .concat(arrayMove(srcCards, aIdx, oIdx).map((c, i) => ({ ...c, position: i })))
       }
 
-      const overIdx = destCards.findIndex((c) => c.id === overId)
-      const insertAt = overIdx === -1 ? destCards.length : overIdx
-      destCards.splice(insertAt, 0, { ...activeCard, column_id: newColId })
-      const reordered = destCards.map((c, i) => ({ ...c, position: i }))
-      return prev
-        .filter((c) => c.column_id !== activeCard.column_id && c.column_id !== newColId)
-        .concat(prev.filter((c) => c.column_id === activeCard.column_id && c.id !== activeCard.id).sort((a, b) => a.position - b.position).map((c, i) => ({ ...c, position: i })))
-        .concat(reordered)
+      const oIdx = destCards.findIndex((c) => c.id === overId)
+      destCards.splice(oIdx === -1 ? destCards.length : oIdx, 0, { ...ac, column_id: newColId })
+      return prev.filter((c) => c.column_id !== ac.column_id && c.column_id !== newColId)
+        .concat(prev.filter((c) => c.column_id === ac.column_id && c.id !== ac.id).sort((a, b) => a.position - b.position).map((c, i) => ({ ...c, position: i })))
+        .concat(destCards.map((c, i) => ({ ...c, position: i })))
     })
 
-    if (activeCard.column_id !== newColId) {
-      startTransition(() => { moveCard(activeCard.id, newColId) })
-    }
+    if (ac.column_id !== newColId) startTransition(() => { moveCard(ac.id, newColId) })
   }
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)}
-          className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#EACE00]">
-          <option value="">Todos os clientes</option>
-          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)}
-          className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#EACE00]">
-          <option value="">Todas as plataformas</option>
-          <option value="instagram">Instagram</option>
-          <option value="facebook">Facebook</option>
-          <option value="tiktok">TikTok</option>
-          <option value="linkedin">LinkedIn</option>
-        </select>
-        {(filterClient || filterPlatform) && (
-          <button onClick={() => { setFilterClient(''); setFilterPlatform('') }}
-            className="px-3 py-1.5 rounded-lg border border-[#333] text-sm text-white/40 hover:text-white transition-colors">
-            Limpar filtros
-          </button>
-        )}
+      {/* Breadcrumb + controles */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <Link href="/admin/kanban"
+            className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors">
+            <ChevronLeft className="h-4 w-4" />Quadros
+          </Link>
+          <span className="text-white/20">/</span>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: board.color }} />
+            <span className="text-white text-sm font-semibold">{board.name}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)}
+            className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#EACE00]">
+            <option value="">Todos os membros</option>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+          </select>
+          <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)}
+            className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#EACE00]">
+            <option value="">Todos os clientes</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {(filterMember || filterClient) && (
+            <button onClick={() => { setFilterMember(''); setFilterClient('') }}
+              className="px-2.5 py-1.5 rounded-lg border border-[#333] text-xs text-white/40 hover:text-white transition-colors">
+              Limpar
+            </button>
+          )}
+          <Link href={`/admin/kanban/${board.id}/edit`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
+            <Settings className="h-3.5 w-3.5" />Configurar
+          </Link>
+        </div>
       </div>
 
       {/* Board */}
       <div className="overflow-x-auto pb-4">
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="flex gap-4 min-w-max">
-            {COLUMNS.map((col) => (
+            {board.columns.map((col) => (
               <DroppableColumn
-                key={col.id}
-                col={col}
+                key={col.id} col={col}
                 cards={cardsForCol(col.id)}
                 onAdd={(colId) => setCreateColId(colId)}
                 onEdit={(card) => setEditCard(card)}
                 activeId={activeId}
+                isContent={isContent}
               />
             ))}
           </div>
@@ -462,23 +438,18 @@ export function ContentKanbanBoard({ initialCards, members, clients }: Props) {
       </div>
 
       {editCard && (
-        <CardModal
-          mode="edit"
-          card={editCard}
-          defaultColId={editCard.column_id}
-          members={members}
-          clients={clients}
+        <CardModal mode="edit" card={editCard} defaultColId={editCard.column_id} boardId={board.id}
+          members={members} clients={clients} isContent={isContent}
           onClose={() => setEditCard(null)}
-          onDelete={() => { setDeleteCardItem(editCard); setEditCard(null) }}
-        />
+          onDelete={() => { setDeleteCardItem(editCard); setEditCard(null) }} />
       )}
-
       {createColId && !editCard && (
-        <CardModal mode="create" defaultColId={createColId} members={members} clients={clients} onClose={() => setCreateColId(null)} />
+        <CardModal mode="create" defaultColId={createColId} boardId={board.id}
+          members={members} clients={clients} isContent={isContent}
+          onClose={() => setCreateColId(null)} />
       )}
-
       {deleteCardItem && (
-        <DeleteConfirm card={deleteCardItem} onClose={() => setDeleteCardItem(null)} />
+        <DeleteConfirm card={deleteCardItem} boardId={board.id} onClose={() => setDeleteCardItem(null)} />
       )}
     </div>
   )
