@@ -42,7 +42,7 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
 
   if (!board) notFound()
 
-  const cardSelect = 'id, column_id, title, description, client_id, assigned_to, due_date, due_time, priority, tags, format, platform, position, created_at, clients(name), profiles(full_name)'
+  const cardSelect = 'id, column_id, title, description, client_id, assigned_to, due_date, due_time, priority, tags, format, platform, position, created_at, clients(name), profiles!kanban_cards_assigned_to_fkey(full_name)'
 
   const { data: cards, error: cardsError } = await adminSupabase
     .from('kanban_cards')
