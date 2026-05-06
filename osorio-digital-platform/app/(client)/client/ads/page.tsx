@@ -4,11 +4,12 @@ import {
   DollarSign, Eye, MousePointerClick, TrendingUp,
   BarChart2, AlertTriangle, CheckCircle2, XCircle, Zap, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
-import { AppLayout }       from '@/components/layout/app-layout'
-import { createClient }    from '@/lib/supabase/server'
-import { requireMinPlan }  from '@/lib/client-plan'
-import { TrafficCharts }   from '@/app/(traffic)/traffic/dashboard/traffic-charts'
-import { formatCurrency }  from '@/lib/utils'
+import { AppLayout }        from '@/components/layout/app-layout'
+import { createClient }     from '@/lib/supabase/server'
+import { requireMinPlan }   from '@/lib/client-plan'
+import { TrafficCharts }    from '@/app/(traffic)/traffic/dashboard/traffic-charts'
+import { TrafficHeroCard }  from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
+import { formatCurrency }   from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from '@/app/(traffic)/traffic/dashboard/traffic-charts'
 
 // ── types ────────────────────────────────────────────────────────────────────
@@ -21,6 +22,8 @@ type Report = {
   impressions:  number
   clicks:       number
   conversions:  number
+  reach:        number
+  result_type:  string
   campaigns:    { name: string; platform: string } | null
 }
 
@@ -31,11 +34,22 @@ function computeStats(reports: Report[]) {
   const conversions = reports.reduce((s, r) => s + r.conversions, 0)
   const clicks      = reports.reduce((s, r) => s + r.clicks, 0)
   const impressions = reports.reduce((s, r) => s + r.impressions, 0)
+  const reach       = reports.reduce((s, r) => s + (r.reach ?? 0), 0)
   const roas = spend > 0 ? revenue / spend : 0
   const ctr  = impressions > 0 ? (clicks / impressions) * 100 : 0
   const cpc  = clicks > 0 ? spend / clicks : 0
   const cpa  = conversions > 0 ? spend / conversions : 0
-  return { spend, revenue, conversions, clicks, impressions, roas, ctr, cpc, cpa }
+  return { spend, revenue, conversions, clicks, impressions, reach, roas, ctr, cpc, cpa }
+}
+
+function getResultType(reports: Report[]): string {
+  const counts = new Map<string, number>()
+  for (const r of reports) {
+    if (r.result_type) counts.set(r.result_type, (counts.get(r.result_type) ?? 0) + 1)
+  }
+  let best = '', bestCount = 0
+  counts.forEach((c, k) => { if (c > bestCount) { best = k; bestCount = c } })
+  return best
 }
 
 function buildDailyData(reports: Report[]): DailyPoint[] {
@@ -159,7 +173,7 @@ export default async function ClientAdsPage() {
 
   const { data: rawReports } = await supabase
     .from('traffic_reports')
-    .select('id, campaign_id, period_start, spend, revenue, impressions, clicks, conversions, campaigns(name, platform)')
+    .select('id, campaign_id, period_start, spend, revenue, impressions, clicks, conversions, reach, result_type, campaigns(name, platform)')
     .eq('client_id', clientId)
     .gte('period_start', startDate)
     .lte('period_end', endDate)
@@ -169,6 +183,7 @@ export default async function ClientAdsPage() {
   const stats        = computeStats(reports)
   const dailyData    = buildDailyData(reports)
   const campaignRows = buildCampaignRows(reports)
+  const resultType   = getResultType(reports)
 
   const alerts: { level: 'critico' | 'atencao' | 'ok'; msg: string }[] = []
   if (stats.roas < 1 && stats.spend > 0)
@@ -203,30 +218,13 @@ export default async function ClientAdsPage() {
         ) : (
           <>
             {/* Hero Card */}
-            <div className="rounded-2xl bg-gradient-to-br from-[#EACE00]/15 to-[#EACE00]/5 border border-[#EACE00]/20 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-white/50 uppercase tracking-wider mb-1">Resultado principal</p>
-                <div className="flex items-end gap-3">
-                  <span className="text-6xl font-black text-white leading-none">
-                    {stats.conversions.toLocaleString('pt-BR')}
-                  </span>
-                  <span className="text-white/60 text-base pb-1">
-                    conversõe{stats.conversions !== 1 ? 's' : ''} gerada{stats.conversions !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <p className="text-white/40 text-sm mt-2">
-                  em {period} dias · {formatCurrency(stats.spend)} investidos
-                </p>
-              </div>
-              <div className="flex flex-col items-start sm:items-end gap-1">
-                <span className="text-xs text-white/40 uppercase tracking-wider">ROAS</span>
-                <span className={`text-3xl font-bold ${stats.roas >= 2 ? 'text-green-400' : stats.roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}`}>
-                  {stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'}
-                </span>
-                {stats.roas >= 2 && <span className="text-green-400 text-xs flex items-center gap-1"><ArrowUpRight className="h-3 w-3" />Acima da meta</span>}
-                {stats.roas > 0 && stats.roas < 2 && <span className="text-yellow-400 text-xs flex items-center gap-1"><ArrowDownRight className="h-3 w-3" />Abaixo da meta</span>}
-              </div>
-            </div>
+            <TrafficHeroCard
+              from={startDate}
+              to={endDate}
+              stats={stats}
+              campaignCount={campaignRows.length}
+              resultType={resultType}
+            />
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

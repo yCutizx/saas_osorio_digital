@@ -116,6 +116,8 @@ export async function importMetaReportAction(
       clicks:       row.clicks,
       conversions:  row.results,
       spend:        row.spend,
+      reach:        row.reach       || 0,
+      result_type:  row.result_type || '',
       cpm:          row.cpm  || null,
       cpc:          row.cpc  || null,
       ctr:          row.ctr  || null,
