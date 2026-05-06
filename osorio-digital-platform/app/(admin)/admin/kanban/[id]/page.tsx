@@ -52,8 +52,9 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
     .order('position', { ascending: true })
 
   if (cardsError) console.error('[admin/kanban] cards error:', cardsError.message)
-  console.log('[admin/kanban] board columns:', JSON.stringify((board as any).columns?.map((c: any) => c.id)))
-  console.log('[admin/kanban] card column_ids:', JSON.stringify((cards ?? []).map((c: any) => c.column_id)))
+  const boardColumns = (board as { columns?: { id: string }[] }).columns ?? []
+  console.log('[admin/kanban] board columns:', JSON.stringify(boardColumns.map((c) => c.id)))
+  console.log('[admin/kanban] card column_ids:', JSON.stringify((cards ?? []).map((c) => (c as { column_id: string }).column_id)))
 
   return (
     <AppLayout pageTitle={board.name}>
