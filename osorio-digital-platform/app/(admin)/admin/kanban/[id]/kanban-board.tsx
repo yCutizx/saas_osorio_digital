@@ -21,6 +21,7 @@ import {
   User, Building2, Film, Globe, ChevronLeft, Settings, MoreHorizontal,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -306,9 +307,15 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, isCont
   mode: 'create' | 'edit'; card?: KanbanCard; defaultColId: string; boardId: string
   members: Member[]; clients: Client[]; isContent: boolean; onClose: () => void; onDelete?: () => void
 }) {
+  const router = useRouter()
   const action = mode === 'create' ? createCardAction : updateCardAction
   const [state, dispatch] = useFormState(action, INIT)
-  useEffect(() => { if (state.success) onClose() }, [state.success]) // eslint-disable-line
+  useEffect(() => {
+    if (state.success) {
+      onClose()
+      router.refresh() // força o Server Component a rebuscar initialCards com o novo card
+    }
+  }, [state.success]) // eslint-disable-line
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
