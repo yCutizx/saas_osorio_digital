@@ -155,9 +155,11 @@ export async function importMetaReportAction(
 
     if (dailyErr) {
       console.error('[import] traffic_daily upsert error:', dailyErr.message)
-    } else {
-      console.log(`[import] traffic_daily upserted: ${count ?? dailyToInsert.length} rows`)
+      return { message: `Erro ao salvar dados diários (gráfico): ${dailyErr.message}` }
     }
+    console.log(`[import] traffic_daily upserted: ${count ?? dailyToInsert.length} rows`)
+  } else {
+    console.warn('[import] dailyToInsert is empty — campaign name mismatch or no daily rows')
   }
 
   if (saved === 0 && skipped === 0)

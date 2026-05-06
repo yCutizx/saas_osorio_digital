@@ -9,9 +9,10 @@ import {
   PlusCircle, BarChart2, AlertTriangle, CheckCircle2,
   XCircle, Zap, Eye, ArrowUpRight, ArrowDownRight, Upload,
 } from 'lucide-react'
-import { AppLayout }      from '@/components/layout/app-layout'
-import { createClient }   from '@/lib/supabase/server'
-import { TrafficFilters } from './traffic-filters'
+import { AppLayout }        from '@/components/layout/app-layout'
+import { createClient }     from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { TrafficFilters }   from './traffic-filters'
 import { TrafficCharts }  from './traffic-charts'
 import { formatCurrency } from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from './traffic-charts'
@@ -192,20 +193,25 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
 
   const { data: reports } = await reportsQuery
 
-  // Busca dados diários para o gráfico (traffic_daily)
-  let dailyQuery = supabase
+  // Busca dados diários para o gráfico (traffic_daily).
+  // Usa admin client para contornar RLS (tabela sem políticas de leitura).
+  // client_id é sempre filtrado explicitamente para escopo correto.
+  const admin = createAdminClient()
+  let dailyQuery = admin
     .from('traffic_daily')
     .select('date, spend, impressions, clicks, conversions, client_id')
     .gte('date', startDate)
     .lte('date', endDate)
+    .order('date', { ascending: true })
 
   if (clientId) {
     dailyQuery = dailyQuery.eq('client_id', clientId)
-  } else if (profile?.role !== 'admin' && clients?.length) {
+  } else if (clients?.length) {
     dailyQuery = dailyQuery.in('client_id', clients.map((c) => c.id))
   }
 
-  const { data: dailyRecords } = await dailyQuery
+  const { data: dailyRecords, error: dailyErr } = await dailyQuery
+  if (dailyErr) console.error('[dashboard] traffic_daily query error:', dailyErr.message)
 
   // Filtra o dropdown para mostrar apenas clientes com dados no período
   const clientIdsWithReports = new Set((reports ?? []).map((r) => r.client_id))
