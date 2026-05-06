@@ -152,7 +152,7 @@ function groupByCampaign(daily: DailyRow[]): GroupedRow[] {
   }
 
   return Array.from(map.values()).map((v) => {
-    const sorted = [...new Set(v.dates)].sort()
+    const sorted = Array.from(new Set(v.dates)).sort()
     const { spend, impressions, clicks, results } = v
     return {
       campaign_name: v.name,
