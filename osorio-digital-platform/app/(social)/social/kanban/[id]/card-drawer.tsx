@@ -53,9 +53,8 @@ function Section({ icon: Icon, title, children }: {
   )
 }
 
-function ChecklistSection({ checklist, boardId, onDelete, onItemsChange }: {
+function ChecklistSection({ checklist, onDelete, onItemsChange }: {
   checklist: Checklist
-  boardId: string
   onDelete: (id: string) => void
   onItemsChange: (checklistId: string, items: Checklist['items']) => void
 }) {
@@ -132,7 +131,6 @@ function ChecklistSection({ checklist, boardId, onDelete, onItemsChange }: {
 export function CardDrawer({
   card, boardId, boardColumns, currentUserId, onClose, onDelete, onMoved, onArchived,
 }: Props) {
-  const [detail, setDetail]               = useState<CardDetail | null>(null)
   const [boardLabels, setBoardLabels]     = useState<Label[]>([])
   const [loading, setLoading]             = useState(true)
 
@@ -163,9 +161,6 @@ export function CardDrawer({
   const [moveColId, setMoveColId]         = useState(card.column_id)
   const [, startT]                        = useTransition()
 
-  // suppress unused warning — detail is set but only used to populate sub-states
-  void detail
-
   useEffect(() => {
     setLoading(true)
     Promise.all([getCardDetail(card.id), getBoardLabels(boardId)]).then(([d, bl]) => {
@@ -174,7 +169,6 @@ export function CardDrawer({
         setLabels(d.labels)
         setComments(d.comments)
         setAttachments(d.attachments)
-        setDetail(d)
       }
       setBoardLabels(bl)
       setLoading(false)
@@ -417,7 +411,7 @@ export function CardDrawer({
               <Section icon={CheckSquare} title="Checklists">
                 <div className="space-y-4">
                   {checklists.map((cl) => (
-                    <ChecklistSection key={cl.id} checklist={cl} boardId={boardId}
+                    <ChecklistSection key={cl.id} checklist={cl}
                       onDelete={handleDeleteChecklist} onItemsChange={handleItemsChange} />
                   ))}
                 </div>

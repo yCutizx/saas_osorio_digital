@@ -64,9 +64,8 @@ function Section({ icon: Icon, title, children }: {
 
 // ─── Checklist component ──────────────────────────────────────────────────────
 
-function ChecklistSection({ checklist, boardId, onDelete, onItemsChange }: {
+function ChecklistSection({ checklist, onDelete, onItemsChange }: {
   checklist: Checklist
-  boardId: string
   onDelete: (id: string) => void
   onItemsChange: (checklistId: string, items: Checklist['items']) => void
 }) {
@@ -145,7 +144,6 @@ function ChecklistSection({ checklist, boardId, onDelete, onItemsChange }: {
 export function CardDrawer({
   card, boardId, boardColumns, currentUserId, onClose, onDelete, onMoved, onArchived,
 }: Props) {
-  const [detail, setDetail]               = useState<CardDetail | null>(null)
   const [boardLabels, setBoardLabels]     = useState<Label[]>([])
   const [loading, setLoading]             = useState(true)
 
@@ -184,7 +182,6 @@ export function CardDrawer({
         setLabels(d.labels)
         setComments(d.comments)
         setAttachments(d.attachments)
-        setDetail(d)
       }
       setBoardLabels(bl)
       setLoading(false)
@@ -455,7 +452,6 @@ export function CardDrawer({
                     <ChecklistSection
                       key={cl.id}
                       checklist={cl}
-                      boardId={boardId}
                       onDelete={handleDeleteChecklist}
                       onItemsChange={handleItemsChange}
                     />
