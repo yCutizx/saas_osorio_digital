@@ -2,8 +2,8 @@
 
 import { useState, useRef, useTransition } from 'react'
 import Papa from 'papaparse'
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react'
-import { importMetaReportAction } from './actions'
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, X, Trash2 } from 'lucide-react'
+import { importMetaReportAction, clearClientDataAction } from './actions'
 
 // ── Mapeamento exato das colunas do Meta Ads Manager ─────────────────────────
 const COL = {
@@ -191,15 +191,17 @@ function fmtPct(n: number) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function ImportForm({ clients }: { clients: Client[] }) {
-  const [clientId, setClientId]   = useState(clients[0]?.id ?? '')
-  const [rows, setRows]           = useState<GroupedRow[]>([])
-  const [dailyRows, setDailyRows] = useState<DailyRow[]>([])
-  const [fileName, setFileName]   = useState('')
-  const [missingCols, setMissing] = useState<string[]>([])
-  const [error, setError]         = useState('')
-  const [success, setSuccess]     = useState<{ saved: number; skipped: number } | null>(null)
-  const [isPending, startT]       = useTransition()
-  const fileRef                   = useRef<HTMLInputElement>(null)
+  const [clientId, setClientId]     = useState(clients[0]?.id ?? '')
+  const [rows, setRows]             = useState<GroupedRow[]>([])
+  const [dailyRows, setDailyRows]   = useState<DailyRow[]>([])
+  const [fileName, setFileName]     = useState('')
+  const [missingCols, setMissing]   = useState<string[]>([])
+  const [error, setError]           = useState('')
+  const [success, setSuccess]       = useState<{ saved: number; skipped: number } | null>(null)
+  const [isPending, startT]         = useTransition()
+  const [isClearing, startClear]    = useTransition()
+  const [clearDone, setClearDone]   = useState(false)
+  const fileRef                     = useRef<HTMLInputElement>(null)
 
   function reset() {
     setRows([]); setDailyRows([]); setFileName(''); setMissing([]); setError('')
@@ -295,13 +297,42 @@ export function ImportForm({ clients }: { clients: Client[] }) {
         </label>
         <select
           value={clientId}
-          onChange={(e) => { setClientId(e.target.value); reset() }}
+          onChange={(e) => { setClientId(e.target.value); reset(); setClearDone(false) }}
           className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00] transition-colors"
         >
           {clients.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+
+        {/* Limpar dados de teste */}
+        <div className="pt-1 border-t border-white/5">
+          {clearDone ? (
+            <p className="text-green-400 text-xs flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Dados de tráfego deletados. Pode reimportar.
+            </p>
+          ) : (
+            <button
+              onClick={() => {
+                if (!confirm('Isso vai deletar TODOS os relatórios, campanhas Meta e dados diários deste cliente. Confirmar?')) return
+                setClearDone(false)
+                startClear(async () => {
+                  const result = await clearClientDataAction(clientId)
+                  if (result.error) setError(result.error)
+                  else { setClearDone(true); reset() }
+                })
+              }}
+              disabled={isClearing || !clientId}
+              className="flex items-center gap-1.5 text-xs text-red-400/60 hover:text-red-400 transition-colors disabled:opacity-40"
+            >
+              {isClearing
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Trash2 className="h-3.5 w-3.5" />}
+              {isClearing ? 'Limpando...' : 'Limpar dados de teste'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Área de upload */}

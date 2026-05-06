@@ -146,13 +146,17 @@ export async function importMetaReportAction(
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
 
+  console.log(`[import] daily rows to insert: ${dailyToInsert.length}`)
+
   if (dailyToInsert.length > 0) {
-    const { error: dailyErr } = await admin
+    const { error: dailyErr, count } = await admin
       .from('traffic_daily')
-      .upsert(dailyToInsert, { onConflict: 'client_id,campaign_id,date' })
+      .upsert(dailyToInsert, { onConflict: 'client_id,campaign_id,date', count: 'exact' })
 
     if (dailyErr) {
       console.error('[import] traffic_daily upsert error:', dailyErr.message)
+    } else {
+      console.log(`[import] traffic_daily upserted: ${count ?? dailyToInsert.length} rows`)
     }
   }
 
@@ -160,4 +164,27 @@ export async function importMetaReportAction(
     return { message: `Nenhum registro salvo.${errors.length ? ' Erros: ' + errors.join(', ') : ''}` }
 
   return { success: true, saved, skipped }
+}
+
+export async function clearClientDataAction(clientId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const admin    = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autorizado.' }
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if (!['admin', 'traffic_manager'].includes(profile?.role ?? ''))
+    return { error: 'Acesso negado.' }
+
+  if (!z.string().uuid().safeParse(clientId).success)
+    return { error: 'Cliente inválido.' }
+
+  await admin.from('traffic_daily').delete().eq('client_id', clientId)
+  await admin.from('traffic_reports').delete().eq('client_id', clientId)
+  await admin.from('campaigns').delete().eq('client_id', clientId).eq('platform', 'meta')
+
+  console.log(`[clear] dados de tráfego deletados para client_id=${clientId}`)
+  return {}
 }

@@ -31,12 +31,19 @@ const PRESETS = [
   { label: 'Mês passado',     from: () => format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),          to: () => format(endOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd') },
 ]
 
-function formatLabel(from: string, to: string) {
+function formatDateRange(from: string, to: string) {
   try {
     const f = parseISO(from), t = parseISO(to)
     if (from === to) return format(f, "d MMM yyyy", { locale: ptBR })
-    return `${format(f, "d MMM yyyy", { locale: ptBR })} – ${format(t, "d MMM yyyy", { locale: ptBR })}`
+    return `${format(f, "d MMM", { locale: ptBR })} – ${format(t, "d MMM yyyy", { locale: ptBR })}`
   } catch { return `${from} – ${to}` }
+}
+
+function formatButtonLabel(from: string, to: string): string {
+  const match = PRESETS.find((p) => p.from() === from && p.to() === to)
+  const range = formatDateRange(from, to)
+  if (match) return `${match.label}: ${range}`
+  return `Personalizado: ${range}`
 }
 
 export function TrafficFilters({ clients, currentFrom, currentTo, currentClientId }: Props) {
@@ -90,7 +97,7 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
           className="flex items-center gap-2 h-9 px-3 rounded-lg bg-[#111] border border-white/10 text-white text-sm hover:border-[#EACE00]/40 transition-colors"
         >
           <CalendarDays className="h-3.5 w-3.5 text-[#EACE00] shrink-0" />
-          <span className="font-medium">{formatLabel(currentFrom, currentTo)}</span>
+          <span className="font-medium">{formatButtonLabel(currentFrom, currentTo)}</span>
           <ChevronDown className={`h-3.5 w-3.5 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
