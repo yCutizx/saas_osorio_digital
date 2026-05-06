@@ -61,14 +61,14 @@ export type GroupedRow = {
 }
 
 // ── Parsers numéricos ─────────────────────────────────────────────────────────
-// Converte formato BR: "1.741,856" → 1741.856, "46.303,00" → 46303
-function parseBRL(v?: string): number {
+// Meta Ads Manager exports US format: period as decimal separator, no thousand separators
+function parseNum(v?: string): number {
   if (!v || v.trim() === '' || v.trim() === '--') return 0
-  return parseFloat(v.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0
+  return parseFloat(v) || 0
 }
 
-function parseIntBR(v?: string): number {
-  return Math.round(parseBRL(v))
+function parseIntNum(v?: string): number {
+  return Math.round(parseNum(v))
 }
 
 // Data: aceita "dd/mm/yyyy" (BR) ou "yyyy-mm-dd" (ISO)
@@ -102,11 +102,11 @@ function parseMeta(csv: string): { daily: DailyRow[]; missingCols: string[] } {
       campaign_name: row[COL.name]?.trim()           ?? '',
       status:        mapStatus(row[COL.status]),
       date:          parseDate(row[COL.period_start]) || parseDate(row[COL.period_end]),
-      results:       parseIntBR(row[COL.results]),
-      reach:         parseIntBR(row[COL.reach]),
-      spend:         parseBRL(row[COL.spend]),
-      impressions:   parseIntBR(row[COL.impressions]),
-      clicks:        parseIntBR(row[COL.clicks]),
+      results:       parseIntNum(row[COL.results]),
+      reach:         parseIntNum(row[COL.reach]),
+      spend:         parseNum(row[COL.spend]),
+      impressions:   parseIntNum(row[COL.impressions]),
+      clicks:        parseIntNum(row[COL.clicks]),
       result_type:   row[COL.result_type]?.trim()    ?? '',
     }))
     .filter((r) => r.spend > 0 && r.campaign_name.length > 0)
