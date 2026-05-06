@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   format, subDays, startOfMonth, endOfMonth,
-  subMonths, parseISO,
+  subMonths, parseISO, startOfWeek, endOfWeek, subWeeks,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CalendarDays, ChevronDown } from 'lucide-react'
@@ -25,6 +25,8 @@ const PRESETS = [
   { label: 'Últimos 14 dias', from: () => format(subDays(new Date(), 13), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
   { label: 'Últimos 28 dias', from: () => format(subDays(new Date(), 27), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
   { label: 'Últimos 30 dias', from: () => format(subDays(new Date(), 29), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
+  { label: 'Esta semana',     from: () => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),                    to: () => format(new Date(), 'yyyy-MM-dd') },
+  { label: 'Semana passada',  from: () => format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd'),     to: () => format(endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd') },
   { label: 'Este mês',        from: () => format(startOfMonth(new Date()), 'yyyy-MM-dd'),                       to: () => format(endOfMonth(new Date()), 'yyyy-MM-dd') },
   { label: 'Mês passado',     from: () => format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),          to: () => format(endOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd') },
 ]

@@ -170,8 +170,8 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
   let reportsQuery = supabase
     .from('traffic_reports')
     .select('id, campaign_id, client_id, period_start, spend, revenue, impressions, clicks, conversions, campaigns(name, platform)')
-    .gte('period_start', startDate)
-    .lte('period_end', endDate)
+    .lte('period_start', endDate)
+    .gte('period_end', startDate)
     .order('period_start', { ascending: true })
 
   if (clientId) {
@@ -181,7 +181,12 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
   }
 
   const { data: reports } = await reportsQuery
-  return { clients: clients ?? [], reports: (reports ?? []) as unknown as Report[], profile }
+
+  // Filtra o dropdown para mostrar apenas clientes com dados no período
+  const clientIdsWithReports = new Set((reports ?? []).map((r) => r.client_id))
+  const clientsWithReports = (clients ?? []).filter((c) => clientIdsWithReports.has(c.id))
+
+  return { clients: clientsWithReports, reports: (reports ?? []) as unknown as Report[], profile }
 }
 
 // ── helpers de render ────────────────────────────────────────────────────────
@@ -235,6 +240,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const { clients, reports, profile } = data
   const isAdmin = profile?.role === 'admin'
   const canEdit = isAdmin || profile?.role === 'traffic_manager'
+  const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   const stats        = computeStats(reports)
   const dailyData    = buildDailyData(reports, from, to)
@@ -254,7 +260,14 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
       <div className="space-y-5">
 
         {/* ── Cabeçalho / Filtros ─────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-3">
+          {selectedClient && (
+            <div className="flex items-center gap-2">
+              <span className="text-white/40 text-sm">Cliente:</span>
+              <span className="text-white font-semibold text-sm">{selectedClient.name}</span>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Suspense fallback={null}>
             <TrafficFilters
               clients={clients}
@@ -281,6 +294,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
               </Link>
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Estado vazio ─────────────────────────────────────────── */}

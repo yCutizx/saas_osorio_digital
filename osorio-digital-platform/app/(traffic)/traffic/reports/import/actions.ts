@@ -45,45 +45,26 @@ export async function importMetaReportAction(
   if (!parsed.success)
     return { message: 'Dados inválidos: ' + parsed.error.issues[0]?.message }
 
-  // Mapear campanhas Meta existentes para evitar duplicatas
-  const { data: existing } = await admin
-    .from('campaigns')
-    .select('id, name')
-    .eq('client_id', clientId)
-    .eq('platform', 'meta')
-
-  const byName = new Map((existing ?? []).map((c) => [c.name.toLowerCase(), c.id]))
-
   let saved = 0
   const errors: string[] = []
 
   for (const row of parsed.data) {
-    // Upsert campanha: cria se não existe, atualiza status se existe
-    let campaignId = byName.get(row.campaign_name.toLowerCase())
+    // Cada import cria um snapshot independente — sem deduplicação por nome
+    const { data: newCamp, error: campErr } = await admin
+      .from('campaigns')
+      .insert({
+        client_id: clientId,
+        name:      row.campaign_name,
+        platform:  'meta',
+        status:    row.status,
+      })
+      .select('id')
+      .single()
 
-    if (!campaignId) {
-      const { data: newCamp, error: campErr } = await admin
-        .from('campaigns')
-        .insert({
-          client_id: clientId,
-          name:      row.campaign_name,
-          platform:  'meta',
-          status:    row.status,
-        })
-        .select('id')
-        .single()
+    if (campErr || !newCamp) { errors.push(row.campaign_name); continue }
+    const campaignId = newCamp.id
 
-      if (campErr || !newCamp) { errors.push(row.campaign_name); continue }
-      campaignId = newCamp.id
-      byName.set(row.campaign_name.toLowerCase(), newCamp.id)
-    } else {
-      await admin
-        .from('campaigns')
-        .update({ status: row.status })
-        .eq('id', campaignId)
-    }
-
-    // Inserir relatório de tráfego
+    // Sempre insere novo registro de relatório para o período do CSV
     const { error: repErr } = await admin.from('traffic_reports').insert({
       client_id:    clientId,
       campaign_id:  campaignId,
