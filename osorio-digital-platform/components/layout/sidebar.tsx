@@ -48,6 +48,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
 
 const CLIENT_NAV: NavItem[] = [
   { label: 'Meu Painel', href: '/client/home',     icon: LayoutDashboard },
+  { label: 'Quadros',    href: '/client/kanban',   icon: LayoutList },
   { label: 'Anúncios',   href: '/client/ads',      icon: BarChart2 },
   { label: 'Calendário', href: '/client/calendar', icon: Calendar },
   { label: 'Insights',   href: '/client/insights', icon: Lightbulb },
@@ -55,9 +56,9 @@ const CLIENT_NAV: NavItem[] = [
 ]
 
 const CLIENT_NAV_COUNT: Record<string, number> = {
-  basico:  2,   // Dashboard + Anúncios
-  pro:     5,   // + Calendário + Insights + Pesquisas (igual ao Premium)
-  premium: 5,   // + Calendário + Insights + Pesquisas
+  basico:  3,   // Dashboard + Quadros + Anúncios
+  pro:     6,   // + Calendário + Insights + Pesquisas
+  premium: 6,   // + Calendário + Insights + Pesquisas
 }
 
 interface SidebarProps {

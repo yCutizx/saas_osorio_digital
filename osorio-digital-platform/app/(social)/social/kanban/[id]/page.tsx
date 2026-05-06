@@ -30,7 +30,7 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
     adminSupabase
       .from('profiles')
       .select('id, full_name, email')
-      .eq('role', 'social_media')
+      .in('role', ['admin', 'social_media'])
       .eq('active', true)
       .order('full_name'),
     adminSupabase
@@ -48,6 +48,7 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
     .from('kanban_cards')
     .select(cardSelect)
     .eq('board_id', params.id)
+    .eq('archived', false)
     .order('position', { ascending: true })
 
   return (
@@ -59,6 +60,7 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
         initialCards={(cards ?? []) as any[]}
         members={members ?? []}
         clients={clients ?? []}
+        currentUserId={user.id}
       />
     </AppLayout>
   )

@@ -1,29 +1,32 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCorners, type DragStartEvent, type DragEndEvent,
+  closestCorners, type DragStartEvent, type DragEndEvent, useDroppable,
 } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { useDroppable } from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy,
+  horizontalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useFormState } from 'react-dom'
-import { createCardAction, updateCardAction, deleteCard, moveCard, type FormState } from '../actions'
 import {
-  Plus, X, GripVertical, Pencil, Trash2, Calendar, Tag,
-  User, Building2, Film, Globe, ChevronLeft, Settings,
+  createCardAction, updateCardAction, deleteCard, moveCard,
+  updateBoardColumnsAction, type FormState,
+} from '../actions'
+import { CardDrawer } from './card-drawer'
+import {
+  Plus, X, GripVertical, Trash2, Calendar, Tag,
+  User, Building2, Film, Globe, ChevronLeft, Settings, MoreHorizontal,
 } from 'lucide-react'
 import Link from 'next/link'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Column { id: string; label: string; color: string }
 
 interface Board {
   id: string
   name: string
-  description?: string | null
   color: string
   board_type: 'agency' | 'content'
   columns: Column[]
@@ -51,37 +54,40 @@ interface Member { id: string; full_name: string; email: string }
 interface Client { id: string; name: string }
 
 interface Props {
-  board: Board
-  initialCards: KanbanCard[]
-  members: Member[]
-  clients: Client[]
+  board:         Board
+  initialCards:  KanbanCard[]
+  members:       Member[]
+  clients:       Client[]
+  currentUserId: string
 }
 
 const PRIORITY_COLOR = { baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444' }
 const PRIORITY_LABEL = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
-const FORMAT_LABEL: Record<string, string>   = { reels: 'Reels', feed: 'Feed', stories: 'Stories', carrossel: 'Carrossel' }
+const FORMAT_LABEL:   Record<string, string> = { reels: 'Reels', feed: 'Feed', stories: 'Stories', carrossel: 'Carrossel' }
 const PLATFORM_LABEL: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn' }
 
-// ─── Sortable card ────────────────────────────────────────────────────────────
-
-function SortableCard({ card, onEdit, isDragging }: {
-  card: KanbanCard; onEdit: (c: KanbanCard) => void; isDragging?: boolean
+function SortableCard({ card, onOpen, isDragging, disabled }: {
+  card: KanbanCard; onOpen: (c: KanbanCard) => void; isDragging?: boolean; disabled?: boolean
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id })
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: card.id, data: { type: 'card' }, disabled,
+  })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+
   return (
-    <div ref={setNodeRef} style={style} className="bg-[#111] border border-[#222] rounded-xl p-3 space-y-2 group">
+    <div ref={setNodeRef} style={style}
+      className="bg-[#111] border border-[#222] rounded-xl p-3 space-y-2 group cursor-pointer hover:border-[#444] transition-colors"
+      onClick={() => onOpen(card)}>
       <div className="flex items-start gap-2">
-        <button {...attributes} {...listeners} className="mt-0.5 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0">
+        <button {...attributes} {...listeners}
+          className="mt-0.5 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0"
+          onClick={(e) => e.stopPropagation()}>
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-white font-medium leading-snug">{card.title}</p>
           {card.description && <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
         </div>
-        <button onClick={() => onEdit(card)} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-white/30 hover:text-white">
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
       </div>
       <div className="flex flex-wrap gap-1.5 pl-6">
         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
@@ -110,7 +116,8 @@ function SortableCard({ card, onEdit, isDragging }: {
         )}
         {card.due_date && (
           <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <Calendar className="h-3 w-3" />{new Date(card.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+            <Calendar className="h-3 w-3" />
+            {new Date(card.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
           </span>
         )}
         {card.tags?.map((t) => (
@@ -123,29 +130,91 @@ function SortableCard({ card, onEdit, isDragging }: {
   )
 }
 
-// ─── Droppable column ─────────────────────────────────────────────────────────
-
-function DroppableColumn({ col, cards, onAdd, onEdit, activeId }: {
+function SortableColumn({ col, cards, onAdd, onOpen, activeCardId, onRename, onDelete, isDraggingColumn }: {
   col: Column; cards: KanbanCard[]; onAdd: (id: string) => void
-  onEdit: (c: KanbanCard) => void; activeId: string | null
+  onOpen: (c: KanbanCard) => void; activeCardId: string | null
+  onRename: (id: string, label: string) => void
+  onDelete: (id: string) => void
+  isDraggingColumn: boolean
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: col.id })
+  const { attributes, listeners, setNodeRef: colRef, transform, transition, isDragging } = useSortable({
+    id: col.id, data: { type: 'column' },
+  })
+  const { setNodeRef: dropRef, isOver } = useDroppable({ id: col.id })
+  const [renaming, setRenaming] = useState(false)
+  const [label, setLabel]       = useState(col.label)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef                 = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setLabel(col.label) }, [col.label])
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  function commitRename() {
+    setRenaming(false)
+    if (label.trim() && label !== col.label) onRename(col.id, label.trim())
+    else setLabel(col.label)
+  }
+
+  const colStyle = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+
   return (
-    <div className={`flex flex-col min-h-[500px] w-72 shrink-0 rounded-2xl border transition-colors ${isOver ? 'border-[#EACE00]/40 bg-[#EACE00]/5' : 'border-[#222] bg-[#0d0d0d]'}`}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#222]">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: col.color }} />
-          <span className="text-sm font-semibold text-white">{col.label}</span>
-          <span className="text-xs text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">{cards.length}</span>
-        </div>
-        <button onClick={() => onAdd(col.id)} className="text-white/30 hover:text-[#EACE00] transition-colors">
+    <div ref={colRef} style={colStyle}
+      className={`flex flex-col min-h-[500px] w-72 shrink-0 rounded-2xl border transition-colors
+        ${isDragging ? 'border-[#EACE00]/30 bg-[#0d0d0d]/50' : isOver ? 'border-[#EACE00]/40 bg-[#EACE00]/5' : 'border-[#222] bg-[#0d0d0d]'}`}>
+      <div className="flex items-center gap-2 px-3 py-3 border-b border-[#222]">
+        <button {...attributes} {...listeners}
+          className="text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0"
+          onClick={(e) => e.stopPropagation()}>
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col.color }} />
+        {renaming ? (
+          <input value={label} onChange={(e) => setLabel(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setLabel(col.label); setRenaming(false) } }}
+            autoFocus
+            className="flex-1 bg-transparent text-sm font-semibold text-white focus:outline-none border-b border-[#EACE00]" />
+        ) : (
+          <span className="flex-1 text-sm font-semibold text-white cursor-default truncate"
+            onDoubleClick={() => setRenaming(true)}>
+            {col.label}
+          </span>
+        )}
+        <span className="text-xs text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full shrink-0">{cards.length}</span>
+        <button onClick={() => onAdd(col.id)} className="text-white/30 hover:text-[#EACE00] transition-colors shrink-0">
           <Plus className="h-4 w-4" />
         </button>
+        <div className="relative shrink-0" ref={menuRef}>
+          <button onClick={() => setShowMenu((v) => !v)}
+            className="text-white/20 hover:text-white/60 transition-colors">
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 z-20 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-xl py-1 min-w-[140px]">
+              <button onClick={() => { setShowMenu(false); setRenaming(true) }}
+                className="w-full text-left px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+                Renomear
+              </button>
+              <button onClick={() => { setShowMenu(false); onDelete(col.id) }}
+                className="w-full text-left px-4 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition-colors">
+                Excluir coluna
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div ref={setNodeRef} className="flex-1 p-2 space-y-2">
+      <div ref={dropRef} className="flex-1 p-2 space-y-2"
+        style={{ pointerEvents: isDraggingColumn ? 'none' : 'auto' }}>
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} onEdit={onEdit} isDragging={activeId === card.id} />
+            <SortableCard key={card.id} card={card} onOpen={onOpen}
+              isDragging={activeCardId === card.id} disabled={isDraggingColumn} />
           ))}
         </SortableContext>
       </div>
@@ -153,7 +222,43 @@ function DroppableColumn({ col, cards, onAdd, onEdit, activeId }: {
   )
 }
 
-// ─── Card modal ───────────────────────────────────────────────────────────────
+function AddColumnWidget({ onAdd }: { onAdd: (label: string) => void }) {
+  const [open, setOpen]   = useState(false)
+  const [label, setLabel] = useState('')
+
+  function submit() {
+    if (!label.trim()) return
+    onAdd(label.trim())
+    setLabel('')
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)}
+        className="flex items-center gap-2 h-fit px-4 py-3 rounded-2xl border border-dashed border-[#333] text-white/30 hover:text-white/60 hover:border-[#555] transition-colors w-64 shrink-0">
+        <Plus className="h-4 w-4" /><span className="text-sm">Adicionar lista</span>
+      </button>
+    )
+  }
+
+  return (
+    <div className="w-64 shrink-0 bg-[#0d0d0d] border border-[#EACE00]/30 rounded-2xl p-3 space-y-2">
+      <input value={label} onChange={(e) => setLabel(e.target.value)} autoFocus
+        onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setOpen(false) }}
+        placeholder="Nome da lista..."
+        className="w-full bg-[#111] border border-[#333] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]" />
+      <div className="flex gap-2">
+        <button onClick={submit}
+          className="flex-1 py-1.5 rounded-lg bg-[#EACE00] text-black text-xs font-semibold hover:bg-[#f5d800] transition-colors">
+          Adicionar
+        </button>
+        <button onClick={() => { setOpen(false); setLabel('') }}
+          className="px-2 text-white/30 hover:text-white"><X className="h-4 w-4" /></button>
+      </div>
+    </div>
+  )
+}
 
 const INIT: FormState = {}
 
@@ -163,8 +268,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, onClos
 }) {
   const action = mode === 'create' ? createCardAction : updateCardAction
   const [state, dispatch] = useFormState(action, INIT)
-
-  useEffect(() => { if (state.success) onClose() }, [state.success]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state.success) onClose() }, [state.success]) // eslint-disable-line
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -181,17 +285,15 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, onClos
           </div>
         </div>
         <form action={dispatch} className="p-5 space-y-4">
-          {mode === 'edit' && <input type="hidden" name="card_id" value={card!.id} />}
+          {mode === 'edit' && <input type="hidden" name="card_id"  value={card!.id} />}
           <input type="hidden" name="board_id"  value={boardId} />
           <input type="hidden" name="column_id" value={card?.column_id ?? defaultColId} />
-
           {state.message && <p className="text-red-400 text-sm">{state.message}</p>}
 
           <div>
             <label className="text-xs text-white/50 mb-1 block">Título *</label>
             <input name="title" defaultValue={card?.title} required
               className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]" />
-            {state.errors?.title && <p className="text-red-400 text-xs mt-1">{state.errors.title[0]}</p>}
           </div>
 
           <div>
@@ -275,7 +377,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, onClos
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white hover:border-[#555] transition-colors">
+              className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white transition-colors">
               Cancelar
             </button>
             <button type="submit"
@@ -289,42 +391,40 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, onClos
   )
 }
 
-// ─── Delete card confirm ──────────────────────────────────────────────────────
-
-function DeleteConfirm({ card, boardId, onClose }: { card: KanbanCard; boardId: string; onClose: () => void }) {
-  const [, startT] = useTransition()
-  function handleDelete() {
-    startT(async () => { await deleteCard(card.id, boardId); onClose() })
-  }
+function DeleteConfirm({ title, onConfirm, onClose }: { title: string; onConfirm: () => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
       <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-sm p-6 space-y-4">
-        <p className="text-white text-sm">Excluir o card <strong>&quot;{card.title}&quot;</strong>? Esta ação não pode ser desfeita.</p>
+        <p className="text-white text-sm">Excluir <strong>&quot;{title}&quot;</strong>? Esta ação não pode ser desfeita.</p>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white transition-colors">Cancelar</button>
-          <button onClick={handleDelete} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors">Excluir</button>
+          <button onClick={onConfirm} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors">Excluir</button>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Main board ───────────────────────────────────────────────────────────────
-
-export function KanbanBoard({ board, initialCards, members, clients }: Props) {
-  const [cards, setCards] = useState<KanbanCard[]>(initialCards)
+export function KanbanBoard({ board, initialCards, members, clients, currentUserId }: Props) {
+  const [cards, setCards]       = useState<KanbanCard[]>(initialCards)
+  const [columns, setColumns]   = useState<Column[]>(board.columns)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [, startTransition] = useTransition()
+  const [dragType, setDragType] = useState<'card' | 'column' | null>(null)
+  const [, startTransition]     = useTransition()
 
   const [filterClient,   setFilterClient]   = useState('')
   const [filterPlatform, setFilterPlatform] = useState('')
 
-  const [createColId, setCreateColId]       = useState<string | null>(null)
-  const [editCard, setEditCard]             = useState<KanbanCard | null>(null)
-  const [deleteCardItem, setDeleteCardItem] = useState<KanbanCard | null>(null)
+  const [createColId, setCreateColId]   = useState<string | null>(null)
+  const [openCard, setOpenCard]         = useState<KanbanCard | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<KanbanCard | null>(null)
+
+  useEffect(() => { setCards(initialCards) }, [initialCards])
+  useEffect(() => { setColumns(board.columns) }, [board.columns])
 
   const sensors    = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const activeCard = cards.find((c) => c.id === activeId) ?? null
+  const activeCol  = columns.find((c) => c.id === activeId) ?? null
 
   function cardsForCol(colId: string) {
     return cards.filter((c) => {
@@ -335,16 +435,33 @@ export function KanbanBoard({ board, initialCards, members, clients }: Props) {
     }).sort((a, b) => a.position - b.position)
   }
 
-  function onDragStart({ active }: DragStartEvent) { setActiveId(active.id as string) }
+  function onDragStart({ active }: DragStartEvent) {
+    const type = active.data.current?.type as 'card' | 'column' | undefined
+    setDragType(type ?? 'card')
+    setActiveId(active.id as string)
+  }
 
   function onDragEnd({ active, over }: DragEndEvent) {
     setActiveId(null)
+    setDragType(null)
     if (!over) return
+
+    if (dragType === 'column') {
+      const oldIdx = columns.findIndex((c) => c.id === active.id)
+      const newIdx = columns.findIndex((c) => c.id === over.id)
+      if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+        const next = arrayMove(columns, oldIdx, newIdx)
+        setColumns(next)
+        startTransition(() => { updateBoardColumnsAction(board.id, next) })
+      }
+      return
+    }
+
     const ac = cards.find((c) => c.id === active.id)
     if (!ac) return
     const overId    = over.id as string
-    const targetCol = board.columns.find((col) => col.id === overId)
-      ?? board.columns.find((col) => cards.find((c) => c.id === overId)?.column_id === col.id)
+    const targetCol = columns.find((col) => col.id === overId)
+      ?? columns.find((col) => cards.find((c) => c.id === overId)?.column_id === col.id)
     if (!targetCol) return
     const newColId = targetCol.id
 
@@ -370,9 +487,48 @@ export function KanbanBoard({ board, initialCards, members, clients }: Props) {
     if (ac.column_id !== newColId) startTransition(() => { moveCard(ac.id, newColId) })
   }
 
+  function handleAddColumn(label: string) {
+    const next: Column[] = [...columns, { id: `col_${Date.now()}`, label, color: '#555555' }]
+    setColumns(next)
+    startTransition(() => { updateBoardColumnsAction(board.id, next) })
+  }
+
+  function handleRenameColumn(id: string, label: string) {
+    const next = columns.map((c) => c.id === id ? { ...c, label } : c)
+    setColumns(next)
+    startTransition(() => { updateBoardColumnsAction(board.id, next) })
+  }
+
+  function handleDeleteColumn(id: string) {
+    const next = columns.filter((c) => c.id !== id)
+    setColumns(next)
+    startTransition(() => { updateBoardColumnsAction(board.id, next) })
+  }
+
+  function handleCardMoved(newColId: string) {
+    if (!openCard) return
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, column_id: newColId } : c))
+    setOpenCard((prev) => prev ? { ...prev, column_id: newColId } : null)
+    startTransition(() => { moveCard(openCard.id, newColId) })
+  }
+
+  function handleCardArchived() {
+    if (!openCard) return
+    setCards((prev) => prev.filter((c) => c.id !== openCard.id))
+    setOpenCard(null)
+  }
+
+  function handleCardDeleted() {
+    const cardToDelete = openCard ?? deleteTarget
+    if (!cardToDelete) return
+    setCards((prev) => prev.filter((c) => c.id !== cardToDelete.id))
+    setOpenCard(null)
+    setDeleteTarget(null)
+    startTransition(() => { deleteCard(cardToDelete.id, board.id) })
+  }
+
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Breadcrumb + controles */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <Link href="/social/kanban"
@@ -385,7 +541,7 @@ export function KanbanBoard({ board, initialCards, members, clients }: Props) {
             <span className="text-white text-sm font-semibold">{board.name}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)}
             className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#EACE00]">
             <option value="">Todos os clientes</option>
@@ -412,43 +568,63 @@ export function KanbanBoard({ board, initialCards, members, clients }: Props) {
         </div>
       </div>
 
-      {/* Board */}
       <div className="overflow-x-auto pb-4">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="flex gap-4 min-w-max">
-            {board.columns.map((col) => (
-              <DroppableColumn
-                key={col.id} col={col}
-                cards={cardsForCol(col.id)}
-                onAdd={(colId) => setCreateColId(colId)}
-                onEdit={(card) => setEditCard(card)}
-                activeId={activeId}
-              />
-            ))}
-          </div>
+        <DndContext sensors={sensors} collisionDetection={closestCorners}
+          onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            <div className="flex gap-4 min-w-max items-start">
+              {columns.map((col) => (
+                <SortableColumn key={col.id} col={col}
+                  cards={cardsForCol(col.id)}
+                  onAdd={(colId) => setCreateColId(colId)}
+                  onOpen={(card) => setOpenCard(card)}
+                  activeCardId={dragType === 'card' ? activeId : null}
+                  onRename={handleRenameColumn}
+                  onDelete={handleDeleteColumn}
+                  isDraggingColumn={dragType === 'column'}
+                />
+              ))}
+              <AddColumnWidget onAdd={handleAddColumn} />
+            </div>
+          </SortableContext>
           <DragOverlay>
-            {activeCard && (
-              <div className="bg-[#111] border border-[#EACE00]/40 rounded-xl p-3 w-72 shadow-2xl">
+            {dragType === 'card' && activeCard && (
+              <div className="bg-[#111] border border-[#EACE00]/40 rounded-xl p-3 w-72 shadow-2xl opacity-90">
                 <p className="text-sm text-white font-medium">{activeCard.title}</p>
+              </div>
+            )}
+            {dragType === 'column' && activeCol && (
+              <div className="bg-[#0d0d0d] border border-[#EACE00]/30 rounded-2xl p-3 w-72 shadow-2xl opacity-80">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: activeCol.color }} />
+                  <span className="text-sm font-semibold text-white">{activeCol.label}</span>
+                </div>
               </div>
             )}
           </DragOverlay>
         </DndContext>
       </div>
 
-      {editCard && (
-        <CardModal mode="edit" card={editCard} defaultColId={editCard.column_id} boardId={board.id}
-          members={members} clients={clients}
-          onClose={() => setEditCard(null)}
-          onDelete={() => { setDeleteCardItem(editCard); setEditCard(null) }} />
+      {openCard && (
+        <CardDrawer card={openCard} boardId={board.id} boardColumns={columns}
+          currentUserId={currentUserId}
+          onClose={() => setOpenCard(null)}
+          onDelete={() => setDeleteTarget(openCard)}
+          onMoved={handleCardMoved}
+          onArchived={handleCardArchived}
+        />
       )}
-      {createColId && !editCard && (
+
+      {createColId && !openCard && (
         <CardModal mode="create" defaultColId={createColId} boardId={board.id}
           members={members} clients={clients}
           onClose={() => setCreateColId(null)} />
       )}
-      {deleteCardItem && (
-        <DeleteConfirm card={deleteCardItem} boardId={board.id} onClose={() => setDeleteCardItem(null)} />
+
+      {deleteTarget && (
+        <DeleteConfirm title={deleteTarget.title}
+          onConfirm={handleCardDeleted}
+          onClose={() => setDeleteTarget(null)} />
       )}
     </div>
   )

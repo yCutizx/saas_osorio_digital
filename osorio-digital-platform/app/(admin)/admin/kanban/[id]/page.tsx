@@ -17,8 +17,6 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/admin/dashboard')
 
-  const isAdmin = profile?.role === 'admin'
-
   const [
     { data: board },
     { data: members },
@@ -32,7 +30,7 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
     adminSupabase
       .from('profiles')
       .select('id, full_name, email, role')
-      .in('role', ['traffic_manager', 'social_media'])
+      .in('role', ['admin', 'traffic_manager', 'social_media'])
       .eq('active', true)
       .order('full_name'),
     adminSupabase
@@ -46,17 +44,12 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
 
   const cardSelect = 'id, column_id, title, description, client_id, assigned_to, due_date, due_time, priority, tags, format, platform, position, created_at, clients(name), profiles(full_name)'
 
-  const { data: cards } = isAdmin
-    ? await adminSupabase
-        .from('kanban_cards')
-        .select(cardSelect)
-        .eq('board_id', params.id)
-        .order('position', { ascending: true })
-    : await supabase
-        .from('kanban_cards')
-        .select(cardSelect)
-        .eq('board_id', params.id)
-        .order('position', { ascending: true })
+  const { data: cards } = await adminSupabase
+    .from('kanban_cards')
+    .select(cardSelect)
+    .eq('board_id', params.id)
+    .eq('archived', false)
+    .order('position', { ascending: true })
 
   return (
     <AppLayout pageTitle={board.name}>
@@ -67,6 +60,7 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
         initialCards={(cards ?? []) as any[]}
         members={members ?? []}
         clients={clients ?? []}
+        currentUserId={user.id}
       />
     </AppLayout>
   )
