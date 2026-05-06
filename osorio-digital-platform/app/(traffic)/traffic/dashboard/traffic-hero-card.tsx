@@ -3,6 +3,8 @@ import { ptBR } from 'date-fns/locale'
 import { CalendarDays } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
+export type BusinessMode = 'local' | 'ecommerce'
+
 export interface HeroStats {
   spend:       number
   conversions: number
@@ -12,6 +14,7 @@ export interface HeroStats {
   cpa:         number
   ctr:         number
   cpc:         number
+  roas:        number
 }
 
 interface Props {
@@ -20,6 +23,7 @@ interface Props {
   stats:         HeroStats
   campaignCount: number
   resultType:    string
+  mode:          BusinessMode
 }
 
 function fmtN(n: number) {
@@ -36,7 +40,7 @@ function fmtPct(n: number) {
   return n > 0 ? `${n.toFixed(2).replace('.', ',')}%` : '—'
 }
 
-export function TrafficHeroCard({ from, to, stats, campaignCount, resultType }: Props) {
+export function TrafficHeroCard({ from, to, stats, campaignCount, resultType, mode }: Props) {
   const fromDate = parseISO(from)
   const toDate   = parseISO(to)
   const days     = differenceInDays(toDate, fromDate) + 1
@@ -70,11 +74,17 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, resultType }: 
               <span className="text-5xl lg:text-6xl font-black text-white tabular-nums">
                 {fmtN(stats.conversions)}
               </span>
-              <span className="text-white/40 text-base pb-1.5 leading-tight">
-                {resultLabel}
-                <br />
-                <span className="text-white/25 text-sm">gerado{stats.conversions !== 1 ? 's' : ''} no período</span>
-              </span>
+              <div className="flex flex-col gap-1.5 pb-1.5">
+                <span className="text-white/40 text-base leading-tight">
+                  {resultLabel}
+                  <span className="text-white/25 text-sm ml-1.5">gerado{stats.conversions !== 1 ? 's' : ''} no período</span>
+                </span>
+                {mode === 'ecommerce' && stats.roas > 0 && (
+                  <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-full bg-green-500/15 border border-green-500/20 text-green-400 text-xs font-semibold">
+                    ROAS {stats.roas.toFixed(2).replace('.', ',')}x
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -86,12 +96,14 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, resultType }: 
               <> alcançamos <span className="text-white/65 font-semibold">{fmtLarge(stats.reach)} pessoas</span> e</>
             )}{' '}geramos{' '}
             <span className="text-white/65 font-semibold">{fmtN(stats.conversions)} {resultLabel}</span>
-            {' '}a um custo médio de{' '}
-            <span className="text-white/65 font-semibold">{stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}</span>
-            {' '}cada.
+            {mode === 'ecommerce' && stats.roas > 0 ? (
+              <> com ROAS de <span className="text-white/65 font-semibold">{stats.roas.toFixed(2).replace('.', ',')}x</span>.</>
+            ) : (
+              <> a um custo médio de <span className="text-white/65 font-semibold">{stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}</span> cada.</>
+            )}
           </p>
 
-          {/* 3 métricas em linha */}
+          {/* 3 métricas em linha — local: Resultados|Custo/Resultado|CTR; e-commerce: Resultados|ROAS|CTR */}
           <div className="flex items-center gap-0 pt-3 border-t border-white/[0.06]">
             <div className="flex-1 pr-5">
               <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1.5">Resultados</p>
@@ -99,10 +111,21 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, resultType }: 
             </div>
             <div className="w-px h-10 bg-white/[0.07]" />
             <div className="flex-1 px-5">
-              <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1.5">Custo / Resultado</p>
-              <p className="text-2xl font-black text-white tabular-nums">
-                {stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}
-              </p>
+              {mode === 'ecommerce' ? (
+                <>
+                  <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1.5">ROAS</p>
+                  <p className="text-2xl font-black text-white tabular-nums">
+                    {stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1.5">Custo / Resultado</p>
+                  <p className="text-2xl font-black text-white tabular-nums">
+                    {stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}
+                  </p>
+                </>
+              )}
             </div>
             <div className="w-px h-10 bg-white/[0.07]" />
             <div className="flex-1 pl-5">

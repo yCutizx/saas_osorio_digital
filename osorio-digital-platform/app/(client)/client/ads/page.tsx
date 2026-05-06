@@ -11,6 +11,7 @@ import { TrafficCharts }    from '@/app/(traffic)/traffic/dashboard/traffic-char
 import { TrafficHeroCard }  from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
 import { formatCurrency }   from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from '@/app/(traffic)/traffic/dashboard/traffic-charts'
+import type { BusinessMode } from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
 
 // ── types ────────────────────────────────────────────────────────────────────
 type Report = {
@@ -40,6 +41,13 @@ function computeStats(reports: Report[]) {
   const cpc  = clicks > 0 ? spend / clicks : 0
   const cpa  = conversions > 0 ? spend / conversions : 0
   return { spend, revenue, conversions, clicks, impressions, reach, roas, ctr, cpc, cpa }
+}
+
+function detectMode(reports: Report[]): BusinessMode {
+  if (reports.some(r => (r.revenue ?? 0) > 0)) return 'ecommerce'
+  const ecomWords = ['compra', 'purchase', 'venda', 'sale', 'produto', 'checkout']
+  if (reports.some(r => ecomWords.some(w => (r.result_type ?? '').toLowerCase().includes(w)))) return 'ecommerce'
+  return 'local'
 }
 
 function getResultType(reports: Report[]): string {
@@ -179,27 +187,45 @@ export default async function ClientAdsPage() {
     .lte('period_end', endDate)
     .order('period_start', { ascending: true })
 
-  const reports = (rawReports ?? []) as unknown as Report[]
+  const reports      = (rawReports ?? []) as unknown as Report[]
   const stats        = computeStats(reports)
+  const mode         = detectMode(reports)
   const dailyData    = buildDailyData(reports)
   const campaignRows = buildCampaignRows(reports)
   const resultType   = getResultType(reports)
+  const cpm          = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
 
+  // Alertas mode-aware
   const alerts: { level: 'critico' | 'atencao' | 'ok'; msg: string }[] = []
-  if (stats.roas < 1 && stats.spend > 0)
-    alerts.push({ level: 'critico', msg: `ROAS abaixo de 1x — investimento não está retornando.` })
-  else if (stats.roas < 2 && stats.spend > 0)
-    alerts.push({ level: 'atencao', msg: `ROAS de ${stats.roas.toFixed(2)}x — abaixo do ideal (≥ 2x).` })
-  else if (stats.spend > 0)
-    alerts.push({ level: 'ok', msg: `ROAS saudável: ${stats.roas.toFixed(2)}x no período.` })
+  if (mode === 'ecommerce') {
+    if (stats.roas < 1 && stats.spend > 0)
+      alerts.push({ level: 'critico', msg: `ROAS abaixo de 1x — investimento não está retornando.` })
+    else if (stats.roas < 2 && stats.spend > 0)
+      alerts.push({ level: 'atencao', msg: `ROAS de ${stats.roas.toFixed(2)}x — abaixo do ideal (≥ 2x).` })
+    else if (stats.spend > 0)
+      alerts.push({ level: 'ok', msg: `ROAS saudável: ${stats.roas.toFixed(2)}x no período.` })
+  }
+  if (mode === 'local' && stats.cpa > 0) {
+    if (stats.cpa > 100)
+      alerts.push({ level: 'critico', msg: `Custo por resultado alto: ${formatCurrency(stats.cpa)} — fale com seu gestor de tráfego.` })
+    else if (stats.cpa > 50)
+      alerts.push({ level: 'atencao', msg: `Custo por resultado: ${formatCurrency(stats.cpa)} — existe espaço para otimização.` })
+    else
+      alerts.push({ level: 'ok', msg: `Custo por resultado saudável: ${formatCurrency(stats.cpa)} no período.` })
+  }
   if (stats.ctr < 1 && stats.impressions > 0)
     alerts.push({ level: 'critico', msg: `CTR crítico: ${stats.ctr.toFixed(2)}%. Os criativos precisam de revisão.` })
   else if (stats.ctr < 2 && stats.impressions > 0)
     alerts.push({ level: 'atencao', msg: `CTR de ${stats.ctr.toFixed(2)}% — considere testar novos criativos.` })
+  if (mode === 'local' && cpm > 50 && stats.impressions > 0)
+    alerts.push({ level: 'atencao', msg: `CPM de ${formatCurrency(cpm)} por mil impressões — o público pode estar muito restrito.` })
 
-  const ctrStatus: 'critico' | 'atencao' | 'ok'  = stats.ctr < 1 ? 'critico' : stats.ctr < 2 ? 'atencao' : 'ok'
+  const ctrStatus:  'critico' | 'atencao' | 'ok' = stats.ctr < 1 ? 'critico' : stats.ctr < 2 ? 'atencao' : 'ok'
   const roasStatus: 'critico' | 'atencao' | 'ok' = stats.roas < 1 ? 'critico' : stats.roas < 2 ? 'atencao' : 'ok'
-  const cpaStatus: 'critico' | 'atencao' | 'ok'  = stats.cpa > 80 ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok'
+  const cpaStatus:  'critico' | 'atencao' | 'ok' = mode === 'local'
+    ? (stats.cpa > 100 ? 'critico' : stats.cpa > 50 ? 'atencao' : 'ok')
+    : (stats.cpa > 80  ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok')
+  const cpmStatus:  'critico' | 'atencao' | 'ok' = cpm > 100 ? 'critico' : cpm > 50 ? 'atencao' : 'ok'
 
   return (
     <AppLayout pageTitle="Meus Anúncios">
@@ -224,6 +250,7 @@ export default async function ClientAdsPage() {
               stats={stats}
               campaignCount={campaignRows.length}
               resultType={resultType}
+              mode={mode}
             />
 
             {/* KPI Cards */}
@@ -270,9 +297,17 @@ export default async function ClientAdsPage() {
                   <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider">Diagnóstico automático</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <DiagBadge label="CTR"  value={stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—'}   status={ctrStatus}  />
-                  <DiagBadge label="ROAS" value={stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'}  status={roasStatus} />
-                  <DiagBadge label="CPA"  value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'}                        status={cpaStatus}  />
+                  <DiagBadge label="CTR"  value={stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—'} status={ctrStatus} />
+                  {mode === 'ecommerce' ? (
+                    <DiagBadge label="ROAS" value={stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'} status={roasStatus} />
+                  ) : (
+                    <DiagBadge label="Custo/Resultado" value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
+                  )}
+                  {mode === 'ecommerce' ? (
+                    <DiagBadge label="CPA" value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
+                  ) : (
+                    <DiagBadge label="CPM" value={cpm > 0 ? formatCurrency(cpm) : '—'} status={cpmStatus} />
+                  )}
                 </div>
               </div>
             )}
