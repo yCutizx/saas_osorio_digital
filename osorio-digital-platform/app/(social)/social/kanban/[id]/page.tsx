@@ -44,12 +44,14 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
 
   const cardSelect = 'id, column_id, title, description, client_id, assigned_to, due_date, due_time, priority, tags, format, platform, position, created_at, clients(name), profiles(full_name)'
 
-  const { data: cards } = await adminSupabase
+  const { data: cards, error: cardsError } = await adminSupabase
     .from('kanban_cards')
     .select(cardSelect)
     .eq('board_id', params.id)
-    .eq('archived', false)
+    .not('archived', 'is', true)
     .order('position', { ascending: true })
+
+  if (cardsError) console.error('[social/kanban] cards error:', cardsError.message)
 
   return (
     <AppLayout pageTitle={board.name}>
