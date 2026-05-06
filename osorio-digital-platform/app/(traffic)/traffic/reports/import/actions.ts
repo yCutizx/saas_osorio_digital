@@ -50,33 +50,26 @@ export async function importMetaReportAction(
   const errors: string[] = []
 
   for (const row of parsed.data) {
-    // 1. Find or create campaign by (client_id, name, platform)
-    let campaignId: string
-
-    const { data: existingCamp } = await admin
+    // 1. Upsert campaign: insere se não existe, atualiza status se já existe.
+    //    Requer constraint UNIQUE(client_id, name, platform) na tabela campaigns.
+    const { data: camp, error: campErr } = await admin
       .from('campaigns')
+      .upsert(
+        { client_id: clientId, name: row.campaign_name, platform: 'meta', status: row.status },
+        { onConflict: 'client_id,name,platform' },
+      )
       .select('id')
-      .eq('client_id', clientId)
-      .eq('name', row.campaign_name)
-      .eq('platform', 'meta')
-      .maybeSingle()
+      .single()
 
-    if (existingCamp) {
-      campaignId = existingCamp.id
-      await admin.from('campaigns').update({ status: row.status }).eq('id', campaignId)
-    } else {
-      const { data: newCamp, error: campErr } = await admin
-        .from('campaigns')
-        .insert({ client_id: clientId, name: row.campaign_name, platform: 'meta', status: row.status })
-        .select('id')
-        .single()
-
-      if (campErr || !newCamp) { errors.push(row.campaign_name); continue }
-      campaignId = newCamp.id
+    if (campErr || !camp) {
+      console.error('[import] campaign upsert error:', campErr?.message, row.campaign_name)
+      errors.push(row.campaign_name)
+      continue
     }
+    const campaignId = camp.id
 
-    // 2. Check if report already exists for this exact period
-    const { data: existingReport } = await admin
+    // 2. Verifica se já existe relatório para este período exato
+    const { data: existingReport, error: repSelectErr } = await admin
       .from('traffic_reports')
       .select('id')
       .eq('client_id', clientId)
@@ -85,12 +78,18 @@ export async function importMetaReportAction(
       .eq('period_end', row.period_end)
       .maybeSingle()
 
+    if (repSelectErr) {
+      console.error('[import] report select error:', repSelectErr.message, row.campaign_name)
+      errors.push(row.campaign_name)
+      continue
+    }
+
     if (existingReport) {
       skipped++
       continue
     }
 
-    // 3. Insert new report for this period
+    // 3. Insere novo relatório para este período
     const { error: repErr } = await admin.from('traffic_reports').insert({
       client_id:    clientId,
       campaign_id:  campaignId,
@@ -105,7 +104,10 @@ export async function importMetaReportAction(
       ctr:          row.ctr  || null,
     })
 
-    if (repErr) errors.push(row.campaign_name)
+    if (repErr) {
+      console.error('[import] report insert error:', repErr.message, row.campaign_name)
+      errors.push(row.campaign_name)
+    }
     else saved++
   }
 
