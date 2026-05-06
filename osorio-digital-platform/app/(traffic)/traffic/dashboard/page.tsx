@@ -7,7 +7,7 @@ import { ptBR } from 'date-fns/locale'
 import {
   DollarSign, TrendingUp, MousePointerClick,
   PlusCircle, BarChart2, AlertTriangle, CheckCircle2,
-  XCircle, Zap, Eye, ArrowUpRight, ArrowDownRight,
+  XCircle, Zap, Eye, ArrowUpRight, ArrowDownRight, Upload,
 } from 'lucide-react'
 import { AppLayout }      from '@/components/layout/app-layout'
 import { createClient }   from '@/lib/supabase/server'
@@ -257,13 +257,22 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
             />
           </Suspense>
           {canEdit && (
-            <Link
-              href="/traffic/reports/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm shrink-0"
-            >
-              <PlusCircle className="h-4 w-4" />
-              Novo Relatório
-            </Link>
+            <div className="flex gap-2 shrink-0">
+              <Link
+                href="/traffic/reports/import"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-white/15 text-white/60 font-medium rounded-lg hover:text-white hover:border-white/30 transition-colors text-sm"
+              >
+                <Upload className="h-4 w-4" />
+                Importar CSV
+              </Link>
+              <Link
+                href="/traffic/reports/new"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Novo Relatório
+              </Link>
+            </div>
           )}
         </div>
 
