@@ -10,7 +10,7 @@ import {
   archiveCardAction, addChecklistAction, addChecklistItemAction, toggleChecklistItemAction,
   deleteChecklistAction, createLabelAction, toggleCardLabelAction,
   addCommentAction, deleteCommentAction, uploadAttachmentAction, deleteAttachmentAction,
-  type CardDetail, type Checklist, type Label, type KanbanComment, type Attachment,
+  type Checklist, type Label, type KanbanComment, type Attachment,
 } from '../actions'
 
 interface Column { id: string; label: string; color: string }
