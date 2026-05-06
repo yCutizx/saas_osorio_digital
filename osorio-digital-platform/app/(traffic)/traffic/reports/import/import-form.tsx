@@ -125,7 +125,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
   const [fileName, setFileName]   = useState('')
   const [missingCols, setMissing] = useState<string[]>([])
   const [error, setError]         = useState('')
-  const [success, setSuccess]     = useState(false)
+  const [success, setSuccess]     = useState<{ saved: number; skipped: number } | null>(null)
   const [isPending, startT]       = useTransition()
   const fileRef                   = useRef<HTMLInputElement>(null)
 
@@ -163,7 +163,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
     startT(async () => {
       const result = await importMetaReportAction(clientId, rows)
       if (result?.message) setError(result.message)
-      else setSuccess(true)
+      else setSuccess({ saved: result.saved ?? 0, skipped: result.skipped ?? 0 })
     })
   }
 
@@ -175,9 +175,18 @@ export function ImportForm({ clients }: { clients: Client[] }) {
           <CheckCircle2 className="h-8 w-8 text-green-400" />
         </div>
         <h2 className="text-white font-bold text-xl">Importação concluída!</h2>
-        <p className="text-white/40 text-sm">
-          {rows.length} campanha{rows.length > 1 ? 's' : ''} importada{rows.length > 1 ? 's' : ''} com sucesso.
-        </p>
+        <div className="flex flex-col items-center gap-1 text-sm">
+          {success.saved > 0 && (
+            <p className="text-green-400">
+              {success.saved} campanha{success.saved > 1 ? 's' : ''} nova{success.saved > 1 ? 's' : ''} adicionada{success.saved > 1 ? 's' : ''} ao histórico.
+            </p>
+          )}
+          {success.skipped > 0 && (
+            <p className="text-white/40">
+              {success.skipped} já existia{success.skipped > 1 ? 'm' : ''} neste período e foi{success.skipped > 1 ? 'ram' : ''} ignorada{success.skipped > 1 ? 's' : ''}.
+            </p>
+          )}
+        </div>
         <a
           href="/traffic/dashboard"
           className="mt-2 px-6 py-2.5 bg-[#EACE00] text-black text-sm font-semibold rounded-xl hover:bg-[#f5d800] transition-colors"

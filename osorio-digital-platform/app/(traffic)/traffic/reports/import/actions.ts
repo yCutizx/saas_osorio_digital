@@ -21,7 +21,7 @@ const RowSchema = z.object({
   period_end:    z.string().min(1),
 })
 
-export type ImportState = { message?: string; success?: boolean }
+export type ImportState = { message?: string; success?: boolean; saved?: number; skipped?: number }
 
 export async function importMetaReportAction(
   clientId: string,
@@ -45,26 +45,52 @@ export async function importMetaReportAction(
   if (!parsed.success)
     return { message: 'Dados inválidos: ' + parsed.error.issues[0]?.message }
 
-  let saved = 0
+  let saved   = 0
+  let skipped = 0
   const errors: string[] = []
 
   for (const row of parsed.data) {
-    // Cada import cria um snapshot independente — sem deduplicação por nome
-    const { data: newCamp, error: campErr } = await admin
+    // 1. Find or create campaign by (client_id, name, platform)
+    let campaignId: string
+
+    const { data: existingCamp } = await admin
       .from('campaigns')
-      .insert({
-        client_id: clientId,
-        name:      row.campaign_name,
-        platform:  'meta',
-        status:    row.status,
-      })
       .select('id')
-      .single()
+      .eq('client_id', clientId)
+      .eq('name', row.campaign_name)
+      .eq('platform', 'meta')
+      .maybeSingle()
 
-    if (campErr || !newCamp) { errors.push(row.campaign_name); continue }
-    const campaignId = newCamp.id
+    if (existingCamp) {
+      campaignId = existingCamp.id
+      await admin.from('campaigns').update({ status: row.status }).eq('id', campaignId)
+    } else {
+      const { data: newCamp, error: campErr } = await admin
+        .from('campaigns')
+        .insert({ client_id: clientId, name: row.campaign_name, platform: 'meta', status: row.status })
+        .select('id')
+        .single()
 
-    // Sempre insere novo registro de relatório para o período do CSV
+      if (campErr || !newCamp) { errors.push(row.campaign_name); continue }
+      campaignId = newCamp.id
+    }
+
+    // 2. Check if report already exists for this exact period
+    const { data: existingReport } = await admin
+      .from('traffic_reports')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('campaign_id', campaignId)
+      .eq('period_start', row.period_start)
+      .eq('period_end', row.period_end)
+      .maybeSingle()
+
+    if (existingReport) {
+      skipped++
+      continue
+    }
+
+    // 3. Insert new report for this period
     const { error: repErr } = await admin.from('traffic_reports').insert({
       client_id:    clientId,
       campaign_id:  campaignId,
@@ -83,8 +109,8 @@ export async function importMetaReportAction(
     else saved++
   }
 
-  if (saved === 0)
-    return { message: `Nenhum registro salvo.${errors.length ? ' Campanhas com erro: ' + errors.join(', ') : ''}` }
+  if (saved === 0 && skipped === 0)
+    return { message: `Nenhum registro salvo.${errors.length ? ' Erros: ' + errors.join(', ') : ''}` }
 
-  return { success: true }
+  return { success: true, saved, skipped }
 }
