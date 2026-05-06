@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { subDays, format, parseISO } from 'date-fns'
+import { subDays, format, parseISO, eachDayOfInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   DollarSign, TrendingUp, MousePointerClick,
@@ -44,7 +44,7 @@ function computeStats(reports: Report[]) {
   return { spend, revenue, conversions, clicks, impressions, roas, ctr, cpc, cpa }
 }
 
-function buildDailyData(reports: Report[]): DailyPoint[] {
+function buildDailyData(reports: Report[], from: string, to: string): DailyPoint[] {
   const map = new Map<string, DailyPoint>()
   for (const r of reports) {
     const existing = map.get(r.period_start) ?? {
@@ -57,9 +57,14 @@ function buildDailyData(reports: Report[]): DailyPoint[] {
     existing.impressoes   += r.impressions
     map.set(r.period_start, existing)
   }
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, v]) => v)
+  // Preenche todos os dias do intervalo com zero onde não há dados
+  return eachDayOfInterval({ start: parseISO(from), end: parseISO(to) }).map((day) => {
+    const key = format(day, 'yyyy-MM-dd')
+    return map.get(key) ?? {
+      date: format(day, 'dd/MM', { locale: ptBR }),
+      investimento: 0, conversoes: 0, cliques: 0, impressoes: 0,
+    }
+  })
 }
 
 function buildCampaignRows(reports: Report[]): CampaignRow[] {
@@ -141,10 +146,10 @@ function buildInsights(dailyData: DailyPoint[], campaignRows: CampaignRow[], sta
 }
 
 // ── fetch ────────────────────────────────────────────────────────────────────
-async function fetchDashboardData(period: number, clientId?: string) {
+async function fetchDashboardData(from: string, to: string, clientId?: string) {
   const supabase   = await createClient()
-  const startDate  = format(subDays(new Date(), period), 'yyyy-MM-dd')
-  const endDate    = format(new Date(), 'yyyy-MM-dd')
+  const startDate  = from
+  const endDate    = to
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -216,14 +221,15 @@ function DiagBadge({ label, value, status }: { label: string; value: string; sta
 
 // ── page ─────────────────────────────────────────────────────────────────────
 interface PageProps {
-  searchParams: { period?: string; client?: string }
+  searchParams: { from?: string; to?: string; client?: string }
 }
 
 export default async function TrafficDashboardPage({ searchParams }: PageProps) {
-  const period   = Math.min(Math.max(parseInt(searchParams.period ?? '30'), 7), 90)
+  const from     = searchParams.from ?? format(subDays(new Date(), 29), 'yyyy-MM-dd')
+  const to       = searchParams.to   ?? format(new Date(), 'yyyy-MM-dd')
   const clientId = searchParams.client
 
-  const data = await fetchDashboardData(period, clientId)
+  const data = await fetchDashboardData(from, to, clientId)
   if (!data) return null
 
   const { clients, reports, profile } = data
@@ -231,7 +237,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const canEdit = isAdmin || profile?.role === 'traffic_manager'
 
   const stats        = computeStats(reports)
-  const dailyData    = buildDailyData(reports)
+  const dailyData    = buildDailyData(reports, from, to)
   const campaignRows = buildCampaignRows(reports)
   const alerts       = buildAlerts(stats)
   const insights     = buildInsights(dailyData, campaignRows, stats)
@@ -252,7 +258,8 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
           <Suspense fallback={null}>
             <TrafficFilters
               clients={clients}
-              currentPeriod={String(period)}
+              currentFrom={from}
+              currentTo={to}
               currentClientId={clientId ?? null}
             />
           </Suspense>
@@ -286,7 +293,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
             <p className="text-white/40 text-sm mb-6 max-w-sm">
               {clients.length === 0
                 ? 'Você ainda não tem clientes atribuídos.'
-                : `Não há relatórios nos últimos ${period} dias.`}
+                : 'Não há relatórios no período selecionado.'}
             </p>
             {canEdit && clients.length > 0 && (
               <Link
@@ -313,7 +320,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                   </span>
                 </div>
                 <p className="text-white/40 text-sm mt-2">
-                  em {period} dias · {formatCurrency(stats.spend)} investidos
+                  no período · {formatCurrency(stats.spend)} investidos
                 </p>
               </div>
               <div className="flex flex-col items-start sm:items-end gap-1">
@@ -342,7 +349,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                     </div>
                   </div>
                   <div className="text-2xl font-bold text-white">{card.value}</div>
-                  <p className="text-xs text-white/30 mt-0.5">últimos {period} dias</p>
+                  <p className="text-xs text-white/30 mt-0.5">no período</p>
                 </div>
               ))}
             </div>
