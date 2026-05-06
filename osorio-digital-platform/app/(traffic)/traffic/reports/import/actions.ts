@@ -21,11 +21,21 @@ const RowSchema = z.object({
   period_end:    z.string().min(1),
 })
 
+const DailyRowSchema = z.object({
+  campaign_name: z.string().min(1),
+  date:          z.string().min(1),
+  spend:         z.number().min(0),
+  impressions:   z.number().int().min(0),
+  clicks:        z.number().int().min(0),
+  results:       z.number().int().min(0),
+})
+
 export type ImportState = { message?: string; success?: boolean; saved?: number; skipped?: number }
 
 export async function importMetaReportAction(
   clientId: string,
-  rows: unknown[],
+  grouped: unknown[],
+  daily: unknown[],
 ): Promise<ImportState> {
   const supabase = await createClient()
   const admin    = createAdminClient()
@@ -41,17 +51,23 @@ export async function importMetaReportAction(
   if (!z.string().uuid().safeParse(clientId).success)
     return { message: 'Cliente inválido.' }
 
-  const parsed = z.array(RowSchema).safeParse(rows)
-  if (!parsed.success)
-    return { message: 'Dados inválidos: ' + parsed.error.issues[0]?.message }
+  const parsedGrouped = z.array(RowSchema).safeParse(grouped)
+  if (!parsedGrouped.success)
+    return { message: 'Dados inválidos: ' + parsedGrouped.error.issues[0]?.message }
+
+  const parsedDaily = z.array(DailyRowSchema).safeParse(daily)
+  if (!parsedDaily.success)
+    return { message: 'Dados diários inválidos: ' + parsedDaily.error.issues[0]?.message }
 
   let saved   = 0
   let skipped = 0
   const errors: string[] = []
 
-  for (const row of parsed.data) {
-    // 1. Upsert campaign: insere se não existe, atualiza status se já existe.
-    //    Requer constraint UNIQUE(client_id, name, platform) na tabela campaigns.
+  // Mapa campaign_name → campaign_id (populado conforme upsert)
+  const campaignIdMap = new Map<string, string>()
+
+  for (const row of parsedGrouped.data) {
+    // 1. Upsert campaign: insere se não existe, atualiza status se já existe
     const { data: camp, error: campErr } = await admin
       .from('campaigns')
       .upsert(
@@ -67,6 +83,7 @@ export async function importMetaReportAction(
       continue
     }
     const campaignId = camp.id
+    campaignIdMap.set(row.campaign_name.toLowerCase(), campaignId)
 
     // 2. Verifica se já existe relatório para este período exato
     const { data: existingReport, error: repSelectErr } = await admin
@@ -89,7 +106,7 @@ export async function importMetaReportAction(
       continue
     }
 
-    // 3. Insere novo relatório para este período
+    // 3. Insere novo relatório agregado
     const { error: repErr } = await admin.from('traffic_reports').insert({
       client_id:    clientId,
       campaign_id:  campaignId,
@@ -107,8 +124,36 @@ export async function importMetaReportAction(
     if (repErr) {
       console.error('[import] report insert error:', repErr.message, row.campaign_name)
       errors.push(row.campaign_name)
+    } else {
+      saved++
     }
-    else saved++
+  }
+
+  // 4. Insere dados diários em traffic_daily (upsert por date — ignora duplicatas)
+  const dailyToInsert = parsedDaily.data
+    .map((dr) => {
+      const campaignId = campaignIdMap.get(dr.campaign_name.toLowerCase())
+      if (!campaignId) return null
+      return {
+        client_id:   clientId,
+        campaign_id: campaignId,
+        date:        dr.date,
+        spend:       dr.spend,
+        impressions: dr.impressions,
+        clicks:      dr.clicks,
+        conversions: dr.results,
+      }
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+
+  if (dailyToInsert.length > 0) {
+    const { error: dailyErr } = await admin
+      .from('traffic_daily')
+      .upsert(dailyToInsert, { onConflict: 'client_id,campaign_id,date' })
+
+    if (dailyErr) {
+      console.error('[import] traffic_daily upsert error:', dailyErr.message)
+    }
   }
 
   if (saved === 0 && skipped === 0)

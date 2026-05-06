@@ -30,6 +30,15 @@ type Report = {
   campaigns: { name: string; platform: string } | null
 }
 
+type DailyRecord = {
+  date:        string
+  spend:       number
+  impressions: number
+  clicks:      number
+  conversions: number
+  client_id:   string
+}
+
 // ── builders ────────────────────────────────────────────────────────────────
 function computeStats(reports: Report[]) {
   const spend       = reports.reduce((s, r) => s + r.spend, 0)
@@ -44,18 +53,19 @@ function computeStats(reports: Report[]) {
   return { spend, revenue, conversions, clicks, impressions, roas, ctr, cpc, cpa }
 }
 
-function buildDailyData(reports: Report[], from: string, to: string): DailyPoint[] {
+function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): DailyPoint[] {
   const map = new Map<string, DailyPoint>()
-  for (const r of reports) {
-    const existing = map.get(r.period_start) ?? {
-      date:         format(parseISO(r.period_start), 'dd/MM', { locale: ptBR }),
+  for (const r of dailyRecords) {
+    const key      = r.date.slice(0, 10)
+    const existing = map.get(key) ?? {
+      date:         format(parseISO(key), 'dd/MM', { locale: ptBR }),
       investimento: 0, conversoes: 0, cliques: 0, impressoes: 0,
     }
     existing.investimento += r.spend
     existing.conversoes   += r.conversions
     existing.cliques      += r.clicks
     existing.impressoes   += r.impressions
-    map.set(r.period_start, existing)
+    map.set(key, existing)
   }
   // Preenche todos os dias do intervalo com zero onde não há dados
   return eachDayOfInterval({ start: parseISO(from), end: parseISO(to) }).map((day) => {
@@ -162,7 +172,7 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
     const { data: assignments } = await supabase
       .from('client_assignments').select('client_id').eq('user_id', user.id)
     const ids = (assignments ?? []).map((a) => a.client_id)
-    if (ids.length === 0) return { clients: [], reports: [], profile }
+    if (ids.length === 0) return { clients: [], reports: [], dailyRecords: [], profile }
     clientsQuery = clientsQuery.in('id', ids)
   }
   const { data: clients } = await clientsQuery
@@ -182,11 +192,31 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
 
   const { data: reports } = await reportsQuery
 
+  // Busca dados diários para o gráfico (traffic_daily)
+  let dailyQuery = supabase
+    .from('traffic_daily')
+    .select('date, spend, impressions, clicks, conversions, client_id')
+    .gte('date', startDate)
+    .lte('date', endDate)
+
+  if (clientId) {
+    dailyQuery = dailyQuery.eq('client_id', clientId)
+  } else if (profile?.role !== 'admin' && clients?.length) {
+    dailyQuery = dailyQuery.in('client_id', clients.map((c) => c.id))
+  }
+
+  const { data: dailyRecords } = await dailyQuery
+
   // Filtra o dropdown para mostrar apenas clientes com dados no período
   const clientIdsWithReports = new Set((reports ?? []).map((r) => r.client_id))
   const clientsWithReports = (clients ?? []).filter((c) => clientIdsWithReports.has(c.id))
 
-  return { clients: clientsWithReports, reports: (reports ?? []) as unknown as Report[], profile }
+  return {
+    clients:      clientsWithReports,
+    reports:      (reports ?? []) as unknown as Report[],
+    dailyRecords: (dailyRecords ?? []) as DailyRecord[],
+    profile,
+  }
 }
 
 // ── helpers de render ────────────────────────────────────────────────────────
@@ -237,13 +267,13 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const data = await fetchDashboardData(from, to, clientId)
   if (!data) return null
 
-  const { clients, reports, profile } = data
+  const { clients, reports, dailyRecords, profile } = data
   const isAdmin = profile?.role === 'admin'
   const canEdit = isAdmin || profile?.role === 'traffic_manager'
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   const stats        = computeStats(reports)
-  const dailyData    = buildDailyData(reports, from, to)
+  const dailyData    = buildDailyData(dailyRecords, from, to)
   const campaignRows = buildCampaignRows(reports)
   const alerts       = buildAlerts(stats)
   const insights     = buildInsights(dailyData, campaignRows, stats)

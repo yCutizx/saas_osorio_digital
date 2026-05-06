@@ -39,6 +39,9 @@ type DailyRow = {
   result_type:   string
 }
 
+// Linha diária exportada para a action (para traffic_daily)
+export type { DailyRow }
+
 // Linha agrupada por campanha (o que vai pro banco e pro preview)
 export type GroupedRow = {
   campaign_name: string
@@ -58,14 +61,14 @@ export type GroupedRow = {
 }
 
 // ── Parsers numéricos ─────────────────────────────────────────────────────────
+// Converte formato BR: "1.741,856" → 1741.856, "46.303,00" → 46303
 function parseBRL(v?: string): number {
   if (!v || v.trim() === '' || v.trim() === '--') return 0
   return parseFloat(v.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0
 }
 
-function parseInt_(v?: string): number {
-  if (!v || v.trim() === '' || v.trim() === '--') return 0
-  return parseInt(v.replace(/\./g, '').replace(',', '')) || 0
+function parseIntBR(v?: string): number {
+  return Math.round(parseBRL(v))
 }
 
 // Data: aceita "dd/mm/yyyy" (BR) ou "yyyy-mm-dd" (ISO)
@@ -99,11 +102,11 @@ function parseMeta(csv: string): { daily: DailyRow[]; missingCols: string[] } {
       campaign_name: row[COL.name]?.trim()           ?? '',
       status:        mapStatus(row[COL.status]),
       date:          parseDate(row[COL.period_start]) || parseDate(row[COL.period_end]),
-      results:       parseInt_(row[COL.results]),
-      reach:         parseInt_(row[COL.reach]),
+      results:       parseIntBR(row[COL.results]),
+      reach:         parseIntBR(row[COL.reach]),
       spend:         parseBRL(row[COL.spend]),
-      impressions:   parseInt_(row[COL.impressions]),
-      clicks:        parseInt_(row[COL.clicks]),
+      impressions:   parseIntBR(row[COL.impressions]),
+      clicks:        parseIntBR(row[COL.clicks]),
       result_type:   row[COL.result_type]?.trim()    ?? '',
     }))
     .filter((r) => r.spend > 0 && r.campaign_name.length > 0)
@@ -190,6 +193,7 @@ function fmtPct(n: number) {
 export function ImportForm({ clients }: { clients: Client[] }) {
   const [clientId, setClientId]   = useState(clients[0]?.id ?? '')
   const [rows, setRows]           = useState<GroupedRow[]>([])
+  const [dailyRows, setDailyRows] = useState<DailyRow[]>([])
   const [fileName, setFileName]   = useState('')
   const [missingCols, setMissing] = useState<string[]>([])
   const [error, setError]         = useState('')
@@ -198,7 +202,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
   const fileRef                   = useRef<HTMLInputElement>(null)
 
   function reset() {
-    setRows([]); setFileName(''); setMissing([]); setError('')
+    setRows([]); setDailyRows([]); setFileName(''); setMissing([]); setError('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -214,6 +218,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
         setError('Nenhuma campanha com gasto encontrada. Verifique se o arquivo é um export válido do Meta Ads Manager.')
         return
       }
+      setDailyRows(daily)
       setRows(groupByCampaign(daily))
     }
     reader.readAsText(file, 'UTF-8')
@@ -229,7 +234,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
     if (!clientId || rows.length === 0) return
     setError('')
     startT(async () => {
-      const result = await importMetaReportAction(clientId, rows)
+      const result = await importMetaReportAction(clientId, rows, dailyRows)
       if (result?.message) setError(result.message)
       else setSuccess({ saved: result.saved ?? 0, skipped: result.skipped ?? 0 })
     })
