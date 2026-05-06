@@ -2,7 +2,7 @@ import { format, subDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   DollarSign, Eye, MousePointerClick, TrendingUp,
-  BarChart2, AlertTriangle, CheckCircle2, XCircle, Zap, ArrowUpRight, ArrowDownRight,
+  BarChart2, AlertTriangle, CheckCircle2, XCircle, Zap,
 } from 'lucide-react'
 import { AppLayout }        from '@/components/layout/app-layout'
 import { createClient }     from '@/lib/supabase/server'
