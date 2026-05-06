@@ -26,39 +26,46 @@ const COL = {
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Client = { id: string; name: string }
 
-export type ParsedRow = {
+// Linha diária bruta do CSV (uma por dia por campanha)
+type DailyRow = {
   campaign_name: string
   status:        'active' | 'paused'
+  date:          string   // período desta linha (dia)
   results:       number
   reach:         number
   spend:         number
   impressions:   number
-  cpm:           number
   clicks:        number
+  result_type:   string
+}
+
+// Linha agrupada por campanha (o que vai pro banco e pro preview)
+export type GroupedRow = {
+  campaign_name: string
+  status:        'active' | 'paused'
+  period_start:  string
+  period_end:    string
+  spend:         number
+  impressions:   number
+  reach:         number
+  clicks:        number
+  results:       number
+  cpm:           number
   cpc:           number
   ctr:           number
   cpa:           number
   result_type:   string
-  period_start:  string
-  period_end:    string
 }
 
 // ── Parsers numéricos ─────────────────────────────────────────────────────────
 function parseBRL(v?: string): number {
   if (!v || v.trim() === '' || v.trim() === '--') return 0
-  // Remove R$, espaços; troca separador de milhar (.) por nada; troca vírgula decimal por ponto
   return parseFloat(v.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0
 }
 
 function parseInt_(v?: string): number {
   if (!v || v.trim() === '' || v.trim() === '--') return 0
   return parseInt(v.replace(/\./g, '').replace(',', '')) || 0
-}
-
-// CTR vem como "0,51%" → armazena como decimal 0.0051
-function parsePct(v?: string): number {
-  if (!v || v.trim() === '' || v.trim() === '--') return 0
-  return parseFloat(v.replace('%', '').replace(',', '.').trim()) / 100 || 0
 }
 
 // Data: aceita "dd/mm/yyyy" (BR) ou "yyyy-mm-dd" (ISO)
@@ -77,36 +84,93 @@ function mapStatus(v?: string): 'active' | 'paused' {
   return 'paused'
 }
 
-// ── Parse do CSV ──────────────────────────────────────────────────────────────
-function parseMeta(csv: string): { rows: ParsedRow[]; missingCols: string[] } {
+// ── Parse do CSV (retorna linhas diárias brutas) ───────────────────────────────
+function parseMeta(csv: string): { daily: DailyRow[]; missingCols: string[] } {
   const result = Papa.parse<Record<string, string>>(csv, {
     header: true,
     skipEmptyLines: true,
   })
 
-  const headers    = result.meta.fields ?? []
+  const headers     = result.meta.fields ?? []
   const missingCols = Object.values(COL).filter((c) => !headers.includes(c))
 
-  const rows = result.data
-    .map((row): ParsedRow => ({
+  const daily = result.data
+    .map((row): DailyRow => ({
       campaign_name: row[COL.name]?.trim()           ?? '',
       status:        mapStatus(row[COL.status]),
+      date:          parseDate(row[COL.period_start]) || parseDate(row[COL.period_end]),
       results:       parseInt_(row[COL.results]),
       reach:         parseInt_(row[COL.reach]),
       spend:         parseBRL(row[COL.spend]),
       impressions:   parseInt_(row[COL.impressions]),
-      cpm:           parseBRL(row[COL.cpm]),
       clicks:        parseInt_(row[COL.clicks]),
-      cpc:           parseBRL(row[COL.cpc]),
-      ctr:           parsePct(row[COL.ctr]),
-      cpa:           parseBRL(row[COL.cpa]),
       result_type:   row[COL.result_type]?.trim()    ?? '',
-      period_start:  parseDate(row[COL.period_start]),
-      period_end:    parseDate(row[COL.period_end]),
     }))
     .filter((r) => r.spend > 0 && r.campaign_name.length > 0)
 
-  return { rows, missingCols }
+  return { daily, missingCols }
+}
+
+// ── Agrupa linhas diárias por campanha ────────────────────────────────────────
+function groupByCampaign(daily: DailyRow[]): GroupedRow[] {
+  const map = new Map<string, {
+    name:        string
+    status:      'active' | 'paused'
+    dates:       string[]
+    spend:       number
+    impressions: number
+    reach:       number
+    clicks:      number
+    results:     number
+    result_type: string
+  }>()
+
+  for (const row of daily) {
+    const key = row.campaign_name.toLowerCase()
+    const ex  = map.get(key)
+    if (ex) {
+      ex.spend       += row.spend
+      ex.impressions += row.impressions
+      ex.reach       += row.reach
+      ex.clicks      += row.clicks
+      ex.results     += row.results
+      if (row.date) ex.dates.push(row.date)
+      if (row.status === 'active') ex.status = 'active'
+    } else {
+      map.set(key, {
+        name:        row.campaign_name,
+        status:      row.status,
+        dates:       row.date ? [row.date] : [],
+        spend:       row.spend,
+        impressions: row.impressions,
+        reach:       row.reach,
+        clicks:      row.clicks,
+        results:     row.results,
+        result_type: row.result_type,
+      })
+    }
+  }
+
+  return Array.from(map.values()).map((v) => {
+    const sorted = [...new Set(v.dates)].sort()
+    const { spend, impressions, clicks, results } = v
+    return {
+      campaign_name: v.name,
+      status:        v.status,
+      period_start:  sorted[0]                  ?? '',
+      period_end:    sorted[sorted.length - 1]  ?? '',
+      spend,
+      impressions,
+      reach:   v.reach,
+      clicks,
+      results,
+      cpm:     impressions > 0 ? (spend / impressions) * 1000 : 0,
+      cpc:     clicks > 0      ? spend / clicks               : 0,
+      ctr:     impressions > 0 ? clicks / impressions          : 0,
+      cpa:     results > 0     ? spend / results               : 0,
+      result_type: v.result_type,
+    }
+  })
 }
 
 // ── Helpers de formatação ─────────────────────────────────────────────────────
@@ -118,10 +182,14 @@ function fmtInt(n: number) {
   return n === 0 ? '—' : n.toLocaleString('pt-BR')
 }
 
+function fmtPct(n: number) {
+  return n === 0 ? '—' : (n * 100).toFixed(2).replace('.', ',') + '%'
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export function ImportForm({ clients }: { clients: Client[] }) {
   const [clientId, setClientId]   = useState(clients[0]?.id ?? '')
-  const [rows, setRows]           = useState<ParsedRow[]>([])
+  const [rows, setRows]           = useState<GroupedRow[]>([])
   const [fileName, setFileName]   = useState('')
   const [missingCols, setMissing] = useState<string[]>([])
   const [error, setError]         = useState('')
@@ -140,13 +208,13 @@ export function ImportForm({ clients }: { clients: Client[] }) {
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      const { rows: parsed, missingCols: missing } = parseMeta(text)
+      const { daily, missingCols: missing } = parseMeta(text)
       setMissing(missing)
-      if (parsed.length === 0) {
+      if (daily.length === 0) {
         setError('Nenhuma campanha com gasto encontrada. Verifique se o arquivo é um export válido do Meta Ads Manager.')
         return
       }
-      setRows(parsed)
+      setRows(groupByCampaign(daily))
     }
     reader.readAsText(file, 'UTF-8')
   }
@@ -166,6 +234,14 @@ export function ImportForm({ clients }: { clients: Client[] }) {
       else setSuccess({ saved: result.saved ?? 0, skipped: result.skipped ?? 0 })
     })
   }
+
+  // Período global do CSV (menor start → maior end entre todas as campanhas)
+  const overallStart = rows.length > 0
+    ? rows.reduce((m, r) => r.period_start < m ? r.period_start : m, rows[0].period_start)
+    : ''
+  const overallEnd = rows.length > 0
+    ? rows.reduce((m, r) => r.period_end > m ? r.period_end : m, rows[0].period_end)
+    : ''
 
   // ── Tela de sucesso ───────────────────────────────────────────────────────
   if (success) {
@@ -288,35 +364,28 @@ export function ImportForm({ clients }: { clients: Client[] }) {
             <h2 className="text-white font-semibold">
               Preview —{' '}
               <span className="text-[#EACE00]">{rows.length}</span>{' '}
-              campanha{rows.length > 1 ? 's' : ''} encontrada{rows.length > 1 ? 's' : ''}
+              campanha{rows.length > 1 ? 's' : ''} agrupada{rows.length > 1 ? 's' : ''}
             </h2>
-            <button
-              onClick={reset}
-              className="text-white/30 hover:text-white transition-colors p-1"
-            >
+            <button onClick={reset} className="text-white/30 hover:text-white transition-colors p-1">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Badge de período detectado */}
+          {/* Badge de período global */}
           <div className="bg-[#EACE00]/10 border border-[#EACE00]/20 rounded-xl px-4 py-3 text-sm text-[#EACE00]/80">
-            Período detectado:{' '}
-            <strong className="text-[#EACE00]">{rows[0].period_start}</strong>
+            Período do relatório:{' '}
+            <strong className="text-[#EACE00]">{overallStart}</strong>
             {' '}até{' '}
-            <strong className="text-[#EACE00]">{rows[0].period_end}</strong>
+            <strong className="text-[#EACE00]">{overallEnd}</strong>
           </div>
 
-          {/* Tabela de preview */}
+          {/* Tabela de preview agrupada */}
           <div className="rounded-2xl bg-[#0d0d0d] border border-[#222] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#222]">
-                    {[
-                      'Campanha', 'Status', 'Gasto', 'Impressões',
-                      'Alcance', 'Cliques', 'CTR', 'CPM', 'CPC',
-                      'Resultados', 'CPA', 'Tipo de resultado',
-                    ].map((h) => (
+                    {['Campanha', 'Status', 'Período', 'Gasto total', 'Impressões', 'Alcance', 'Cliques', 'CTR', 'CPM', 'CPC', 'Resultados', 'CPA'].map((h) => (
                       <th key={h} className="px-3 py-3 text-left text-xs text-white/30 font-medium whitespace-nowrap">
                         {h}
                       </th>
@@ -326,7 +395,7 @@ export function ImportForm({ clients }: { clients: Client[] }) {
                 <tbody className="divide-y divide-[#1a1a1a]">
                   {rows.map((r, i) => (
                     <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-3 py-2.5 text-white font-medium max-w-[180px] truncate" title={r.campaign_name}>
+                      <td className="px-3 py-2.5 text-white font-medium max-w-[200px] truncate" title={r.campaign_name}>
                         {r.campaign_name}
                       </td>
                       <td className="px-3 py-2.5">
@@ -338,20 +407,18 @@ export function ImportForm({ clients }: { clients: Client[] }) {
                           {r.status === 'active' ? 'Ativo' : 'Pausado'}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-white whitespace-nowrap">{fmtBRL(r.spend)}</td>
+                      <td className="px-3 py-2.5 text-white/50 text-xs whitespace-nowrap">
+                        {r.period_start} → {r.period_end}
+                      </td>
+                      <td className="px-3 py-2.5 text-white whitespace-nowrap font-medium">{fmtBRL(r.spend)}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtInt(r.impressions)}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtInt(r.reach)}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtInt(r.clicks)}</td>
-                      <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">
-                        {r.ctr > 0 ? (r.ctr * 100).toFixed(2).replace('.', ',') + '%' : '—'}
-                      </td>
+                      <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtPct(r.ctr)}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtBRL(r.cpm)}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtBRL(r.cpc)}</td>
                       <td className="px-3 py-2.5 text-white/70 text-center">{r.results || '—'}</td>
                       <td className="px-3 py-2.5 text-white/70 whitespace-nowrap">{fmtBRL(r.cpa)}</td>
-                      <td className="px-3 py-2.5 text-white/30 text-xs max-w-[140px] truncate" title={r.result_type}>
-                        {r.result_type || '—'}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
