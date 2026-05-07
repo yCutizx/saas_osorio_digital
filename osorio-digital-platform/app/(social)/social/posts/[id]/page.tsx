@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { format, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, ExternalLink, Hash } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Hash, User } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
@@ -41,7 +41,6 @@ export default async function PostDetailPage({ params }: PageProps) {
       console.error('[PostDetailPage] profile error:', profileError.message)
     }
 
-    // Buscar o post
     const { data: post, error: postError } = await supabase
       .from('content_posts')
       .select('*, clients(name)')
@@ -58,7 +57,6 @@ export default async function PostDetailPage({ params }: PageProps) {
       notFound()
     }
 
-    // Verificar acesso ao cliente deste post
     if (profile?.role !== 'admin') {
       const { data: assignment, error: assignError } = await supabase
         .from('client_assignments')
@@ -77,7 +75,11 @@ export default async function PostDetailPage({ params }: PageProps) {
       }
     }
 
-    // Buscar comentários
+    // Fetch assignee profile if set
+    const assignee = post.assigned_to
+      ? (await supabase.from('profiles').select('full_name, email').eq('id', post.assigned_to).maybeSingle()).data
+      : null
+
     const { data: comments, error: commentsError } = await supabase
       .from('post_comments')
       .select('*, profiles(full_name)')
@@ -90,8 +92,11 @@ export default async function PostDetailPage({ params }: PageProps) {
 
     const role      = profile?.role ?? 'client'
     const isClient  = role === 'client'
+    const isStaff   = ['admin', 'social_media', 'traffic_manager'].includes(role)
     const canEdit   = ['admin', 'social_media'].includes(role)
     const statusCfg = STATUS_CONFIG[post?.status] ?? STATUS_CONFIG.draft
+
+    const platforms = (post?.platform ?? '').split(',').filter(Boolean)
 
     const backHref = isClient
       ? '/client/calendar'
@@ -103,7 +108,6 @@ export default async function PostDetailPage({ params }: PageProps) {
       <AppLayout>
         <div className="max-w-2xl mx-auto space-y-6">
 
-          {/* Navegação */}
           <div className="flex items-center justify-between">
             <Link
               href={backHref}
@@ -117,16 +121,12 @@ export default async function PostDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Card principal do post */}
           <Card className="bg-[#111] border-[#222]">
             <CardContent className="p-6 space-y-5">
-              {/* Header */}
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1 min-w-0">
                   <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
-                    <span>{PLATFORM_LABEL[post.platform] ?? post.platform}</span>
-                    <span>·</span>
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     <span>{(post.clients as any)?.name ?? '—'}</span>
                     {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
@@ -138,13 +138,28 @@ export default async function PostDetailPage({ params }: PageProps) {
                       </>
                     )}
                   </div>
+                  {/* Plataformas */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {platforms.map(p => (
+                      <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/60 border border-white/10">
+                        {PLATFORM_LABEL[p] ?? p}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium shrink-0', statusCfg.chip)}>
                   {statusCfg.label}
                 </span>
               </div>
 
-              {/* Mídia */}
+              {/* Responsável */}
+              {assignee && (
+                <div className="flex items-center gap-2 text-sm text-[#888]">
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  <span>Responsável: <span className="text-white">{assignee.full_name || assignee.email}</span></span>
+                </div>
+              )}
+
               {post.media_url && (
                 <a
                   href={post.media_url}
@@ -157,12 +172,22 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </a>
               )}
 
-              {/* Caption */}
+              {/* Legenda */}
               {post.caption && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Caption</p>
+                  <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Legenda</p>
                   <p className="text-white text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
                     {post.caption}
+                  </p>
+                </div>
+              )}
+
+              {/* Observações Internas — apenas equipe */}
+              {isStaff && post.internal_notes && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Observações Internas</p>
+                  <p className="text-white/70 text-sm whitespace-pre-wrap leading-relaxed bg-yellow-500/5 border border-yellow-500/15 rounded-lg p-3">
+                    {post.internal_notes}
                   </p>
                 </div>
               )}
@@ -179,7 +204,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Ações de aprovação (somente para cliente) */}
               {isClient && (
                 <div className="pt-2 border-t border-[#222]">
                   <p className="text-xs text-[#888] mb-3">Sua avaliação</p>
@@ -189,14 +213,11 @@ export default async function PostDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          {/* Seção de comentários */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-white">
               Histórico de Comentários
               {comments?.length ? (
-                <span className="ml-2 text-xs font-normal text-[#888]">
-                  ({comments.length})
-                </span>
+                <span className="ml-2 text-xs font-normal text-[#888]">({comments.length})</span>
               ) : null}
             </h2>
 
@@ -232,7 +253,6 @@ export default async function PostDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* Caixa de comentário (não-cliente) */}
             {!isClient && (
               <div className="pt-2">
                 <CommentBox postId={post.id} />

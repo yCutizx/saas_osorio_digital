@@ -36,11 +36,11 @@ interface Props {
 // ── Configurações de status ───────────────────────────────────────────────────
 
 export const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: string }> = {
-  draft:            { chip: 'bg-white/8 text-white/40',                                       dot: 'bg-white/25',    label: 'Planejado'         },
-  pending_approval: { chip: 'bg-orange-500/20 text-orange-400 border border-orange-500/20',   dot: 'bg-orange-400',  label: 'Aguard. aprovação' },
-  approved:         { chip: 'bg-green-500/20 text-green-400 border border-green-500/20',       dot: 'bg-green-400',   label: 'Aprovado'          },
-  rejected:         { chip: 'bg-red-500/20 text-red-400 border border-red-500/20',             dot: 'bg-red-400',     label: 'Reprovado'         },
-  published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',          dot: 'bg-blue-400',    label: 'Publicado'         },
+  draft:            { chip: 'bg-white/8 text-white/40',                                       dot: 'bg-[#555555]',   label: 'Planejado'         },
+  pending_approval: { chip: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20',   dot: 'bg-[#EACE00]',   label: 'Aguard. aprovação' },
+  approved:         { chip: 'bg-green-500/20 text-green-400 border border-green-500/20',       dot: 'bg-[#22C55E]',   label: 'Aprovado'          },
+  rejected:         { chip: 'bg-red-500/20 text-red-400 border border-red-500/20',             dot: 'bg-[#EF4444]',   label: 'Reprovado'         },
+  published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',          dot: 'bg-[#3B82F6]',   label: 'Publicado'         },
 }
 
 const PLATFORM_SHORT: Record<string, string> = {
@@ -97,7 +97,9 @@ function PostModal({
         <div className="space-y-2.5 text-sm">
           <div className="flex items-center gap-3">
             <span className="text-white/40 w-20 shrink-0">Plataforma</span>
-            <span className="text-white/80 capitalize">{PLATFORM_SHORT[post.platform] ?? post.platform}</span>
+            <span className="text-white/80">
+              {post.platform.split(',').map(p => PLATFORM_SHORT[p] ?? p).join(' · ')}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-white/40 w-20 shrink-0">Agendado</span>
@@ -145,7 +147,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
 
   function applyFilters(posts: CalendarPost[]): CalendarPost[] {
     return posts.filter(p =>
-      (!fPlat   || p.platform === fPlat) &&
+      (!fPlat   || p.platform.split(',').includes(fPlat)) &&
       (!fStatus || p.status   === fStatus)
     )
   }
@@ -215,8 +217,9 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
                 )}
                 title={post.title}
               >
-                <span className="font-bold shrink-0 opacity-60">
-                  {PLATFORM_SHORT[post.platform] ?? '??'}
+                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', cfg.dot)} />
+                <span className="font-bold shrink-0 opacity-60 text-[9px]">
+                  {post.platform.split(',').map(p => PLATFORM_SHORT[p] ?? '?').join('/')}
                 </span>
                 <span className="truncate">{post.title}</span>
               </button>

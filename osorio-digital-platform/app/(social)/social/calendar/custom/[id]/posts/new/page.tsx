@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NewCustomPostForm } from './new-custom-post-form'
 
+type StaffMember = { id: string; full_name: string | null; email: string }
+
 interface PageProps {
   params:       Promise<{ id: string }>
   searchParams: { date?: string }
@@ -36,6 +38,14 @@ export default async function NewCustomPostPage({ params, searchParams }: PagePr
     .from('custom_calendars').select('id, name').eq('id', calendarId).single()
   if (!calendar) notFound()
 
+  const { data: staffData } = await admin
+    .from('profiles')
+    .select('id, full_name, email')
+    .neq('role', 'client')
+    .eq('active', true)
+    .order('full_name')
+  const staff = (staffData ?? []) as StaffMember[]
+
   return (
     <AppLayout pageTitle="Novo Post">
       <div className="max-w-2xl mx-auto">
@@ -56,7 +66,11 @@ export default async function NewCustomPostPage({ params, searchParams }: PagePr
               Calendário: <span className="text-white">{calendar.name}</span>
             </p>
           </div>
-          <NewCustomPostForm calendarId={calendarId} defaultDate={searchParams.date} />
+          <NewCustomPostForm
+            calendarId={calendarId}
+            staff={staff}
+            defaultDate={searchParams.date}
+          />
         </div>
       </div>
     </AppLayout>

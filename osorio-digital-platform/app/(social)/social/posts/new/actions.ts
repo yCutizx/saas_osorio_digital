@@ -6,15 +6,17 @@ import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 
 const Schema = z.object({
-  client_id:    z.string().uuid('Selecione um cliente'),
-  title:        z.string().min(2, 'Título deve ter pelo menos 2 caracteres'),
-  caption:      z.string().optional(),
-  platform:     z.enum(['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter'] as const),
-  media_type:   z.enum(['image', 'video', 'carousel', 'reel', 'story'] as const).optional(),
-  media_url:    z.string().url('URL inválida').optional().or(z.literal('')),
-  scheduled_at: z.string().min(1, 'Data de agendamento obrigatória'),
-  hashtags_raw: z.string().optional(),
-  status:       z.enum(['draft', 'pending_approval'] as const),
+  client_id:      z.string().uuid('Selecione um cliente'),
+  title:          z.string().min(2, 'Título deve ter pelo menos 2 caracteres'),
+  caption:        z.string().optional(),
+  platform:       z.string().min(1, 'Selecione ao menos uma plataforma'),
+  media_type:     z.enum(['image', 'video', 'carousel', 'reel', 'story'] as const).optional(),
+  media_url:      z.string().url('URL inválida').optional().or(z.literal('')),
+  scheduled_at:   z.string().min(1, 'Data de agendamento obrigatória'),
+  hashtags_raw:   z.string().optional(),
+  internal_notes: z.string().optional(),
+  assigned_to:    z.string().uuid().optional().or(z.literal('')),
+  status:         z.enum(['draft', 'pending_approval'] as const),
 })
 
 export type FormState = {
@@ -38,16 +40,20 @@ export async function createPostAction(
     return { message: 'Acesso negado.' }
   }
 
+  const platformValues = (formData.getAll('platform') as string[]).filter(Boolean).join(',')
+
   const result = Schema.safeParse({
-    client_id:    formData.get('client_id'),
-    title:        formData.get('title'),
-    caption:      formData.get('caption') || undefined,
-    platform:     formData.get('platform'),
-    media_type:   formData.get('media_type') || undefined,
-    media_url:    formData.get('media_url') || undefined,
-    scheduled_at: formData.get('scheduled_at'),
-    hashtags_raw: formData.get('hashtags_raw') || undefined,
-    status:       formData.get('status'),
+    client_id:      formData.get('client_id'),
+    title:          formData.get('title'),
+    caption:        formData.get('caption') || undefined,
+    platform:       platformValues,
+    media_type:     formData.get('media_type') || undefined,
+    media_url:      formData.get('media_url') || undefined,
+    scheduled_at:   formData.get('scheduled_at'),
+    hashtags_raw:   formData.get('hashtags_raw') || undefined,
+    internal_notes: formData.get('internal_notes') || undefined,
+    assigned_to:    formData.get('assigned_to') || undefined,
+    status:         formData.get('status'),
   })
 
   if (!result.success) {
@@ -56,25 +62,23 @@ export async function createPostAction(
 
   const d = result.data
 
-  // Parsear hashtags: separa por vírgula, espaço ou #
   const hashtags = d.hashtags_raw
-    ? d.hashtags_raw
-        .split(/[\s,]+/)
-        .map((t) => t.replace(/^#/, '').trim())
-        .filter(Boolean)
+    ? d.hashtags_raw.split(/[\s,]+/).map((t) => t.replace(/^#/, '').trim()).filter(Boolean)
     : []
 
   const { error } = await supabase.from('content_posts').insert({
-    client_id:    d.client_id,
-    author_id:    user.id,
-    title:        d.title,
-    caption:      d.caption ?? null,
-    platform:     d.platform,
-    media_type:   d.media_type ?? null,
-    media_url:    d.media_url || null,
-    scheduled_at: d.scheduled_at,
-    status:       d.status,
-    hashtags:     hashtags.length > 0 ? hashtags : null,
+    client_id:      d.client_id,
+    author_id:      user.id,
+    title:          d.title,
+    caption:        d.caption ?? null,
+    platform:       d.platform,
+    media_type:     d.media_type ?? null,
+    media_url:      d.media_url || null,
+    scheduled_at:   d.scheduled_at,
+    status:         d.status,
+    hashtags:       hashtags.length > 0 ? hashtags : null,
+    internal_notes: d.internal_notes ?? null,
+    assigned_to:    d.assigned_to || null,
   })
 
   if (error) return { message: 'Erro ao criar post: ' + error.message }

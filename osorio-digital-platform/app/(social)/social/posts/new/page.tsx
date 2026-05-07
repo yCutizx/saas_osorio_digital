@@ -3,7 +3,10 @@ import { ArrowLeft } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NewPostForm } from './new-post-form'
+
+type StaffMember = { id: string; full_name: string | null; email: string }
 
 async function getAccessibleClients() {
   const supabase = await createClient()
@@ -33,8 +36,21 @@ async function getAccessibleClients() {
   return data ?? []
 }
 
-export default async function NewPostPage() {
+interface PageProps {
+  searchParams: { date?: string; client?: string }
+}
+
+export default async function NewPostPage({ searchParams }: PageProps) {
   const clients = await getAccessibleClients()
+
+  const admin = createAdminClient()
+  const { data: staffData } = await admin
+    .from('profiles')
+    .select('id, full_name, email')
+    .neq('role', 'client')
+    .eq('active', true)
+    .order('full_name')
+  const staff = (staffData ?? []) as StaffMember[]
 
   return (
     <AppLayout pageTitle="Novo Post">
@@ -67,7 +83,7 @@ export default async function NewPostPage() {
               </Link>
             </div>
           ) : (
-            <NewPostForm clients={clients} />
+            <NewPostForm clients={clients} staff={staff} defaultDate={searchParams.date} />
           )}
         </div>
       </div>
