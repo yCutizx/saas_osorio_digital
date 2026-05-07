@@ -1,18 +1,36 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfDay, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { PlusCircle, Calendar, Clock, CheckCircle2, Send, ChevronLeft, Users } from 'lucide-react'
+import { PlusCircle, Calendar, Clock, CheckCircle2, Send, ChevronLeft, Users, XCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CalendarGrid, type CalendarPost, type PostsByDate } from '@/components/calendar/calendar-grid'
 import { CustomCalendarsSection } from './custom-calendars-section'
+import { cn } from '@/lib/utils'
 
 type Client = { id: string; name: string }
 type StaffMember = { id: string; full_name: string | null; email: string; role: string }
+type RawPost = { id: string; title: string; platform: string; status: string; scheduled_at: string | null }
 
-// ── fetch clients ────────────────────────────────────────────────────────────
+const STATUS_CFG: Record<string, { label: string; dot: string; chip: string }> = {
+  draft:            { label: 'Planejado',         dot: 'bg-[#555555]', chip: 'bg-white/8 text-white/40'               },
+  pending_approval: { label: 'Aguard. aprovação', dot: 'bg-[#EACE00]', chip: 'bg-yellow-500/20 text-yellow-400'       },
+  approved:         { label: 'Aprovado',          dot: 'bg-[#22C55E]', chip: 'bg-green-500/20 text-green-400'         },
+  rejected:         { label: 'Reprovado',         dot: 'bg-[#EF4444]', chip: 'bg-red-500/20 text-red-400'             },
+  published:        { label: 'Publicado',         dot: 'bg-[#3B82F6]', chip: 'bg-blue-500/20 text-blue-400'           },
+}
+
+const PLATFORM_ABBR: Record<string, string> = {
+  instagram: 'IG', facebook: 'FB', tiktok: 'TT', linkedin: 'LI', twitter: 'TW',
+}
+
+const PLATFORM_LABEL: Record<string, string> = {
+  instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn', twitter: 'Twitter',
+}
+
+// ── fetch clients ─────────────────────────────────────────────────────────────
 async function fetchClients(): Promise<{ clients: Client[]; role: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -35,7 +53,7 @@ async function fetchClients(): Promise<{ clients: Client[]; role: string }> {
   return { clients: clients ?? [], role: profile?.role ?? '' }
 }
 
-// ── fetch calendar data for a specific client ────────────────────────────────
+// ── fetch calendar data ───────────────────────────────────────────────────────
 async function fetchCalendarData(clientId: string, month: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -44,7 +62,6 @@ async function fetchCalendarData(clientId: string, month: string) {
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  // verify access: non-admin must have this client assigned
   if (profile?.role !== 'admin') {
     const { data: assignment } = await supabase
       .from('client_assignments').select('client_id').eq('user_id', user.id).eq('client_id', clientId).maybeSingle()
@@ -80,42 +97,37 @@ async function fetchCalendarData(clientId: string, month: string) {
     })
   }
 
-  const all = posts ?? []
+  const all: RawPost[] = posts ?? []
   const stats = {
     total:     all.length,
     pending:   all.filter((p) => p.status === 'pending_approval').length,
     approved:  all.filter((p) => p.status === 'approved').length,
     published: all.filter((p) => p.status === 'published').length,
+    rejected:  all.filter((p) => p.status === 'rejected').length,
   }
 
-  return { client: clientRow, postsByDate, stats, role: profile?.role ?? '' }
+  return { client: clientRow, postsByDate, posts: all, stats, role: profile?.role ?? '' }
 }
 
-// ── fetch custom calendars ───────────────────────────────────────────────────
+// ── fetch custom calendars ────────────────────────────────────────────────────
 async function fetchCustomCalendars(role: string, userId: string) {
   const admin = createAdminClient()
 
-  // Get calendars: admin sees all, others see only theirs
   let calQuery = admin
     .from('custom_calendars')
     .select('id, name, created_at, custom_calendar_members(user_id, profiles(id, full_name, email, role))')
     .order('created_at', { ascending: false })
 
   if (role !== 'admin') {
-    // Filter to only calendars where user is a member
     const { data: memberships } = await admin
       .from('custom_calendar_members').select('calendar_id').eq('user_id', userId)
     const ids = (memberships ?? []).map((m) => m.calendar_id)
-    if (ids.length === 0) {
-      // Still fetch all staff for admin to use — not needed for non-admin
-      return { calendars: [], allStaff: [] }
-    }
+    if (ids.length === 0) return { calendars: [], allStaff: [] }
     calQuery = calQuery.in('id', ids)
   }
 
   const { data: calendars } = await calQuery
 
-  // For admin: fetch all staff for member picker
   let allStaff: StaffMember[] = []
   if (role === 'admin') {
     const { data: staff } = await admin
@@ -131,7 +143,7 @@ async function fetchCustomCalendars(role: string, userId: string) {
   return { calendars: (calendars ?? []) as any[], allStaff }
 }
 
-// ── page ─────────────────────────────────────────────────────────────────────
+// ── page ──────────────────────────────────────────────────────────────────────
 interface PageProps {
   searchParams: { month?: string; client?: string }
 }
@@ -140,7 +152,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
   const currentMonth = searchParams.month ?? format(new Date(), 'yyyy-MM')
   const clientId     = searchParams.client
 
-  // ── Client picker view ───────────────────────────────────────────────────
+  // ── Client picker view ────────────────────────────────────────────────────
   if (!clientId) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -153,7 +165,6 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
     return (
       <AppLayout pageTitle="Calendário Editorial">
         <div className="space-y-10">
-          {/* ── Calendários de clientes ── */}
           <div className="space-y-4">
             <div>
               <h1 className="text-xl font-bold text-white">Calendário Editorial</h1>
@@ -190,10 +201,8 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
             )}
           </div>
 
-          {/* ── Separador ── */}
           <div className="border-t border-[#1a1a1a]" />
 
-          {/* ── Calendários personalizados ── */}
           <CustomCalendarsSection
             calendars={calendars}
             allStaff={allStaff}
@@ -204,28 +213,51 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
     )
   }
 
-  // ── Calendar view ────────────────────────────────────────────────────────
+  // ── Calendar view ─────────────────────────────────────────────────────────
   const data = await fetchCalendarData(clientId, currentMonth)
   if (!data) return null
 
-  const { client, postsByDate, stats, role } = data
+  const { client, postsByDate, posts, stats, role } = data
   const canEdit    = ['admin', 'social_media'].includes(role)
   const monthLabel = format(new Date(`${currentMonth}-01T12:00:00`), 'MMMM yyyy', { locale: ptBR })
 
+  // Próximos posts (a partir de hoje, max 5)
+  const todayStart = startOfDay(new Date())
+  const upcoming = posts
+    .filter((p) => p.scheduled_at && new Date(p.scheduled_at) >= todayStart)
+    .slice(0, 5)
+
+  // Distribuição por canal
+  const channelCount: Record<string, number> = {}
+  for (const post of posts) {
+    const platforms = (post.platform ?? '').split(',').filter(Boolean)
+    for (const p of platforms) channelCount[p] = (channelCount[p] ?? 0) + 1
+  }
+  const totalMentions = Object.values(channelCount).reduce((a, b) => a + b, 0) || 1
+  const channels = ['instagram', 'tiktok', 'facebook', 'linkedin', 'twitter']
+    .map((key) => ({ key, label: PLATFORM_LABEL[key] ?? key, count: channelCount[key] ?? 0 }))
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  // Contagem por status (para legenda)
+  const statusCount: Record<string, number> = {}
+  for (const post of posts) statusCount[post.status] = (statusCount[post.status] ?? 0) + 1
+
   const statCards = [
-    { label: 'Posts no Mês', value: stats.total,     icon: Calendar,     color: 'text-[#EACE00]',  bg: 'bg-[#EACE00]/10',   border: 'border-[#EACE00]/15' },
-    { label: 'Aguardando',   value: stats.pending,    icon: Clock,        color: 'text-yellow-400', bg: 'bg-yellow-400/10',  border: 'border-yellow-400/15' },
-    { label: 'Aprovados',    value: stats.approved,   icon: CheckCircle2, color: 'text-green-400',  bg: 'bg-green-400/10',   border: 'border-green-400/15' },
-    { label: 'Publicados',   value: stats.published,  icon: Send,         color: 'text-blue-400',   bg: 'bg-blue-400/10',    border: 'border-blue-400/15' },
+    { label: 'Posts no Mês', value: stats.total,    icon: Calendar,     color: 'text-[#EACE00]',  bg: 'bg-[#EACE00]/10',  border: 'border-[#EACE00]/15'  },
+    { label: 'Aguardando',   value: stats.pending,   icon: Clock,        color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/15' },
+    { label: 'Aprovados',    value: stats.approved,  icon: CheckCircle2, color: 'text-green-400',  bg: 'bg-green-400/10',  border: 'border-green-400/15'  },
+    { label: 'Publicados',   value: stats.published, icon: Send,         color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/15'   },
+    { label: 'Reprovados',   value: stats.rejected,  icon: XCircle,      color: 'text-red-400',    bg: 'bg-red-400/10',    border: 'border-red-400/15'    },
   ]
 
   return (
     <AppLayout pageTitle="Calendário Editorial">
       <div className="space-y-5">
 
-        {/* Breadcrumb + ações */}
+        {/* Breadcrumb + ação */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href="/social/dashboard"
               className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm transition-colors"
@@ -236,7 +268,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
             <span className="text-white/20">/</span>
             <span className="text-white font-semibold text-sm">{client.name}</span>
             <span className="text-white/20">·</span>
-            <span className="text-white/40 text-sm">{monthLabel}</span>
+            <span className="text-white/40 text-sm capitalize">{monthLabel}</span>
           </div>
 
           {canEdit && (
@@ -251,35 +283,133 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {statCards.map((card) => (
-            <div key={card.label} className={`rounded-2xl bg-[#111] border ${card.border} p-4`}>
+            <div key={card.label} className={cn('rounded-2xl bg-[#111] border p-4', card.border)}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-[#888] uppercase tracking-wider">{card.label}</span>
-                <div className={`p-1.5 rounded-lg ${card.bg}`}>
-                  <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
+                <span className="text-[11px] text-[#666] uppercase tracking-wider leading-tight">{card.label}</span>
+                <div className={cn('p-1.5 rounded-lg shrink-0', card.bg)}>
+                  <card.icon className={cn('h-3.5 w-3.5', card.color)} />
                 </div>
               </div>
-              <p className={`text-3xl font-black ${card.color}`}>{card.value}</p>
+              <p className={cn('text-3xl font-black', card.color)}>{card.value}</p>
             </div>
           ))}
         </div>
 
-        {/* Calendário */}
-        <div className="rounded-2xl bg-[#111] border border-[#222] p-4 lg:p-6">
-          <Suspense fallback={
-            <div className="h-96 flex items-center justify-center text-white/30 text-sm">
-              Carregando calendário...
+        {/* Layout principal: calendário + painel lateral */}
+        <div className="flex flex-col xl:flex-row gap-5 items-start">
+
+          {/* Calendário */}
+          <div className="flex-1 min-w-0 rounded-2xl bg-[#111] border border-[#222] p-4 lg:p-5">
+            <Suspense fallback={
+              <div className="h-96 flex items-center justify-center text-white/30 text-sm">
+                Carregando calendário...
+              </div>
+            }>
+              <CalendarGrid
+                currentMonth={currentMonth}
+                postsByDate={postsByDate}
+                baseHref="/social"
+                clientId={client.id}
+                canCreate={canEdit}
+              />
+            </Suspense>
+          </div>
+
+          {/* Painel lateral */}
+          <div className="w-full xl:w-[272px] shrink-0 space-y-4">
+
+            {/* Legenda de status */}
+            <div className="rounded-2xl bg-[#111] border border-[#222] p-4 space-y-3">
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Status</p>
+              <div className="space-y-2.5">
+                {Object.entries(STATUS_CFG).map(([key, cfg]) => (
+                  <div key={key} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', cfg.dot)} />
+                      <span className="text-sm text-white/60">{cfg.label}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-white/80 tabular-nums">
+                      {statusCount[key] ?? 0}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          }>
-            <CalendarGrid
-              currentMonth={currentMonth}
-              postsByDate={postsByDate}
-              baseHref="/social"
-              clientId={client.id}
-              canCreate={canEdit}
-            />
-          </Suspense>
+
+            {/* Próximos posts */}
+            <div className="rounded-2xl bg-[#111] border border-[#222] p-4 space-y-3">
+              <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Próximos posts</p>
+              {upcoming.length === 0 ? (
+                <p className="text-sm text-white/25">Nenhum post agendado.</p>
+              ) : (
+                <div className="space-y-3">
+                  {upcoming.map((post) => {
+                    const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.draft
+                    const dateObj = post.scheduled_at ? new Date(post.scheduled_at) : null
+                    const dateLabel = dateObj && isValid(dateObj)
+                      ? format(dateObj, "d MMM", { locale: ptBR }).toUpperCase()
+                      : '—'
+                    const platforms = (post.platform ?? '').split(',').filter(Boolean)
+                    return (
+                      <Link
+                        key={post.id}
+                        href={`/social/posts/${post.id}`}
+                        className="flex items-start gap-3 group"
+                      >
+                        <div className="shrink-0 text-center w-10 mt-0.5">
+                          <span className="text-[10px] font-bold text-[#EACE00] leading-none block">{dateLabel}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white/80 truncate group-hover:text-white transition-colors leading-snug">
+                            {post.title}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {platforms.slice(0, 3).map((p) => (
+                              <span key={p} className="text-[10px] font-bold text-white/30 bg-white/5 px-1.5 py-0.5 rounded">
+                                {PLATFORM_ABBR[p] ?? p.toUpperCase().slice(0, 2)}
+                              </span>
+                            ))}
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', cfg.chip)}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Distribuição por canal */}
+            {channels.length > 0 && (
+              <div className="rounded-2xl bg-[#111] border border-[#222] p-4 space-y-3">
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Por canal</p>
+                <div className="space-y-3">
+                  {channels.map((ch) => {
+                    const pct = Math.round((ch.count / totalMentions) * 100)
+                    return (
+                      <div key={ch.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-white/60">{ch.label}</span>
+                          <span className="text-white/40 tabular-nums">{pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#EACE00]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
 
       </div>
