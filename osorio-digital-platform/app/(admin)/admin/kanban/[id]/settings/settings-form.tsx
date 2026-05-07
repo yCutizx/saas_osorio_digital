@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { UserPlus, UserMinus, Loader2 } from 'lucide-react'
+import { UserPlus, UserMinus } from 'lucide-react'
 import { addBoardMemberAction, removeBoardMemberAction } from './actions'
 
 type Member = { id: string; full_name: string | null; email: string; role: string }
