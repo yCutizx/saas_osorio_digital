@@ -22,11 +22,10 @@ const COMMENT_TYPE_CONFIG = {
 }
 
 interface PageProps {
-  params:       { id: string }
-  searchParams: { from?: string }
+  params: { id: string }
 }
 
-export default async function PostDetailPage({ params, searchParams }: PageProps) {
+export default async function PostDetailPage({ params }: PageProps) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
