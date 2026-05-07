@@ -47,6 +47,8 @@ interface KanbanCard {
   format?: string | null
   platform?: string | null
   position: number
+  cover_url?: string | null
+  labels?: string[] | null
   clients?: { name: string } | null
   profiles?: { full_name: string } | null
 }
@@ -75,57 +77,84 @@ function SortableCard({ card, onOpen, isDragging, disabled }: {
   })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
 
+  const today    = new Date(); today.setHours(0, 0, 0, 0)
+  const dueDate  = card.due_date ? new Date(card.due_date + 'T00:00:00') : null
+  const overdue  = dueDate && dueDate < today
+  const dueToday = dueDate && dueDate.toDateString() === today.toDateString()
+  const dueCls   = overdue  ? 'text-red-400 bg-red-400/10 border border-red-400/20'
+                 : dueToday ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/20'
+                 : 'text-white/40 bg-white/5'
+
   return (
     <div ref={setNodeRef} style={style}
-      className="bg-[#111] border border-[#222] rounded-xl p-3 space-y-2 group cursor-pointer hover:border-[#444] transition-colors"
+      className="bg-[#111] border border-[#222] rounded-xl overflow-hidden group cursor-pointer hover:border-[#444] transition-colors"
       onClick={() => onOpen(card)}>
-      <div className="flex items-start gap-2">
-        <button {...attributes} {...listeners}
-          className="mt-0.5 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0"
-          onClick={(e) => e.stopPropagation()}>
-          <GripVertical className="h-4 w-4" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-white font-medium leading-snug">{card.title}</p>
-          {card.description && <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
+
+      {/* Capa */}
+      {card.cover_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={card.cover_url} alt="" className="w-full h-40 object-cover" />
+      )}
+
+      {/* Etiquetas coloridas */}
+      {card.labels && card.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 px-3 pt-2.5">
+          {card.labels.map((color) => (
+            <span key={color} className="h-2 w-9 rounded-full" style={{ background: color }} />
+          ))}
         </div>
-      </div>
-      <div className="flex flex-wrap gap-1.5 pl-6">
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-          style={{ background: PRIORITY_COLOR[card.priority] + '20', color: PRIORITY_COLOR[card.priority] }}>
-          {PRIORITY_LABEL[card.priority]}
-        </span>
-        {card.format && (
-          <span className="flex items-center gap-1 text-[10px] text-purple-400">
-            <Film className="h-3 w-3" />{FORMAT_LABEL[card.format] ?? card.format}
+      )}
+
+      {/* Conteúdo */}
+      <div className="p-3 space-y-2">
+        <div className="flex items-start gap-2">
+          <button {...attributes} {...listeners}
+            className="mt-0.5 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0"
+            onClick={(e) => e.stopPropagation()}>
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-white font-medium leading-snug">{card.title}</p>
+            {card.description && <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 pl-6">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+            style={{ background: PRIORITY_COLOR[card.priority] + '20', color: PRIORITY_COLOR[card.priority] }}>
+            {PRIORITY_LABEL[card.priority]}
           </span>
-        )}
-        {card.platform && (
-          <span className="flex items-center gap-1 text-[10px] text-cyan-400">
-            <Globe className="h-3 w-3" />{PLATFORM_LABEL[card.platform] ?? card.platform}
-          </span>
-        )}
-        {card.clients?.name && (
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <Building2 className="h-3 w-3" />{card.clients.name}
-          </span>
-        )}
-        {card.profiles?.full_name && (
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <User className="h-3 w-3" />{card.profiles.full_name}
-          </span>
-        )}
-        {card.due_date && (
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <Calendar className="h-3 w-3" />
-            {new Date(card.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-          </span>
-        )}
-        {card.tags?.map((t) => (
-          <span key={t} className="flex items-center gap-1 text-[10px] text-[#EACE00]/70">
-            <Tag className="h-3 w-3" />{t}
-          </span>
-        ))}
+          {card.format && (
+            <span className="flex items-center gap-1 text-[10px] text-purple-400">
+              <Film className="h-3 w-3" />{FORMAT_LABEL[card.format] ?? card.format}
+            </span>
+          )}
+          {card.platform && (
+            <span className="flex items-center gap-1 text-[10px] text-cyan-400">
+              <Globe className="h-3 w-3" />{PLATFORM_LABEL[card.platform] ?? card.platform}
+            </span>
+          )}
+          {card.clients?.name && (
+            <span className="flex items-center gap-1 text-[10px] text-white/40">
+              <Building2 className="h-3 w-3" />{card.clients.name}
+            </span>
+          )}
+          {card.profiles?.full_name && (
+            <span className="flex items-center gap-1 text-[10px] text-white/40">
+              <User className="h-3 w-3" />{card.profiles.full_name}
+            </span>
+          )}
+          {dueDate && (
+            <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full ${dueCls}`}>
+              <Calendar className="h-3 w-3" />
+              {dueDate.toLocaleDateString('pt-BR')}
+            </span>
+          )}
+          {card.tags?.map((t) => (
+            <span key={t} className="flex items-center gap-1 text-[10px] text-[#EACE00]/70">
+              <Tag className="h-3 w-3" />{t}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -519,6 +548,24 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
     startTransition(() => { moveCard(openCard.id, newColId) })
   }
 
+  function handleCoverChange(url: string | null) {
+    if (!openCard) return
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, cover_url: url } : c))
+    setOpenCard((prev) => prev ? { ...prev, cover_url: url } : null)
+  }
+
+  function handleLabelsChange(labels: string[]) {
+    if (!openCard) return
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, labels } : c))
+    setOpenCard((prev) => prev ? { ...prev, labels } : null)
+  }
+
+  function handleDueDateChange(date: string | null) {
+    if (!openCard) return
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, due_date: date } : c))
+    setOpenCard((prev) => prev ? { ...prev, due_date: date } : null)
+  }
+
   function handleCardArchived() {
     if (!openCard) return
     setCards((prev) => prev.filter((c) => c.id !== openCard.id))
@@ -619,6 +666,9 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
           onDelete={() => setDeleteTarget(openCard)}
           onMoved={handleCardMoved}
           onArchived={handleCardArchived}
+          onCoverChange={handleCoverChange}
+          onLabelsChange={handleLabelsChange}
+          onDueDateChange={handleDueDateChange}
         />
       )}
 

@@ -265,6 +265,33 @@ export async function updateCardDescriptionAction(cardId: string, boardId: strin
   revalidatePath(`/social/kanban/${boardId}`)
 }
 
+export async function updateCardCoverAction(
+  cardId: string, boardId: string, coverUrl: string | null
+): Promise<void> {
+  const ctx = await getCtx()
+  if (!ctx) return
+  await ctx.admin.from('kanban_cards').update({ cover_url: coverUrl }).eq('id', cardId)
+  revalidatePath(`/social/kanban/${boardId}`)
+}
+
+export async function updateCardLabelsAction(
+  cardId: string, boardId: string, labels: string[]
+): Promise<void> {
+  const ctx = await getCtx()
+  if (!ctx) return
+  await ctx.admin.from('kanban_cards').update({ labels }).eq('id', cardId)
+  revalidatePath(`/social/kanban/${boardId}`)
+}
+
+export async function updateCardDueDateAction(
+  cardId: string, boardId: string, dueDate: string | null
+): Promise<void> {
+  const ctx = await getCtx()
+  if (!ctx) return
+  await ctx.admin.from('kanban_cards').update({ due_date: dueDate || null }).eq('id', cardId)
+  revalidatePath(`/social/kanban/${boardId}`)
+}
+
 export async function archiveCardAction(cardId: string, boardId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
