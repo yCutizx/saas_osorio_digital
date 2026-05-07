@@ -22,199 +22,229 @@ const COMMENT_TYPE_CONFIG = {
 }
 
 interface PageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function PostDetailPage({ params }: PageProps) {
+  const { id } = await params
+
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles').select('role').eq('id', user.id).single()
 
-  // Buscar o post — sem join a profiles (não usado no render e pode ser ambíguo)
-  const { data: post, error: postError } = await supabase
-    .from('content_posts')
-    .select('*, clients(name)')
-    .eq('id', params.id)
-    .single()
+    if (profileError) {
+      console.error('[PostDetailPage] profile error:', profileError.message)
+    }
 
-  if (postError || !post) notFound()
+    // Buscar o post
+    const { data: post, error: postError } = await supabase
+      .from('content_posts')
+      .select('*, clients(name)')
+      .eq('id', id)
+      .single()
 
-  // Verificar acesso ao cliente deste post
-  if (profile?.role !== 'admin') {
-    const { data: assignment } = await supabase
-      .from('client_assignments')
-      .select('id')
-      .eq('client_id', post.client_id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (!assignment) notFound()
-  }
+    if (postError) {
+      console.error('[PostDetailPage] post error:', postError.message, '| id:', id)
+      notFound()
+    }
 
-  // Buscar comentários
-  const { data: comments } = await supabase
-    .from('post_comments')
-    .select('*, profiles(full_name)')
-    .eq('post_id', params.id)
-    .order('created_at', { ascending: true })
+    if (!post) {
+      console.error('[PostDetailPage] post not found for id:', id)
+      notFound()
+    }
 
-  const role      = profile?.role ?? 'client'
-  const isClient  = role === 'client'
-  const canEdit   = ['admin', 'social_media'].includes(role)
-  const statusCfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
+    // Verificar acesso ao cliente deste post
+    if (profile?.role !== 'admin') {
+      const { data: assignment, error: assignError } = await supabase
+        .from('client_assignments')
+        .select('id')
+        .eq('client_id', post.client_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-  // Back link: preserve client context when coming from /social/dashboard?client=ID
-  const backHref = isClient
-    ? '/client/calendar'
-    : post.client_id
-      ? `/social/dashboard?client=${post.client_id}`
-      : '/social/dashboard'
+      if (assignError) {
+        console.error('[PostDetailPage] assignment error:', assignError.message)
+      }
 
-  return (
-    <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      if (!assignment) {
+        console.error('[PostDetailPage] access denied: user', user.id, 'not assigned to client', post.client_id)
+        notFound()
+      }
+    }
 
-        {/* Navegação */}
-        <div className="flex items-center justify-between">
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {isClient ? 'Voltar ao Calendário' : 'Voltar ao Dashboard'}
-          </Link>
-          {canEdit && (
-            <StatusChanger postId={post.id} currentStatus={post.status} />
-          )}
-        </div>
+    // Buscar comentários
+    const { data: comments, error: commentsError } = await supabase
+      .from('post_comments')
+      .select('*, profiles(full_name)')
+      .eq('post_id', id)
+      .order('created_at', { ascending: true })
 
-        {/* Card principal do post */}
-        <Card className="bg-[#111] border-[#222]">
-          <CardContent className="p-6 space-y-5">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1 min-w-0">
-                <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
-                  <span>{PLATFORM_LABEL[post.platform] ?? post.platform}</span>
-                  <span>·</span>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <span>{(post.clients as any)?.name ?? '—'}</span>
-                  {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
-                    <>
-                      <span>·</span>
-                      <span>
-                        {format(parseISO(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium shrink-0', statusCfg.chip)}>
-                {statusCfg.label}
-              </span>
-            </div>
+    if (commentsError) {
+      console.error('[PostDetailPage] comments error:', commentsError.message)
+    }
 
-            {/* Mídia */}
-            {post.media_url && (
-              <a
-                href={post.media_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Ver arquivo de mídia
-              </a>
+    const role      = profile?.role ?? 'client'
+    const isClient  = role === 'client'
+    const canEdit   = ['admin', 'social_media'].includes(role)
+    const statusCfg = STATUS_CONFIG[post?.status] ?? STATUS_CONFIG.draft
+
+    const backHref = isClient
+      ? '/client/calendar'
+      : post?.client_id
+        ? `/social/dashboard?client=${post.client_id}`
+        : '/social/dashboard'
+
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto space-y-6">
+
+          {/* Navegação */}
+          <div className="flex items-center justify-between">
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {isClient ? 'Voltar ao Calendário' : 'Voltar'}
+            </Link>
+            {canEdit && (
+              <StatusChanger postId={post.id} currentStatus={post.status} />
             )}
+          </div>
 
-            {/* Caption */}
-            {post.caption && (
-              <div className="space-y-1.5">
-                <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Caption</p>
-                <p className="text-white text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
-                  {post.caption}
-                </p>
-              </div>
-            )}
-
-            {/* Hashtags */}
-            {post.hashtags && post.hashtags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {(post.hashtags as string[]).map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-0.5 text-xs text-[#EACE00]/70 bg-[#EACE00]/10 px-2 py-0.5 rounded-full">
-                    <Hash className="h-2.5 w-2.5" />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Ações de aprovação (somente para cliente) */}
-            {isClient && (
-              <div className="pt-2 border-t border-[#222]">
-                <p className="text-xs text-[#888] mb-3">Sua avaliação</p>
-                <ApprovalButtons postId={post.id} currentStatus={post.status} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Seção de comentários */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-white">
-            Histórico de Comentários
-            {comments?.length ? (
-              <span className="ml-2 text-xs font-normal text-[#888]">
-                ({comments.length})
-              </span>
-            ) : null}
-          </h2>
-
-          {!comments?.length ? (
-            <p className="text-[#888] text-sm">Nenhum comentário ainda.</p>
-          ) : (
-            <div className="space-y-3">
-              {comments.map((c) => {
-                const cfg = COMMENT_TYPE_CONFIG[c.type as keyof typeof COMMENT_TYPE_CONFIG]
-                  ?? COMMENT_TYPE_CONFIG.comment
-                return (
-                  <div key={c.id} className={cn('rounded-xl border p-4 space-y-1', cfg.classes)}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-white">
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {(c.profiles as any)?.full_name ?? 'Usuário'}
+          {/* Card principal do post */}
+          <Card className="bg-[#111] border-[#222]">
+            <CardContent className="p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1 min-w-0">
+                  <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
+                    <span>{PLATFORM_LABEL[post.platform] ?? post.platform}</span>
+                    <span>·</span>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    <span>{(post.clients as any)?.name ?? '—'}</span>
+                    {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
+                      <>
+                        <span>·</span>
+                        <span>
+                          {format(parseISO(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/50">
-                          {cfg.label}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium shrink-0', statusCfg.chip)}>
+                  {statusCfg.label}
+                </span>
+              </div>
+
+              {/* Mídia */}
+              {post.media_url && (
+                <a
+                  href={post.media_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ver arquivo de mídia
+                </a>
+              )}
+
+              {/* Caption */}
+              {post.caption && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Caption</p>
+                  <p className="text-white text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
+                    {post.caption}
+                  </p>
+                </div>
+              )}
+
+              {/* Hashtags */}
+              {post.hashtags && (post.hashtags as string[]).length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {(post.hashtags as string[]).map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-0.5 text-xs text-[#EACE00]/70 bg-[#EACE00]/10 px-2 py-0.5 rounded-full">
+                      <Hash className="h-2.5 w-2.5" />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Ações de aprovação (somente para cliente) */}
+              {isClient && (
+                <div className="pt-2 border-t border-[#222]">
+                  <p className="text-xs text-[#888] mb-3">Sua avaliação</p>
+                  <ApprovalButtons postId={post.id} currentStatus={post.status} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Seção de comentários */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-white">
+              Histórico de Comentários
+              {comments?.length ? (
+                <span className="ml-2 text-xs font-normal text-[#888]">
+                  ({comments.length})
+                </span>
+              ) : null}
+            </h2>
+
+            {!comments?.length ? (
+              <p className="text-[#888] text-sm">Nenhum comentário ainda.</p>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((c) => {
+                  const cfg = COMMENT_TYPE_CONFIG[c.type as keyof typeof COMMENT_TYPE_CONFIG]
+                    ?? COMMENT_TYPE_CONFIG.comment
+                  return (
+                    <div key={c.id} className={cn('rounded-xl border p-4 space-y-1', cfg.classes)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-white">
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {(c.profiles as any)?.full_name ?? 'Usuário'}
+                          </span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/50">
+                            {cfg.label}
+                          </span>
+                        </div>
+                        <span className="text-xs text-[#888] shrink-0">
+                          {c.created_at && isValid(parseISO(c.created_at))
+                            ? format(parseISO(c.created_at), "dd/MM 'às' HH:mm")
+                            : '—'}
                         </span>
                       </div>
-                      <span className="text-xs text-[#888] shrink-0">
-                        {isValid(parseISO(c.created_at))
-                          ? format(parseISO(c.created_at), "dd/MM 'às' HH:mm")
-                          : '—'}
-                      </span>
+                      <p className="text-sm text-white/80 leading-relaxed">{c.content}</p>
                     </div>
-                    <p className="text-sm text-white/80 leading-relaxed">{c.content}</p>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )}
 
-          {/* Caixa de comentário (não-cliente) */}
-          {!isClient && (
-            <div className="pt-2">
-              <CommentBox postId={post.id} />
-            </div>
-          )}
+            {/* Caixa de comentário (não-cliente) */}
+            {!isClient && (
+              <div className="pt-2">
+                <CommentBox postId={post.id} />
+              </div>
+            )}
+          </div>
+
         </div>
-
-      </div>
-    </AppLayout>
-  )
+      </AppLayout>
+    )
+  } catch (err) {
+    console.error('[PostDetailPage] unhandled exception:', err)
+    notFound()
+  }
 }
