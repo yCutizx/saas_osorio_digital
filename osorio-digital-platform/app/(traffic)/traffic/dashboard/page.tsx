@@ -2,12 +2,12 @@
 
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { subDays, format, parseISO, eachDayOfInterval } from 'date-fns'
+import { subDays, format, parseISO, eachDayOfInterval, differenceInDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-  DollarSign, TrendingUp, MousePointerClick,
+  Users, Trophy, MousePointerClick, Layers,
   PlusCircle, BarChart2, AlertTriangle, CheckCircle2,
-  XCircle, Zap, Eye, Upload,
+  XCircle, Zap, Upload,
 } from 'lucide-react'
 import { AppLayout }        from '@/components/layout/app-layout'
 import { createClient }     from '@/lib/supabase/server'
@@ -273,6 +273,28 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
   const { data: dailyRecords, error: dailyErr } = await dailyQuery
   if (dailyErr) console.error('[dashboard] traffic_daily query error:', dailyErr.message)
 
+  // Período anterior (mesma duração) para comparação de CPM
+  const periodDays = differenceInDays(parseISO(endDate), parseISO(startDate)) + 1
+  const prevEndDate   = format(subDays(parseISO(startDate), 1), 'yyyy-MM-dd')
+  const prevStartDate = format(subDays(parseISO(startDate), periodDays), 'yyyy-MM-dd')
+
+  let prevDailyQuery = admin
+    .from('traffic_daily')
+    .select('spend, impressions, client_id')
+    .gte('date', prevStartDate)
+    .lte('date', prevEndDate)
+
+  if (clientId) {
+    prevDailyQuery = prevDailyQuery.eq('client_id', clientId)
+  } else if (clients?.length) {
+    prevDailyQuery = prevDailyQuery.in('client_id', clients.map((c) => c.id))
+  }
+
+  const { data: prevDaily } = await prevDailyQuery
+  const prevSpend       = (prevDaily ?? []).reduce((s: number, r: { spend: number }) => s + r.spend, 0)
+  const prevImpressions = (prevDaily ?? []).reduce((s: number, r: { impressions: number }) => s + r.impressions, 0)
+  const prevCpm = prevImpressions > 0 ? (prevSpend / prevImpressions) * 1000 : 0
+
   // Filtra o dropdown para mostrar apenas clientes com dados no período
   const clientIdsWithReports = new Set((reports ?? []).map((r) => r.client_id))
   const clientsWithReports = (clients ?? []).filter((c) => clientIdsWithReports.has(c.id))
@@ -282,6 +304,7 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
     reports:      (reports ?? []) as unknown as Report[],
     dailyRecords: (dailyRecords ?? []) as DailyRecord[],
     profile,
+    prevCpm,
   }
 }
 
@@ -333,7 +356,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const data = await fetchDashboardData(from, to, clientId)
   if (!data) return null
 
-  const { clients, reports, dailyRecords, profile } = data
+  const { clients, reports, dailyRecords, profile, prevCpm = 0 } = data
   const isAdmin = profile?.role === 'admin'
   const canEdit = isAdmin || profile?.role === 'traffic_manager'
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
@@ -431,25 +454,92 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
             />
 
             {/* ── KPI Cards secundários ─────────────────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { label: 'Investimento',  value: formatCurrency(stats.spend),       icon: DollarSign,       color: 'text-brand-yellow', bg: 'bg-brand-yellow/10' },
-                { label: 'Impressões',    value: stats.impressions >= 1000 ? `${(stats.impressions / 1000).toFixed(1)}k` : String(stats.impressions), icon: Eye, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-                { label: 'CPC Médio',     value: stats.cpc > 0 ? formatCurrency(stats.cpc) : '—',           icon: MousePointerClick, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-                { label: 'CTR Médio',     value: stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—', icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-400/10' },
-              ].map((card) => (
-                <div key={card.label} className="rounded-2xl bg-[#111] border border-white/5 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-white/40 uppercase tracking-wider">{card.label}</span>
-                    <div className={`p-1.5 rounded-lg ${card.bg}`}>
-                      <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
+            {(() => {
+              const freq           = stats.reach > 0 ? stats.impressions / stats.reach : 0
+              const convRate       = stats.clicks > 0 ? (stats.conversions / stats.clicks) * 100 : 0
+              const bestCampaign   = campaignRows.filter(c => c.cpa > 0).sort((a, b) => a.cpa - b.cpa)[0] ?? null
+              const cpmDiff        = cpm > 0 && prevCpm > 0 ? ((cpm - prevCpm) / prevCpm) * 100 : null
+
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+                  {/* 1 — Alcance Total */}
+                  <div className="rounded-2xl bg-[#111] border border-white/5 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-white/40 uppercase tracking-wider">Alcance Total</span>
+                      <div className="p-1.5 rounded-lg bg-green-400/10">
+                        <Users className="h-3.5 w-3.5 text-green-400" />
+                      </div>
                     </div>
+                    <div className="text-2xl font-bold text-white">
+                      {stats.reach > 0
+                        ? stats.reach >= 1_000_000
+                          ? `${(stats.reach / 1_000_000).toFixed(1).replace('.', ',')}M`
+                          : stats.reach >= 1_000
+                            ? `${(stats.reach / 1_000).toFixed(1).replace('.', ',')}k`
+                            : stats.reach.toLocaleString('pt-BR')
+                        : '—'}
+                    </div>
+                    <p className="text-xs text-white/30 mt-0.5">
+                      {freq > 0 ? `Frequência média: ${freq.toFixed(1).replace('.', ',')}x` : 'Frequência: —'}
+                    </p>
                   </div>
-                  <div className="text-2xl font-bold text-white">{card.value}</div>
-                  <p className="text-xs text-white/30 mt-0.5">no período</p>
+
+                  {/* 2 — Melhor Campanha */}
+                  <div className="rounded-2xl bg-[#111] border border-white/5 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-white/40 uppercase tracking-wider">Melhor Campanha</span>
+                      <div className="p-1.5 rounded-lg bg-brand-yellow/10">
+                        <Trophy className="h-3.5 w-3.5 text-brand-yellow" />
+                      </div>
+                    </div>
+                    <div className="text-base font-bold text-white leading-tight truncate">
+                      {bestCampaign ? bestCampaign.name : '—'}
+                    </div>
+                    <p className="text-xs text-white/30 mt-0.5">
+                      {bestCampaign ? `${formatCurrency(bestCampaign.cpa)} por resultado` : 'Sem dados de CPA'}
+                    </p>
+                  </div>
+
+                  {/* 3 — Total de Cliques */}
+                  <div className="rounded-2xl bg-[#111] border border-white/5 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-white/40 uppercase tracking-wider">Total de Cliques</span>
+                      <div className="p-1.5 rounded-lg bg-blue-400/10">
+                        <MousePointerClick className="h-3.5 w-3.5 text-blue-400" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {stats.clicks.toLocaleString('pt-BR')}
+                    </div>
+                    <p className="text-xs text-white/30 mt-0.5">
+                      {convRate > 0
+                        ? `Taxa de conversão: ${convRate.toFixed(1).replace('.', ',')}%`
+                        : 'Taxa de conversão: —'}
+                    </p>
+                  </div>
+
+                  {/* 4 — CPM */}
+                  <div className="rounded-2xl bg-[#111] border border-white/5 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-white/40 uppercase tracking-wider">Custo por Mil (CPM)</span>
+                      <div className="p-1.5 rounded-lg bg-purple-400/10">
+                        <Layers className="h-3.5 w-3.5 text-purple-400" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-white">
+                      {cpm > 0 ? formatCurrency(cpm) : '—'}
+                    </div>
+                    <p className={`text-xs mt-0.5 ${cpmDiff === null ? 'text-white/30' : cpmDiff > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      {cpmDiff === null
+                        ? 'Sem período anterior'
+                        : `${cpmDiff > 0 ? '↑' : '↓'} ${Math.abs(cpmDiff).toFixed(1).replace('.', ',')}% vs período anterior`}
+                    </p>
+                  </div>
+
                 </div>
-              ))}
-            </div>
+              )
+            })()}
 
             {/* ── Alertas de performance ────────────────────────────── */}
             {alerts.length > 0 && (
