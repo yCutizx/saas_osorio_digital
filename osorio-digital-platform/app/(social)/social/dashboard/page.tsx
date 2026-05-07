@@ -5,9 +5,12 @@ import { ptBR } from 'date-fns/locale'
 import { PlusCircle, Calendar, Clock, CheckCircle2, Send, ChevronLeft, Users } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { CalendarGrid, type CalendarPost, type PostsByDate } from '@/components/calendar/calendar-grid'
+import { CustomCalendarsSection } from './custom-calendars-section'
 
 type Client = { id: string; name: string }
+type StaffMember = { id: string; full_name: string | null; email: string; role: string }
 
 // ── fetch clients ────────────────────────────────────────────────────────────
 async function fetchClients(): Promise<{ clients: Client[]; role: string }> {
@@ -88,6 +91,46 @@ async function fetchCalendarData(clientId: string, month: string) {
   return { client: clientRow, postsByDate, stats, role: profile?.role ?? '' }
 }
 
+// ── fetch custom calendars ───────────────────────────────────────────────────
+async function fetchCustomCalendars(role: string, userId: string) {
+  const admin = createAdminClient()
+
+  // Get calendars: admin sees all, others see only theirs
+  let calQuery = admin
+    .from('custom_calendars')
+    .select('id, name, created_at, custom_calendar_members(user_id, profiles(id, full_name, email, role))')
+    .order('created_at', { ascending: false })
+
+  if (role !== 'admin') {
+    // Filter to only calendars where user is a member
+    const { data: memberships } = await admin
+      .from('custom_calendar_members').select('calendar_id').eq('user_id', userId)
+    const ids = (memberships ?? []).map((m) => m.calendar_id)
+    if (ids.length === 0) {
+      // Still fetch all staff for admin to use — not needed for non-admin
+      return { calendars: [], allStaff: [] }
+    }
+    calQuery = calQuery.in('id', ids)
+  }
+
+  const { data: calendars } = await calQuery
+
+  // For admin: fetch all staff for member picker
+  let allStaff: StaffMember[] = []
+  if (role === 'admin') {
+    const { data: staff } = await admin
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .in('role', ['admin', 'traffic_manager', 'social_media'])
+      .eq('active', true)
+      .order('full_name')
+    allStaff = (staff ?? []) as StaffMember[]
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { calendars: (calendars ?? []) as any[], allStaff }
+}
+
 // ── page ─────────────────────────────────────────────────────────────────────
 interface PageProps {
   searchParams: { month?: string; client?: string }
@@ -99,46 +142,63 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
 
   // ── Client picker view ───────────────────────────────────────────────────
   if (!clientId) {
-    const { clients } = await fetchClients()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { clients, role } = await fetchClients()
+    const { calendars, allStaff } = user
+      ? await fetchCustomCalendars(role, user.id)
+      : { calendars: [], allStaff: [] }
+    const isAdmin = role === 'admin'
 
     return (
       <AppLayout pageTitle="Calendário Editorial">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-xl font-bold text-white">Calendário Editorial</h1>
-            <p className="text-white/40 text-sm mt-0.5">
-              Selecione um cliente para ver o calendário de posts
-            </p>
+        <div className="space-y-10">
+          {/* ── Calendários de clientes ── */}
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold text-white">Calendário Editorial</h1>
+              <p className="text-white/40 text-sm mt-0.5">Selecione um cliente para ver o calendário de posts</p>
+            </div>
+
+            {clients.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 border border-dashed border-white/8 rounded-2xl">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Users className="h-7 w-7 text-white/20" />
+                </div>
+                <p className="text-white/40 text-sm">Nenhum cliente atribuído.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clients.map((client) => (
+                  <Link
+                    key={client.id}
+                    href={`/social/dashboard?client=${client.id}`}
+                    className="group flex items-center gap-4 p-5 bg-[#0d0d0d] border border-[#222] rounded-2xl hover:border-[#EACE00]/40 hover:bg-[#EACE00]/[0.03] transition-all"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-[#EACE00]/15 flex items-center justify-center shrink-0">
+                      <Calendar className="h-5 w-5 text-[#EACE00]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold text-sm group-hover:text-[#EACE00] transition-colors truncate">
+                        {client.name}
+                      </p>
+                      <p className="text-white/30 text-xs mt-0.5">Ver calendário</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
-          {clients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-                <Users className="h-8 w-8 text-white/20" />
-              </div>
-              <p className="text-white/40 text-sm">Nenhum cliente atribuído.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clients.map((client) => (
-                <Link
-                  key={client.id}
-                  href={`/social/dashboard?client=${client.id}`}
-                  className="group flex items-center gap-4 p-5 bg-[#0d0d0d] border border-[#222] rounded-2xl hover:border-[#EACE00]/40 hover:bg-[#EACE00]/[0.03] transition-all"
-                >
-                  <div className="w-11 h-11 rounded-xl bg-[#EACE00]/15 flex items-center justify-center shrink-0">
-                    <Calendar className="h-5 w-5 text-[#EACE00]" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold text-sm group-hover:text-[#EACE00] transition-colors truncate">
-                      {client.name}
-                    </p>
-                    <p className="text-white/30 text-xs mt-0.5">Ver calendário</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          {/* ── Separador ── */}
+          <div className="border-t border-[#1a1a1a]" />
+
+          {/* ── Calendários personalizados ── */}
+          <CustomCalendarsSection
+            calendars={calendars}
+            allStaff={allStaff}
+            isAdmin={isAdmin}
+          />
         </div>
       </AppLayout>
     )

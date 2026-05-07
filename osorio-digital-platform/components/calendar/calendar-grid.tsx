@@ -28,6 +28,9 @@ interface Props {
   postsByDate:  PostsByDate
   baseHref:     string
   canCreate?:   boolean
+  // When set, overrides the month-navigation and new-post base URL
+  // (default: baseHref + '/dashboard' for nav, baseHref + '/posts/new' for creation)
+  navBase?:     string
 }
 
 // ── Configurações de status ───────────────────────────────────────────────────
@@ -122,7 +125,7 @@ function PostModal({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = false }: Props) {
+export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = false, navBase }: Props) {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -152,7 +155,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
     next.setMonth(next.getMonth() + delta)
     const nxt = new URLSearchParams(params.toString())
     nxt.set('month', format(next, 'yyyy-MM'))
-    router.push(`${baseHref}/dashboard?${nxt}`)
+    router.push(`${navBase ?? `${baseHref}/dashboard`}?${nxt}`)
   }
 
   const periodLabel = view === 'month'
@@ -187,7 +190,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
           </span>
           {canCreate && (
             <Link
-              href={`${baseHref}/posts/new?date=${dateKey}`}
+              href={`${navBase ?? baseHref}/posts/new?date=${dateKey}`}
               className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/10"
               title="Criar post neste dia"
               onClick={e => e.stopPropagation()}
