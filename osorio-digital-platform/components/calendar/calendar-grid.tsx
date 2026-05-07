@@ -28,9 +28,8 @@ interface Props {
   postsByDate:  PostsByDate
   baseHref:     string
   canCreate?:   boolean
-  // When set, overrides the month-navigation and new-post base URL
-  // (default: baseHref + '/dashboard' for nav, baseHref + '/posts/new' for creation)
   navBase?:     string
+  clientId?:    string
 }
 
 // ── Configurações de status ───────────────────────────────────────────────────
@@ -127,7 +126,7 @@ function PostModal({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = false, navBase }: Props) {
+export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = false, navBase, clientId }: Props) {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -164,6 +163,12 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
     ? format(monthDate, 'MMMM yyyy', { locale: ptBR })
     : `${format(weekStart, "d MMM", { locale: ptBR })} – ${format(addDays(weekStart, 6), "d MMM yyyy", { locale: ptBR })}`
 
+  function newPostUrl(dateKey: string): string {
+    const base = `${navBase ?? baseHref}/posts/new`
+    if (clientId) return `${base}?client=${clientId}&date=${dateKey}`
+    return `${base}?date=${dateKey}`
+  }
+
   // Render de uma célula de dia
   function renderDay(day: Date, tall: boolean) {
     const dateKey = format(day, 'yyyy-MM-dd')
@@ -174,12 +179,16 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
     return (
       <div
         key={dateKey}
+        onClick={() => { if (canCreate) router.push(newPostUrl(dateKey)) }}
         className={cn(
           'rounded-xl border transition-colors group',
           tall ? 'min-h-[200px] p-2' : 'min-h-[100px] lg:min-h-[115px] p-1.5',
+          canCreate ? 'cursor-pointer' : '',
           tod
             ? 'border-[#EACE00]/50 bg-[#EACE00]/5'
-            : 'border-[#1e1e1e] bg-[#0d0d0d] hover:border-[#2a2a2a]'
+            : canCreate
+              ? 'border-[#1e1e1e] bg-[#0d0d0d] hover:border-[#2a2a2a] hover:bg-[#1a1a1a]'
+              : 'border-[#1e1e1e] bg-[#0d0d0d]'
         )}
       >
         {/* Número do dia + botão criar */}
@@ -192,7 +201,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
           </span>
           {canCreate && (
             <Link
-              href={`${navBase ?? baseHref}/posts/new?date=${dateKey}`}
+              href={newPostUrl(dateKey)}
               className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/10"
               title="Criar post neste dia"
               onClick={e => e.stopPropagation()}
@@ -209,7 +218,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
             return (
               <button
                 key={post.id}
-                onClick={() => setOpenPost(post)}
+                onClick={(e) => { e.stopPropagation(); setOpenPost(post) }}
                 className={cn(
                   'w-full flex items-center gap-1 px-1 rounded text-left hover:opacity-75 transition-opacity',
                   tall ? 'py-1 text-[11px]' : 'py-0.5 text-[10px]',

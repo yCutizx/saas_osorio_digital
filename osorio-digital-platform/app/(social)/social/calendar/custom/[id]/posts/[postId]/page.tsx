@@ -29,30 +29,30 @@ interface PageProps {
 export default async function CustomPostDetailPage({ params }: PageProps) {
   const { id: calendarId, postId } = await params
 
+  // Auth + membership checks BEFORE try-catch so redirect() propagates correctly
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!['admin', 'social_media', 'traffic_manager'].includes(profile?.role ?? '')) {
+    redirect('/social/dashboard')
+  }
+
+  const admin = createAdminClient()
+
+  if (profile?.role !== 'admin') {
+    const { data: membership } = await admin
+      .from('custom_calendar_members')
+      .select('user_id').eq('calendar_id', calendarId).eq('user_id', user.id).maybeSingle()
+    if (!membership) redirect('/social/dashboard')
+  }
+
+  const { data: calendar } = await admin
+    .from('custom_calendars').select('id, name').eq('id', calendarId).single()
+  if (!calendar) notFound()
+
   try {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-
-    if (!['admin', 'social_media', 'traffic_manager'].includes(profile?.role ?? '')) {
-      redirect('/social/dashboard')
-    }
-
-    const admin = createAdminClient()
-
-    if (profile?.role !== 'admin') {
-      const { data: membership } = await admin
-        .from('custom_calendar_members')
-        .select('user_id').eq('calendar_id', calendarId).eq('user_id', user.id).maybeSingle()
-      if (!membership) redirect('/social/dashboard')
-    }
-
-    const { data: calendar } = await admin
-      .from('custom_calendars').select('id, name').eq('id', calendarId).single()
-    if (!calendar) notFound()
-
     const { data: post, error: postError } = await admin
       .from('custom_calendar_posts')
       .select('*')
@@ -111,7 +111,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                       </>
                     )}
                   </div>
-                  {/* Plataformas */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {platforms.map((p: string) => (
                       <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/60 border border-white/10">
@@ -125,7 +124,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </span>
               </div>
 
-              {/* Responsável */}
               {assignee && (
                 <div className="flex items-center gap-2 text-sm text-[#888]">
                   <User className="h-3.5 w-3.5 shrink-0" />
@@ -145,7 +143,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </a>
               )}
 
-              {/* Legenda */}
               {post.caption && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Legenda</p>
@@ -155,7 +152,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Observações Internas */}
               {post.internal_notes && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Observações Internas</p>
@@ -165,7 +161,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Hashtags */}
               {post.hashtags && (post.hashtags as string[]).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {(post.hashtags as string[]).map((tag: string) => (
@@ -179,7 +174,6 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          {/* Comentários */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-white">
               Histórico de Comentários

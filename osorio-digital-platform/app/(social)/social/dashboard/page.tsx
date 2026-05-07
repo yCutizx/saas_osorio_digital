@@ -276,6 +276,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
               currentMonth={currentMonth}
               postsByDate={postsByDate}
               baseHref="/social"
+              clientId={client.id}
               canCreate={canEdit}
             />
           </Suspense>

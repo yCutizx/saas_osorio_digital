@@ -6,8 +6,9 @@ import { ArrowLeft, ExternalLink, Hash, User } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { STATUS_CONFIG } from '@/components/calendar/calendar-grid'
-import { ApprovalButtons, CommentBox, StatusChanger } from './post-interactions'
+import { ApprovalButtons, CommentBox, StatusChanger, DeleteButton } from './post-interactions'
 import { cn } from '@/lib/utils'
 
 const PLATFORM_LABEL: Record<string, string> = {
@@ -29,35 +30,38 @@ export default async function PostDetailPage({ params }: PageProps) {
   const { id } = await params
 
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+
+  const role     = profile?.role ?? 'client'
+  const isClient = role === 'client'
+  const isStaff  = ['admin', 'social_media', 'traffic_manager'].includes(role)
+  const canEdit  = ['admin', 'social_media'].includes(role)
+
   try {
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles').select('role').eq('id', user.id).single()
+    const admin = createAdminClient()
 
-    if (profileError) {
-      console.error('[PostDetailPage] profile error:', profileError.message)
-    }
-
-    const { data: post, error: postError } = await supabase
+    // Fetch post via admin client to bypass RLS
+    const { data: post, error: postError } = await admin
       .from('content_posts')
       .select('*, clients(name)')
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
     if (postError) {
       console.error('[PostDetailPage] post error:', postError.message, '| id:', id)
       notFound()
     }
-
     if (!post) {
       console.error('[PostDetailPage] post not found for id:', id)
       notFound()
     }
 
-    if (profile?.role !== 'admin') {
+    // Access check for non-admin: verify client assignment
+    if (role !== 'admin') {
       const { data: assignment, error: assignError } = await supabase
         .from('client_assignments')
         .select('id')
@@ -69,18 +73,19 @@ export default async function PostDetailPage({ params }: PageProps) {
         console.error('[PostDetailPage] assignment error:', assignError.message)
       }
 
-      if (!assignment) {
+      if (!assignment && !isClient) {
         console.error('[PostDetailPage] access denied: user', user.id, 'not assigned to client', post.client_id)
         notFound()
       }
     }
 
-    // Fetch assignee profile if set
+    // Fetch assignee if set
     const assignee = post.assigned_to
-      ? (await supabase.from('profiles').select('full_name, email').eq('id', post.assigned_to).maybeSingle()).data
+      ? (await admin.from('profiles').select('full_name, email').eq('id', post.assigned_to).maybeSingle()).data
       : null
 
-    const { data: comments, error: commentsError } = await supabase
+    // Fetch comments via admin
+    const { data: comments, error: commentsError } = await admin
       .from('post_comments')
       .select('*, profiles(full_name)')
       .eq('post_id', id)
@@ -90,12 +95,7 @@ export default async function PostDetailPage({ params }: PageProps) {
       console.error('[PostDetailPage] comments error:', commentsError.message)
     }
 
-    const role      = profile?.role ?? 'client'
-    const isClient  = role === 'client'
-    const isStaff   = ['admin', 'social_media', 'traffic_manager'].includes(role)
-    const canEdit   = ['admin', 'social_media'].includes(role)
     const statusCfg = STATUS_CONFIG[post?.status] ?? STATUS_CONFIG.draft
-
     const platforms = (post?.platform ?? '').split(',').filter(Boolean)
 
     const backHref = isClient
@@ -116,9 +116,10 @@ export default async function PostDetailPage({ params }: PageProps) {
               <ArrowLeft className="h-4 w-4" />
               {isClient ? 'Voltar ao Calendário' : 'Voltar'}
             </Link>
-            {canEdit && (
-              <StatusChanger postId={post.id} currentStatus={post.status} />
-            )}
+            <div className="flex items-center gap-3">
+              {canEdit && <DeleteButton postId={post.id} />}
+              {canEdit && <StatusChanger postId={post.id} currentStatus={post.status} />}
+            </div>
           </div>
 
           <Card className="bg-[#111] border-[#222]">
@@ -138,7 +139,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                       </>
                     )}
                   </div>
-                  {/* Plataformas */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {platforms.map((p: string) => (
                       <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/60 border border-white/10">
@@ -152,7 +152,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </span>
               </div>
 
-              {/* Responsável */}
               {assignee && (
                 <div className="flex items-center gap-2 text-sm text-[#888]">
                   <User className="h-3.5 w-3.5 shrink-0" />
@@ -172,7 +171,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </a>
               )}
 
-              {/* Legenda */}
               {post.caption && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Legenda</p>
@@ -182,7 +180,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Observações Internas — apenas equipe */}
               {isStaff && post.internal_notes && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Observações Internas</p>
@@ -192,7 +189,6 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Hashtags */}
               {post.hashtags && (post.hashtags as string[]).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {(post.hashtags as string[]).map((tag) => (

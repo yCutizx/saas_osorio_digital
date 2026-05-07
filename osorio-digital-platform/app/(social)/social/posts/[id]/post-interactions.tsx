@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, XCircle, MessageSquare, Loader2, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, XCircle, MessageSquare, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { addCommentAction, changeStatusAction } from './actions'
+import { addCommentAction, changeStatusAction, deletePostAction } from './actions'
 import { cn } from '@/lib/utils'
 
 export function ApprovalButtons({
@@ -198,5 +199,69 @@ export function StatusChanger({
         : <RefreshCw className="h-4 w-4" />}
       {t.label}
     </button>
+  )
+}
+
+export function DeleteButton({ postId }: { postId: string }) {
+  const router = useRouter()
+  const [showModal, setShowModal] = useState(false)
+  const [pending, startTrans] = useTransition()
+
+  function confirm() {
+    startTrans(async () => {
+      const r = await deletePostAction(postId)
+      if (r.error) {
+        toast.error(r.error)
+      } else {
+        toast.success('Post excluído.')
+        router.push(r.clientId ? `/social/dashboard?client=${r.clientId}` : '/social/dashboard')
+      }
+      setShowModal(false)
+    })
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm font-medium transition-colors"
+      >
+        <Trash2 className="h-4 w-4" />
+        Excluir post
+      </button>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-[#111] border border-[#333] rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white font-semibold">Excluir post</h3>
+            <p className="text-[#888] text-sm leading-relaxed">
+              Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                disabled={pending}
+                className="flex-1 h-10 rounded-lg border border-white/10 text-white/60 hover:bg-white/5 text-sm transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirm}
+                disabled={pending}
+                className="flex-1 h-10 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-400 text-sm transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
