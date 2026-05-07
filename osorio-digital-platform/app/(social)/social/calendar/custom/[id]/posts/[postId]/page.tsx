@@ -113,7 +113,7 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                   </div>
                   {/* Plataformas */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {platforms.map(p => (
+                    {platforms.map((p: string) => (
                       <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-white/60 border border-white/10">
                         {PLATFORM_LABEL[p] ?? p}
                       </span>
