@@ -409,7 +409,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
               </Link>
               <Link
                 href="/traffic/reports/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
               >
                 <PlusCircle className="h-4 w-4" />
                 Novo Relatório
@@ -422,8 +422,8 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
         {/* ── Estado vazio ─────────────────────────────────────────── */}
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
-              <BarChart2 className="h-7 w-7 text-brand-yellow/60" />
+            <div className="w-16 h-16 bg-[#EACE00]/10 rounded-2xl flex items-center justify-center mb-4">
+              <BarChart2 className="h-7 w-7 text-[#EACE00]/60" />
             </div>
             <h3 className="text-white font-semibold mb-1">Nenhum dado no período</h3>
             <p className="text-white/40 text-sm mb-6 max-w-sm">
@@ -434,7 +434,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
             {canEdit && clients.length > 0 && (
               <Link
                 href="/traffic/reports/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
               >
                 <PlusCircle className="h-4 w-4" />
                 Adicionar Primeiro Relatório
@@ -489,8 +489,8 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                   <div className="rounded-2xl bg-[#111] border border-white/5 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-white/40 uppercase tracking-wider">Melhor Campanha</span>
-                      <div className="p-1.5 rounded-lg bg-brand-yellow/10">
-                        <Trophy className="h-3.5 w-3.5 text-brand-yellow" />
+                      <div className="p-1.5 rounded-lg bg-[#EACE00]/10">
+                        <Trophy className="h-3.5 w-3.5 text-[#EACE00]" />
                       </div>
                     </div>
                     <div className="text-base font-bold text-white leading-tight truncate">
@@ -560,13 +560,13 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
             {insights.length > 0 && (
               <div className="rounded-2xl bg-[#111] border border-white/5 p-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Zap className="h-4 w-4 text-brand-yellow" />
+                  <Zap className="h-4 w-4 text-[#EACE00]" />
                   <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Destaques do período</h3>
                 </div>
                 <ul className="space-y-2">
                   {insights.map((ins, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-white/70">
-                      <span className="text-brand-yellow mt-0.5">•</span>
+                      <span className="text-[#EACE00] mt-0.5">•</span>
                       {ins}
                     </li>
                   ))}
@@ -643,7 +643,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             {mode === 'ecommerce' && c.roas > 0 ? (
-                              <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}>
+                              <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-[#EACE00]' : 'text-red-400'}>
                                 {c.roas.toFixed(2).replace('.', ',')}x
                               </span>
                             ) : (

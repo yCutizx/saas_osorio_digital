@@ -118,7 +118,7 @@ export default async function AdminDashboardPage() {
           {/* Clientes recentes */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold text-white/40 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-[#888] uppercase tracking-wider">
                 Clientes Recentes
               </h2>
               <Link
@@ -158,7 +158,7 @@ export default async function AdminDashboardPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-white">{client.name}</p>
-                        <p className="text-xs text-white/35">{client.industry ?? '—'}</p>
+                        <p className="text-xs text-[#888]">{client.industry ?? '—'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">

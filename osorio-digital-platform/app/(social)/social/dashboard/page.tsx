@@ -116,7 +116,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
           {statCards.map((card) => (
             <div key={card.label} className={`rounded-2xl bg-[#111] border ${card.border} p-4`}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-white/40 uppercase tracking-wider">{card.label}</span>
+                <span className="text-xs text-[#888] uppercase tracking-wider">{card.label}</span>
                 <div className={`p-1.5 rounded-lg ${card.bg}`}>
                   <card.icon className={`h-3.5 w-3.5 ${card.color}`} />
                 </div>

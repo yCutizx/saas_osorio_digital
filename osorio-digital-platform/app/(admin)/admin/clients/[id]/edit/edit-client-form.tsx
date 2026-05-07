@@ -45,7 +45,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full h-11 rounded-lg bg-brand-yellow text-brand-black font-semibold text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+      className="w-full h-11 rounded-lg bg-[#EACE00] text-black font-semibold text-sm hover:bg-[#EACE00]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
     >
       {pending
         ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</>
@@ -87,24 +87,24 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
       {/* Nome + Segmento */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="company_name" className="text-white/70 text-sm">
+          <Label htmlFor="company_name" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Nome da Empresa <span className="text-red-400">*</span>
           </Label>
           <Input
             id="company_name" name="company_name"
             defaultValue={client.name}
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.company_name} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="industry" className="text-white/70 text-sm">
+          <Label htmlFor="industry" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Segmento <span className="text-red-400">*</span>
           </Label>
           <Select name="industry" defaultValue={client.industry ?? ''} required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">
@@ -120,7 +120,7 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
       {/* E-mail + Telefone */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="contact_email" className="text-white/70 text-sm">
+          <Label htmlFor="contact_email" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             E-mail <span className="text-red-400">*</span>
           </Label>
           <Input
@@ -128,31 +128,31 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
             type="email"
             defaultValue={client.contact_email ?? ''}
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.contact_email} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="contact_phone" className="text-white/70 text-sm">Telefone</Label>
+          <Label htmlFor="contact_phone" className="text-[#888] text-xs font-medium uppercase tracking-wider">Telefone</Label>
           <Input
             id="contact_phone" name="contact_phone"
             type="tel"
             defaultValue={client.contact_phone ?? ''}
             placeholder="(51) 99999-0000"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
         </div>
       </div>
 
       {/* Plano */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">Plano <span className="text-red-400">*</span></Label>
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Plano <span className="text-red-400">*</span></Label>
         <div className="grid grid-cols-3 gap-3">
           {[
             { value: 'basico',  label: 'Básico',  desc: 'Funcionalidades essenciais', color: 'peer-checked:border-white/40 peer-checked:bg-white/5' },
             { value: 'pro',     label: 'Pro',     desc: 'Relatórios avançados',       color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
-            { value: 'premium', label: 'Premium', desc: 'Acesso completo',            color: 'peer-checked:border-brand-yellow peer-checked:bg-brand-yellow/10' },
+            { value: 'premium', label: 'Premium', desc: 'Acesso completo',            color: 'peer-checked:border-[#EACE00] peer-checked:bg-[#EACE00]/10' },
           ].map((plan) => (
             <label key={plan.value} className="cursor-pointer">
               <input
@@ -191,7 +191,7 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
 
       {/* Status do contrato */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">Status do Contrato</Label>
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Status do Contrato</Label>
         <div className="grid grid-cols-3 gap-3">
           {[
             { value: 'ativo',     label: 'Ativo',     color: 'peer-checked:border-green-500 peer-checked:bg-green-500/10' },
@@ -215,7 +215,7 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
       {/* Valor mensal + Data renovação */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="monthly_value" className="text-white/70 text-sm">
+          <Label htmlFor="monthly_value" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Valor Mensal (R$)
           </Label>
           <Input
@@ -223,19 +223,19 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
             type="number" step="0.01" min="0"
             defaultValue={client.monthly_value ?? ''}
             placeholder="2500.00"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="renewal_date" className="text-white/70 text-sm">
+          <Label htmlFor="renewal_date" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Data de Renovação
           </Label>
           <Input
             id="renewal_date" name="renewal_date"
             type="date"
             defaultValue={client.renewal_date ?? ''}
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
         </div>
       </div>
@@ -243,7 +243,7 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
       <SectionTitle>Observações Internas</SectionTitle>
 
       <div className="space-y-1.5">
-        <Label htmlFor="notes" className="text-white/70 text-sm">
+        <Label htmlFor="notes" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Notas privadas <span className="text-white/30 font-normal text-xs">(visível apenas para a equipe)</span>
         </Label>
         <Textarea
@@ -251,7 +251,7 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
           defaultValue={client.notes ?? ''}
           placeholder="Observações sobre o cliente, preferências, pendências..."
           rows={4}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow resize-none"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 resize-none"
         />
       </div>
 
@@ -259,9 +259,9 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Gestor de Tráfego <span className="text-red-400">*</span></Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Gestor de Tráfego <span className="text-red-400">*</span></Label>
           <Select name="traffic_manager_id" defaultValue={client.traffic_manager_id ?? ''} required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">
@@ -278,9 +278,9 @@ export function EditClientForm({ client, trafficManagers, socialMediaTeam }: Pro
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Social Media <span className="text-red-400">*</span></Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Social Media <span className="text-red-400">*</span></Label>
           <Select name="social_media_id" defaultValue={client.social_media_id ?? ''} required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">

@@ -140,7 +140,7 @@ export function TrafficCharts({ dailyData, campaignRows }: Props) {
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   barMetric === m.key
-                    ? 'bg-brand-yellow text-brand-black'
+                    ? 'bg-[#EACE00] text-black'
                     : 'text-white/40 hover:text-white'
                 )}
               >

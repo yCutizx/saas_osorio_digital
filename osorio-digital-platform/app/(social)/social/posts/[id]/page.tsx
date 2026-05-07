@@ -76,7 +76,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         <div className="flex items-center justify-between">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             {isClient ? 'Voltar ao Calendário' : 'Voltar ao Dashboard'}
@@ -87,13 +87,13 @@ export default async function PostDetailPage({ params }: PageProps) {
         </div>
 
         {/* Card principal do post */}
-        <Card className="bg-card border-border">
+        <Card className="bg-[#111] border-[#222]">
           <CardContent className="p-6 space-y-5">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1 min-w-0">
-                <h1 className="text-foreground font-semibold text-lg leading-tight">{post.title}</h1>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
                   <span>{PLATFORM_LABEL[post.platform] ?? post.platform}</span>
                   <span>·</span>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -119,7 +119,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                 href={post.media_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-brand-yellow hover:text-brand-yellow/80 transition-colors"
+                className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
               >
                 <ExternalLink className="h-4 w-4" />
                 Ver arquivo de mídia
@@ -129,8 +129,8 @@ export default async function PostDetailPage({ params }: PageProps) {
             {/* Caption */}
             {post.caption && (
               <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Caption</p>
-                <p className="text-foreground text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
+                <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Caption</p>
+                <p className="text-white text-sm whitespace-pre-wrap leading-relaxed bg-white/5 rounded-lg p-3">
                   {post.caption}
                 </p>
               </div>
@@ -140,7 +140,7 @@ export default async function PostDetailPage({ params }: PageProps) {
             {post.hashtags && post.hashtags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {(post.hashtags as string[]).map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-0.5 text-xs text-brand-yellow/70 bg-brand-yellow/10 px-2 py-0.5 rounded-full">
+                  <span key={tag} className="inline-flex items-center gap-0.5 text-xs text-[#EACE00]/70 bg-[#EACE00]/10 px-2 py-0.5 rounded-full">
                     <Hash className="h-2.5 w-2.5" />
                     {tag}
                   </span>
@@ -150,8 +150,8 @@ export default async function PostDetailPage({ params }: PageProps) {
 
             {/* Ações de aprovação (somente para cliente) */}
             {isClient && (
-              <div className="pt-2 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-3">Sua avaliação</p>
+              <div className="pt-2 border-t border-[#222]">
+                <p className="text-xs text-[#888] mb-3">Sua avaliação</p>
                 <ApprovalButtons postId={post.id} currentStatus={post.status} />
               </div>
             )}
@@ -160,17 +160,17 @@ export default async function PostDetailPage({ params }: PageProps) {
 
         {/* Seção de comentários */}
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-white">
             Histórico de Comentários
             {comments?.length ? (
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
+              <span className="ml-2 text-xs font-normal text-[#888]">
                 ({comments.length})
               </span>
             ) : null}
           </h2>
 
           {!comments?.length ? (
-            <p className="text-muted-foreground text-sm">Nenhum comentário ainda.</p>
+            <p className="text-[#888] text-sm">Nenhum comentário ainda.</p>
           ) : (
             <div className="space-y-3">
               {comments.map((c) => {
@@ -180,7 +180,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                   <div key={c.id} className={cn('rounded-xl border p-4 space-y-1', cfg.classes)}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-foreground">
+                        <span className="text-xs font-medium text-white">
                           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {(c.profiles as any)?.full_name ?? 'Usuário'}
                         </span>
@@ -188,11 +188,11 @@ export default async function PostDetailPage({ params }: PageProps) {
                           {cfg.label}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
+                      <span className="text-xs text-[#888] shrink-0">
                         {format(parseISO(c.created_at), "dd/MM 'às' HH:mm")}
                       </span>
                     </div>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{c.content}</p>
+                    <p className="text-sm text-white/80 leading-relaxed">{c.content}</p>
                   </div>
                 )
               })}

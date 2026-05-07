@@ -101,7 +101,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         {/* Voltar */}
         <Link
           href="/admin/clients"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Clientes
@@ -140,7 +140,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
             <Link
               href={`/admin/clients/${clientRow.id}/edit`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-sm font-medium hover:bg-white/10 hover:text-white transition-colors shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium uppercase tracking-wider font-medium hover:bg-white/10 hover:text-white transition-colors shrink-0"
             >
               <Pencil className="h-4 w-4" />
               Editar

@@ -46,13 +46,13 @@ export default async function AdminClientsPage({ searchParams }: PageProps) {
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-[#888] text-sm">
               {clients.length} {clients.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}
             </p>
           </div>
           <Link
             href="/admin/clients/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] shadow-[0_4px_20px_rgba(234,206,0,0.2)] transition-colors text-sm shrink-0"
           >
             <UserPlus className="h-4 w-4" />
             Novo Cliente
@@ -62,16 +62,16 @@ export default async function AdminClientsPage({ searchParams }: PageProps) {
         {/* Lista */}
         {clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
-              <Search className="h-7 w-7 text-brand-yellow/60" />
+            <div className="w-16 h-16 bg-[#EACE00]/10 rounded-2xl flex items-center justify-center mb-4">
+              <Search className="h-7 w-7 text-[#EACE00]/60" />
             </div>
-            <h3 className="text-foreground font-semibold mb-1">Nenhum cliente ainda</h3>
-            <p className="text-muted-foreground text-sm mb-6">
+            <h3 className="text-white font-semibold mb-1">Nenhum cliente ainda</h3>
+            <p className="text-[#888] text-sm mb-6">
               Comece cadastrando o primeiro cliente da agência.
             </p>
             <Link
               href="/admin/clients/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] shadow-[0_4px_20px_rgba(234,206,0,0.2)] transition-colors text-sm"
             >
               <UserPlus className="h-4 w-4" />
               Cadastrar Cliente

@@ -35,17 +35,17 @@ export default async function NewClientPage() {
         <div className="mb-6">
           <Link
             href="/admin/clients"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar para Clientes
           </Link>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-6 space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Dados do Cliente</h2>
-            <p className="text-muted-foreground text-sm mt-1">
+            <h2 className="text-lg font-semibold text-white">Dados do Cliente</h2>
+            <p className="text-[#888] text-sm mt-1">
               Após salvar, um acesso será criado automaticamente com o e-mail informado.
             </p>
           </div>

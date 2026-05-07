@@ -139,13 +139,13 @@ export function CommentBox({ postId }: { postId: string }) {
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={3}
-        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow resize-none text-sm"
+        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 resize-none text-sm"
       />
       <div className="flex justify-end">
         <Button
           onClick={submit}
           disabled={pending || !comment.trim()}
-          className="h-8 px-4 bg-brand-yellow text-brand-black text-xs font-semibold hover:bg-brand-yellow/90 disabled:opacity-50"
+          className="h-8 px-4 bg-[#EACE00] text-black text-xs font-semibold hover:bg-[#EACE00]/90 disabled:opacity-50"
         >
           {pending
             ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -166,7 +166,7 @@ export function StatusChanger({
   const [pending, startTrans] = useTransition()
 
   const transitions: Record<string, { label: string; next: string; classes: string }> = {
-    draft:            { next: 'pending_approval', label: 'Enviar para Aprovação', classes: 'bg-brand-yellow text-brand-black hover:bg-brand-yellow/90' },
+    draft:            { next: 'pending_approval', label: 'Enviar para Aprovação', classes: 'bg-[#EACE00] text-black hover:bg-[#EACE00]/90' },
     approved:         { next: 'published',        label: 'Marcar como Publicado', classes: 'bg-blue-500 text-white hover:bg-blue-400' },
     rejected:         { next: 'draft',            label: 'Voltar para Rascunho',  classes: 'border border-white/20 text-white/70 hover:bg-white/5' },
     pending_approval: { next: 'draft',            label: 'Voltar para Rascunho',  classes: 'border border-white/20 text-white/70 hover:bg-white/5' },

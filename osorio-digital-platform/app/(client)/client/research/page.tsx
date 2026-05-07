@@ -33,36 +33,43 @@ export default async function ClientResearchPage() {
     <AppLayout pageTitle="Pesquisas de Mercado">
       <div className="space-y-6">
 
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#888]">
           Pesquisas e análises de mercado selecionadas pela equipe Osorio Digital.
         </p>
 
         {!research?.length ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <FileSearch className="h-10 w-10 text-white/20" />
-            <p className="text-muted-foreground text-sm">Nenhuma pesquisa disponível ainda.</p>
-            <p className="text-xs text-muted-foreground/60">
-              Em breve a equipe adicionará pesquisas e análises do seu segmento.
-            </p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <FileSearch className="h-7 w-7 text-[#888]" />
+            </div>
+            <div>
+              <p className="text-white font-semibold mb-1">Nenhuma pesquisa disponível ainda</p>
+              <p className="text-[#888] text-sm">Em breve a equipe adicionará pesquisas e análises do seu segmento.</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
             {research.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-4 p-5 rounded-xl bg-card border border-border"
+                className="flex items-start gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] hover:border-[#EACE00]/25 transition-colors"
               >
+                {/* Ícone */}
+                <div className="w-10 h-10 rounded-xl bg-[#EACE00]/10 border border-[#EACE00]/15 flex items-center justify-center shrink-0 mt-0.5">
+                  <FileSearch className="h-4 w-4 text-[#EACE00]/70" />
+                </div>
+
                 <div className="flex-1 min-w-0 space-y-2">
-                  <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
                   {item.description && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                    <p className="text-sm text-[#888] leading-relaxed">{item.description}</p>
                   )}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground/70">
+                  <div className="flex items-center gap-3 text-xs text-[#888]/60 flex-wrap">
                     <span>
                       {format(parseISO(item.created_at), "d 'de' MMMM yyyy", { locale: ptBR })}
                     </span>
                     {!item.client_id && (
-                      <span className="px-1.5 py-0.5 rounded bg-white/10 text-white/50">
+                      <span className="px-1.5 py-0.5 rounded-full bg-white/8 border border-white/10 text-[#888]">
                         Geral
                       </span>
                     )}
@@ -72,7 +79,7 @@ export default async function ClientResearchPage() {
                       {(item.tags as string[]).map((tag) => (
                         <span
                           key={tag}
-                          className="inline-flex items-center gap-0.5 text-xs text-brand-yellow/70 bg-brand-yellow/10 px-2 py-0.5 rounded-full"
+                          className="inline-flex items-center gap-0.5 text-xs text-[#EACE00]/70 bg-[#EACE00]/10 border border-[#EACE00]/15 px-2 py-0.5 rounded-full"
                         >
                           <Hash className="h-2.5 w-2.5" />
                           {tag}
@@ -86,7 +93,7 @@ export default async function ClientResearchPage() {
                   href={item.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 text-sm font-medium hover:bg-brand-yellow/20 transition-colors"
+                  className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EACE00]/10 text-[#EACE00] border border-[#EACE00]/25 text-sm font-medium hover:bg-[#EACE00]/20 transition-colors"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Abrir PDF

@@ -25,7 +25,7 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="w-full h-11 bg-brand-yellow text-brand-black font-semibold hover:bg-brand-yellow/90 disabled:opacity-60"
+      className="w-full h-11 bg-[#EACE00] text-black font-semibold hover:bg-[#EACE00]/90 disabled:opacity-60"
     >
       {pending
         ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Salvando...</span>
@@ -46,14 +46,14 @@ function MetricInput({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-white/70 text-sm">{label}</Label>
+      <Label htmlFor={id} className="text-[#888] text-xs font-medium uppercase tracking-wider">{label}</Label>
       <Input
         id={id}
         name={name}
         type="number"
         min="0"
         placeholder={placeholder ?? '0'}
-        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
       />
       {hint && <p className="text-white/30 text-xs">{hint}</p>}
       <FieldError messages={error} />
@@ -92,7 +92,7 @@ export function NewReportForm({ clients }: Props) {
       {/* Cliente e campanha */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="client_id" className="text-white/70 text-sm">
+          <Label htmlFor="client_id" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Cliente <span className="text-red-400">*</span>
           </Label>
           <select
@@ -101,7 +101,7 @@ export function NewReportForm({ clients }: Props) {
             required
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             {clients.length === 0
               ? <option value="">Nenhum cliente disponível</option>
@@ -112,14 +112,14 @@ export function NewReportForm({ clients }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="campaign_id" className="text-white/70 text-sm">
+          <Label htmlFor="campaign_id" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Campanha <span className="text-red-400">*</span>
           </Label>
           <select
             id="campaign_id"
             name="campaign_id"
             required
-            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             {availableCamps.length === 0
               ? <option value="">Sem campanhas para este cliente</option>
@@ -137,7 +137,7 @@ export function NewReportForm({ clients }: Props) {
       {/* Período */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="period_start" className="text-white/70 text-sm">
+          <Label htmlFor="period_start" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Data Inicial <span className="text-red-400">*</span>
           </Label>
           <Input
@@ -145,12 +145,12 @@ export function NewReportForm({ clients }: Props) {
             name="period_start"
             type="date"
             required
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
           <FieldError messages={state.errors?.period_start} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="period_end" className="text-white/70 text-sm">
+          <Label htmlFor="period_end" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Data Final <span className="text-red-400">*</span>
           </Label>
           <Input
@@ -158,7 +158,7 @@ export function NewReportForm({ clients }: Props) {
             name="period_end"
             type="date"
             required
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
           <FieldError messages={state.errors?.period_end} />
         </div>
@@ -169,7 +169,7 @@ export function NewReportForm({ clients }: Props) {
         <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Alcance</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="impressions" className="text-white/70 text-sm">Impressões</Label>
+            <Label htmlFor="impressions" className="text-[#888] text-xs font-medium uppercase tracking-wider">Impressões</Label>
             <Input
               id="impressions"
               name="impressions"
@@ -178,12 +178,12 @@ export function NewReportForm({ clients }: Props) {
               placeholder="0"
               value={impressions}
               onChange={(e) => setImpressions(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
             />
             <FieldError messages={state.errors?.impressions} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="clicks" className="text-white/70 text-sm">Cliques</Label>
+            <Label htmlFor="clicks" className="text-[#888] text-xs font-medium uppercase tracking-wider">Cliques</Label>
             <Input
               id="clicks"
               name="clicks"
@@ -192,7 +192,7 @@ export function NewReportForm({ clients }: Props) {
               placeholder="0"
               value={clicks}
               onChange={(e) => setClicks(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
             />
             <FieldError messages={state.errors?.clicks} />
           </div>
@@ -209,7 +209,7 @@ export function NewReportForm({ clients }: Props) {
         <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Financeiro</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="spend" className="text-white/70 text-sm">
+            <Label htmlFor="spend" className="text-[#888] text-xs font-medium uppercase tracking-wider">
               Investimento (R$) <span className="text-red-400">*</span>
             </Label>
             <Input
@@ -222,12 +222,12 @@ export function NewReportForm({ clients }: Props) {
               required
               value={spend}
               onChange={(e) => setSpend(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
             />
             <FieldError messages={state.errors?.spend} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="revenue" className="text-white/70 text-sm">Receita / Retorno (R$)</Label>
+            <Label htmlFor="revenue" className="text-[#888] text-xs font-medium uppercase tracking-wider">Receita / Retorno (R$)</Label>
             <Input
               id="revenue"
               name="revenue"
@@ -237,7 +237,7 @@ export function NewReportForm({ clients }: Props) {
               placeholder="0,00"
               value={revenue}
               onChange={(e) => setRevenue(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
             />
             <FieldError messages={state.errors?.revenue} />
           </div>

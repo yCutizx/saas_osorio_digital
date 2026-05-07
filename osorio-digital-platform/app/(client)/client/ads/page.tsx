@@ -284,8 +284,8 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
 
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
-              <BarChart2 className="h-7 w-7 text-brand-yellow/60" />
+            <div className="w-16 h-16 bg-[#EACE00]/10 rounded-2xl flex items-center justify-center mb-4">
+              <BarChart2 className="h-7 w-7 text-[#EACE00]/60" />
             </div>
             <h3 className="text-white font-semibold mb-1">Nenhum dado no período</h3>
             <p className="text-white/40 text-sm max-w-sm">
@@ -307,7 +307,7 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { label: 'Investimento', value: formatCurrency(stats.spend),       icon: DollarSign,       color: 'text-brand-yellow', bg: 'bg-brand-yellow/10' },
+                { label: 'Investimento', value: formatCurrency(stats.spend),       icon: DollarSign,       color: 'text-[#EACE00]', bg: 'bg-[#EACE00]/10' },
                 { label: 'Impressões',   value: stats.impressions >= 1000 ? `${(stats.impressions / 1000).toFixed(1)}k` : String(stats.impressions), icon: Eye, color: 'text-purple-400', bg: 'bg-purple-400/10' },
                 { label: 'CPC Médio',    value: stats.cpc > 0 ? formatCurrency(stats.cpc) : '—',           icon: MousePointerClick, color: 'text-blue-400',   bg: 'bg-blue-400/10' },
                 { label: 'CTR Médio',    value: stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—', icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-400/10' },
@@ -344,7 +344,7 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
             {stats.spend > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <Zap className="h-4 w-4 text-brand-yellow" />
+                  <Zap className="h-4 w-4 text-[#EACE00]" />
                   <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider">Diagnóstico automático</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -398,7 +398,7 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
                           {c.cpa > 0 ? formatCurrency(c.cpa) : '—'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-brand-yellow' : 'text-red-400'}>
+                          <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-[#EACE00]' : 'text-red-400'}>
                             {c.roas > 0 ? `${c.roas.toFixed(2).replace('.', ',')}x` : '—'}
                           </span>
                         </td>

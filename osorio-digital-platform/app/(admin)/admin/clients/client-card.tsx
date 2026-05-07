@@ -123,7 +123,7 @@ export function ClientCard({ client }: { client: ClientWithAssignments }) {
                 <h3 className="font-bold text-white text-sm leading-tight truncate max-w-[150px]">
                   {client.name}
                 </h3>
-                <p className="text-xs text-white/35 truncate mt-0.5">
+                <p className="text-xs text-[#888] truncate mt-0.5">
                   {client.industry ?? 'Segmento não informado'}
                 </p>
               </div>
@@ -141,20 +141,20 @@ export function ClientCard({ client }: { client: ClientWithAssignments }) {
 
           {/* Equipe responsável */}
           <div className="space-y-2 pt-3 border-t border-[#1a1a1a]">
-            <div className="flex items-center gap-2 text-xs text-white/35">
+            <div className="flex items-center gap-2 text-xs text-[#888]">
               <TrendingUp className="h-3 w-3 shrink-0 text-white/25" />
               <span className="truncate">
                 {traffic?.profiles?.full_name ?? <span className="italic text-white/20">Sem gestor atribuído</span>}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-white/35">
+            <div className="flex items-center gap-2 text-xs text-[#888]">
               <Camera className="h-3 w-3 shrink-0 text-white/25" />
               <span className="truncate">
                 {social?.profiles?.full_name ?? <span className="italic text-white/20">Sem social media atribuído</span>}
               </span>
             </div>
             {client.contact_email && (
-              <div className="flex items-center gap-2 text-xs text-white/35">
+              <div className="flex items-center gap-2 text-xs text-[#888]">
                 <Mail className="h-3 w-3 shrink-0 text-white/25" />
                 <span className="truncate">{client.contact_email}</span>
               </div>

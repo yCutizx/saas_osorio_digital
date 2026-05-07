@@ -89,7 +89,7 @@ export default async function CampaignsPage() {
           {canCreate && (
             <Link
               href="/traffic/campaigns/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
             >
               <PlusCircle className="h-4 w-4" />
               Nova Campanha
@@ -158,8 +158,8 @@ export default async function CampaignsPage() {
 function Empty({ canCreate }: { canCreate: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
-        <Megaphone className="h-7 w-7 text-brand-yellow/60" />
+      <div className="w-16 h-16 bg-[#EACE00]/10 rounded-2xl flex items-center justify-center mb-4">
+        <Megaphone className="h-7 w-7 text-[#EACE00]/60" />
       </div>
       <h3 className="text-white font-semibold mb-1">Nenhuma campanha cadastrada</h3>
       <p className="text-white/40 text-sm mb-6 max-w-sm">
@@ -168,7 +168,7 @@ function Empty({ canCreate }: { canCreate: boolean }) {
       {canCreate && (
         <Link
           href="/traffic/campaigns/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
         >
           <PlusCircle className="h-4 w-4" />
           Criar Primeira Campanha

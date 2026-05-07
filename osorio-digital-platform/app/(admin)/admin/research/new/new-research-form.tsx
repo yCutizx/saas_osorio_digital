@@ -16,7 +16,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand-yellow text-brand-black font-semibold text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-60"
+      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#EACE00] text-black font-semibold text-sm hover:bg-[#EACE00]/90 transition-colors disabled:opacity-60"
     >
       {pending
         ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</>
@@ -47,7 +47,7 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
 
       {/* Título */}
       <div className="space-y-1.5">
-        <Label htmlFor="title" className="text-white/70 text-sm">
+        <Label htmlFor="title" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Título <span className="text-red-400">*</span>
         </Label>
         <Input
@@ -55,14 +55,14 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
           name="title"
           placeholder="Nome da pesquisa de mercado"
           required
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
         />
         <FieldError messages={state.errors?.title} />
       </div>
 
       {/* Descrição */}
       <div className="space-y-1.5">
-        <Label htmlFor="description" className="text-white/70 text-sm">
+        <Label htmlFor="description" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Descrição <span className="text-white/30 font-normal text-xs">(opcional)</span>
         </Label>
         <Textarea
@@ -70,13 +70,13 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
           name="description"
           placeholder="Breve descrição do conteúdo da pesquisa..."
           rows={3}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow resize-none"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 resize-none"
         />
       </div>
 
       {/* Arquivo PDF */}
       <div className="space-y-3">
-        <Label className="text-white/70 text-sm">
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Arquivo PDF <span className="text-red-400">*</span>
         </Label>
 
@@ -86,7 +86,7 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
             onClick={() => { setUseExternalUrl(false); setSelectedFile(null) }}
             className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
               !useExternalUrl
-                ? 'bg-brand-yellow/15 border-brand-yellow/40 text-brand-yellow'
+                ? 'bg-[#EACE00]/15 border-[#EACE00]/40 text-[#EACE00]'
                 : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
             }`}
           >
@@ -97,7 +97,7 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
             onClick={() => { setUseExternalUrl(true); setSelectedFile(null) }}
             className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
               useExternalUrl
-                ? 'bg-brand-yellow/15 border-brand-yellow/40 text-brand-yellow'
+                ? 'bg-[#EACE00]/15 border-[#EACE00]/40 text-[#EACE00]'
                 : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
             }`}
           >
@@ -131,7 +131,7 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex flex-col items-center gap-2 p-6 rounded-lg border border-dashed border-white/15 hover:border-brand-yellow/40 hover:bg-brand-yellow/5 transition-colors"
+                className="w-full flex flex-col items-center gap-2 p-6 rounded-lg border border-dashed border-white/15 hover:border-[#EACE00]/40 hover:bg-[#EACE00]/5 transition-colors"
               >
                 <Upload className="h-7 w-7 text-white/30" />
                 <span className="text-sm text-white/50">Clique para selecionar um PDF</span>
@@ -145,7 +145,7 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
               name="file_url"
               type="url"
               placeholder="https://drive.google.com/..."
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
             />
             <FieldError messages={state.errors?.file_url} />
           </div>
@@ -154,13 +154,13 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
 
       {/* Cliente (opcional) */}
       <div className="space-y-1.5">
-        <Label htmlFor="client_id" className="text-white/70 text-sm">
+        <Label htmlFor="client_id" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Cliente <span className="text-white/30 font-normal text-xs">(deixe em branco para todos)</span>
         </Label>
         <select
           id="client_id"
           name="client_id"
-          className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+          className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
         >
           <option value="">Todos os clientes Premium</option>
           {clients.map((c) => (
@@ -172,14 +172,14 @@ export function NewResearchForm({ clients }: { clients: Client[] }) {
 
       {/* Tags */}
       <div className="space-y-1.5">
-        <Label htmlFor="tags_raw" className="text-white/70 text-sm">
+        <Label htmlFor="tags_raw" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Tags <span className="text-white/30 font-normal text-xs">(separadas por vírgula)</span>
         </Label>
         <Input
           id="tags_raw"
           name="tags_raw"
           placeholder="e-commerce, comportamento do consumidor"
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
         />
       </div>
 

@@ -24,7 +24,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full h-11 rounded-lg bg-brand-yellow text-brand-black font-semibold text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+      className="w-full h-11 rounded-lg bg-[#EACE00] text-black font-semibold text-sm hover:bg-[#EACE00]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
     >
       {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</> : 'Salvar Alterações'}
     </button>
@@ -115,19 +115,19 @@ export function EditMemberForm({ member, clients }: { member: MemberData; client
         {/* Nome + E-mail (readonly) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="full_name" className="text-white/70 text-sm">
+            <Label htmlFor="full_name" className="text-[#888] text-xs font-medium uppercase tracking-wider">
               Nome Completo <span className="text-red-400">*</span>
             </Label>
             <Input
               id="full_name" name="full_name"
               defaultValue={member.full_name ?? ''}
               required
-              className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10"
+              className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10"
             />
             {state.errors?.full_name && <p className="text-red-400 text-xs">{state.errors.full_name[0]}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-white/70 text-sm">E-mail</Label>
+            <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">E-mail</Label>
             <Input
               value={member.email}
               readOnly
@@ -139,7 +139,7 @@ export function EditMemberForm({ member, clients }: { member: MemberData; client
 
         {/* Função */}
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Função <span className="text-red-400">*</span></Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Função <span className="text-red-400">*</span></Label>
           <div className="grid grid-cols-2 gap-3">
             {[
               { value: 'traffic_manager', label: 'Gestor de Tráfego', icon: TrendingUp, color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
@@ -177,7 +177,7 @@ export function EditMemberForm({ member, clients }: { member: MemberData; client
 
         {/* Clientes */}
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Clientes Atribuídos</Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Clientes Atribuídos</Label>
           {/* Hidden inputs for selected clients */}
           {selectedClients.map((id) => (
             <input key={id} type="hidden" name="client_ids" value={id} />
@@ -194,12 +194,12 @@ export function EditMemberForm({ member, clients }: { member: MemberData; client
                     onClick={() => toggleClient(c.id)}
                     className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       selected
-                        ? 'border-brand-yellow/40 bg-brand-yellow/8 text-white'
+                        ? 'border-[#EACE00]/40 bg-[#EACE00]/8 text-white'
                         : 'border-white/10 bg-white/3 text-white/50 hover:border-white/20'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
-                      selected ? 'border-brand-yellow bg-brand-yellow' : 'border-white/20'
+                      selected ? 'border-[#EACE00] bg-[#EACE00]' : 'border-white/20'
                     }`}>
                       {selected && <span className="text-black text-[10px] font-black">✓</span>}
                     </div>

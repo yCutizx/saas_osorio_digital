@@ -51,14 +51,14 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
 
       {/* Cliente */}
       <div className="space-y-1.5">
-        <Label htmlFor="client_id" className="text-white/70 text-sm">
+        <Label htmlFor="client_id" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Cliente <span className="text-red-400">*</span>
         </Label>
         <select
           id="client_id"
           name="client_id"
           required
-          className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+          className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
         >
           {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -67,7 +67,7 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
 
       {/* Título */}
       <div className="space-y-1.5">
-        <Label htmlFor="title" className="text-white/70 text-sm">
+        <Label htmlFor="title" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Título <span className="text-red-400">*</span>
         </Label>
         <Input
@@ -75,14 +75,14 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
           name="title"
           placeholder="Título interno do post"
           required
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
         />
         <FieldError messages={state.errors?.title} />
       </div>
 
       {/* Plataforma */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Plataforma <span className="text-red-400">*</span>
         </Label>
         <div className="flex flex-wrap gap-2">
@@ -113,11 +113,11 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
       {/* Tipo de mídia e URL */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="media_type" className="text-white/70 text-sm">Tipo de Mídia</Label>
+          <Label htmlFor="media_type" className="text-[#888] text-xs font-medium uppercase tracking-wider">Tipo de Mídia</Label>
           <select
             id="media_type"
             name="media_type"
-            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             <option value="">Selecione...</option>
             {MEDIA_TYPES.map((t) => (
@@ -126,13 +126,13 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="media_url" className="text-white/70 text-sm">URL da Mídia</Label>
+          <Label htmlFor="media_url" className="text-[#888] text-xs font-medium uppercase tracking-wider">URL da Mídia</Label>
           <Input
             id="media_url"
             name="media_url"
             type="url"
             placeholder="https://..."
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.media_url} />
         </div>
@@ -141,7 +141,7 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
       {/* Caption */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="caption" className="text-white/70 text-sm">Caption</Label>
+          <Label htmlFor="caption" className="text-[#888] text-xs font-medium uppercase tracking-wider">Caption</Label>
           <span className={cn('text-xs', captionLen > 2000 ? 'text-red-400' : 'text-white/30')}>
             {captionLen}/2200
           </span>
@@ -153,13 +153,13 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
           rows={5}
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow resize-none"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 resize-none"
         />
       </div>
 
       {/* Hashtags */}
       <div className="space-y-1.5">
-        <Label htmlFor="hashtags_raw" className="text-white/70 text-sm">
+        <Label htmlFor="hashtags_raw" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Hashtags <span className="text-white/30 font-normal text-xs">(separadas por vírgula ou espaço)</span>
         </Label>
         <Input
@@ -168,16 +168,16 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
           placeholder="marketing digital, empreendedorismo, vendas"
           value={hashtags}
           onChange={(e) => setHashtags(e.target.value)}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
         />
         {previewHashtags && (
-          <p className="text-brand-yellow/70 text-xs">{previewHashtags}</p>
+          <p className="text-[#EACE00]/70 text-xs">{previewHashtags}</p>
         )}
       </div>
 
       {/* Data de agendamento */}
       <div className="space-y-1.5">
-        <Label htmlFor="scheduled_at" className="text-white/70 text-sm">
+        <Label htmlFor="scheduled_at" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Data e Hora de Publicação <span className="text-red-400">*</span>
         </Label>
         <Input
@@ -185,7 +185,7 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
           name="scheduled_at"
           type="datetime-local"
           required
-          className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+          className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
         />
         <FieldError messages={state.errors?.scheduled_at} />
       </div>
@@ -220,7 +220,7 @@ export function NewPostForm({ clients }: { clients: Client[] }) {
               if (input) input.value = 'pending_approval'
             }
           }}
-          className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-brand-yellow text-brand-black font-semibold hover:bg-brand-yellow/90 text-sm transition-colors"
+          className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-[#EACE00] text-black font-semibold hover:bg-[#EACE00]/90 text-sm transition-colors"
         >
           <Send className="h-4 w-4" />
           Enviar para Aprovação

@@ -42,27 +42,27 @@ export default async function NewPostPage() {
         <div className="mb-6">
           <Link
             href="/social/dashboard"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar ao Calendário
           </Link>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-6 space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Criar Post</h2>
-            <p className="text-muted-foreground text-sm mt-1">
+            <h2 className="text-lg font-semibold text-white">Criar Post</h2>
+            <p className="text-[#888] text-sm mt-1">
               Salve como rascunho ou envie diretamente para aprovação do cliente.
             </p>
           </div>
 
           {clients.length === 0 ? (
             <div className="py-8 text-center">
-              <p className="text-muted-foreground text-sm mb-4">
+              <p className="text-[#888] text-sm mb-4">
                 Você não tem clientes atribuídos para criar posts.
               </p>
-              <Link href="/admin/clients" className="text-brand-yellow text-sm hover:text-brand-yellow/80 transition-colors">
+              <Link href="/admin/clients" className="text-[#EACE00] text-sm hover:text-[#EACE00]/80 transition-colors">
                 Ver clientes →
               </Link>
             </div>

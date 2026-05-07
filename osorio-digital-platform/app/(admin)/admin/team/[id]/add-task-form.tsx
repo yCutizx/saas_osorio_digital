@@ -15,7 +15,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-brand-yellow text-brand-black font-semibold text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-60"
+      className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-[#EACE00] text-black font-semibold text-sm hover:bg-[#EACE00]/90 transition-colors disabled:opacity-60"
     >
       {pending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Salvando...</> : <><Plus className="h-3.5 w-3.5" />Adicionar</>}
     </button>
@@ -45,7 +45,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           id="title" name="title"
           placeholder="O que precisa ser feito?"
           required
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-brand-yellow h-9 text-sm"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[#EACE00]/60 h-9 text-sm"
         />
         {state.errors?.title && <p className="text-red-400 text-xs">{state.errors.title[0]}</p>}
       </div>
@@ -57,7 +57,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           id="description" name="description"
           placeholder="Detalhes adicionais..."
           rows={2}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-brand-yellow resize-none text-sm"
+          className="bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[#EACE00]/60 resize-none text-sm"
         />
       </div>
 
@@ -67,7 +67,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           <Label htmlFor="client_id" className="text-white/60 text-xs">Cliente</Label>
           <select
             id="client_id" name="client_id"
-            className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             <option value="">Geral</option>
             {clients.map((c) => (
@@ -81,7 +81,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           <select
             id="priority" name="priority"
             defaultValue="media"
-            className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             <option value="baixa">Baixa</option>
             <option value="media">Média</option>
@@ -97,7 +97,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           <Input
             id="due_date" name="due_date"
             type="date"
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-9 text-sm [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-9 text-sm [color-scheme:dark]"
           />
         </div>
         <div className="space-y-1">
@@ -105,7 +105,7 @@ export function AddTaskForm({ assignedTo, clients }: { assignedTo: string; clien
           <Input
             id="due_time" name="due_time"
             type="time"
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-9 text-sm [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-9 text-sm [color-scheme:dark]"
           />
         </div>
       </div>

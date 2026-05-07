@@ -28,7 +28,7 @@ export function SocialFilters({ clients, currentClientId }: Props) {
     <select
       value={currentClientId ?? ''}
       onChange={(e) => navigate({ client: e.target.value || null })}
-      className="h-9 px-3 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-brand-yellow transition-colors"
+      className="h-9 px-3 rounded-lg bg-[#111] border border-[#222] text-sm text-white focus:outline-none focus:border-[#EACE00]/60 transition-colors"
     >
       <option value="">Todos os clientes</option>
       {clients.map((c) => (

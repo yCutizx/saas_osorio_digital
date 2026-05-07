@@ -30,7 +30,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full h-11 rounded-lg bg-brand-yellow text-brand-black font-semibold text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+      className="w-full h-11 rounded-lg bg-[#EACE00] text-black font-semibold text-sm hover:bg-[#EACE00]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
     >
       {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Criando...</> : 'Criar Funcionário'}
     </button>
@@ -66,26 +66,26 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
       {/* Nome + E-mail */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="full_name" className="text-white/70 text-sm">
+          <Label htmlFor="full_name" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Nome Completo <span className="text-red-400">*</span>
           </Label>
           <Input
             id="full_name" name="full_name"
             placeholder="João Silva"
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.full_name} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-white/70 text-sm">
+          <Label htmlFor="email" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             E-mail <span className="text-red-400">*</span>
           </Label>
           <Input
             id="email" name="email"
             type="email" placeholder="joao@email.com"
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.email} />
         </div>
@@ -93,7 +93,7 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
 
       {/* Role */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">Função <span className="text-red-400">*</span></Label>
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Função <span className="text-red-400">*</span></Label>
         <div className="grid grid-cols-2 gap-3">
           {[
             { value: 'traffic_manager', label: 'Gestor de Tráfego', icon: TrendingUp, color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
@@ -113,7 +113,7 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
 
       {/* Senha */}
       <div className="space-y-1.5">
-        <Label htmlFor="password" className="text-white/70 text-sm">Senha de Acesso</Label>
+        <Label htmlFor="password" className="text-[#888] text-xs font-medium uppercase tracking-wider">Senha de Acesso</Label>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Input
@@ -122,7 +122,7 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Deixe em branco para gerar automaticamente"
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10 pr-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10 pr-10"
             />
             <button
               type="button"
@@ -148,7 +148,7 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
 
       {/* Clientes */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Clientes Atribuídos <span className="text-white/30 font-normal text-xs">(pode alterar depois)</span>
         </Label>
         {clients.length === 0 ? (
@@ -164,12 +164,12 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
                     onClick={() => toggleClient(c.id)}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                       selected
-                        ? 'border-brand-yellow/40 bg-brand-yellow/8 text-white'
+                        ? 'border-[#EACE00]/40 bg-[#EACE00]/8 text-white'
                         : 'border-white/10 bg-white/3 text-white/50 hover:border-white/20'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
-                      selected ? 'border-brand-yellow bg-brand-yellow' : 'border-white/20'
+                      selected ? 'border-[#EACE00] bg-[#EACE00]' : 'border-white/20'
                     }`}>
                       {selected && <span className="text-black text-[10px] font-black">✓</span>}
                     </div>

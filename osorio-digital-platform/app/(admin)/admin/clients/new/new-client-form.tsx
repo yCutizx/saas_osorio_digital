@@ -43,7 +43,7 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="w-full h-11 bg-brand-yellow text-brand-black font-semibold hover:bg-brand-yellow/90 disabled:opacity-60"
+      className="w-full h-11 bg-[#EACE00] text-black font-semibold hover:bg-[#EACE00]/90 disabled:opacity-60"
     >
       {pending
         ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Criando cliente...</span>
@@ -74,23 +74,23 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
       {/* Nome + Segmento */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="company_name" className="text-white/70 text-sm">
+          <Label htmlFor="company_name" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Nome da Empresa <span className="text-red-400">*</span>
           </Label>
           <Input
             id="company_name" name="company_name"
             placeholder="Ex: Café do João" required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.company_name} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="industry" className="text-white/70 text-sm">
+          <Label htmlFor="industry" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Segmento <span className="text-red-400">*</span>
           </Label>
           <Select name="industry" required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">
@@ -106,24 +106,24 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
       {/* E-mail + Telefone */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="contact_email" className="text-white/70 text-sm">
+          <Label htmlFor="contact_email" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             E-mail do Contato <span className="text-red-400">*</span>
           </Label>
           <Input
             id="contact_email" name="contact_email"
             type="email" placeholder="contato@empresa.com" required
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <p className="text-white/30 text-xs">Será usado como login do cliente na plataforma.</p>
           <FieldError messages={state.errors?.contact_email} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="contact_phone" className="text-white/70 text-sm">Telefone</Label>
+          <Label htmlFor="contact_phone" className="text-[#888] text-xs font-medium uppercase tracking-wider">Telefone</Label>
           <Input
             id="contact_phone" name="contact_phone"
             type="tel" placeholder="(51) 99999-0000"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.contact_phone} />
         </div>
@@ -131,7 +131,7 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
 
       {/* Senha de acesso */}
       <div className="space-y-1.5">
-        <Label htmlFor="password" className="text-white/70 text-sm">
+        <Label htmlFor="password" className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Senha de Acesso
         </Label>
         <div className="flex gap-2">
@@ -143,7 +143,7 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Deixe em branco para gerar automaticamente"
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10 pr-10"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10 pr-10"
             />
             <button
               type="button"
@@ -175,12 +175,12 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
 
       {/* Plano */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">Plano <span className="text-red-400">*</span></Label>
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Plano <span className="text-red-400">*</span></Label>
         <div className="grid grid-cols-3 gap-3">
           {[
             { value: 'basico',  label: 'Básico',  desc: 'Funcionalidades essenciais',  color: 'peer-checked:border-white/40 peer-checked:bg-white/5' },
             { value: 'pro',     label: 'Pro',     desc: 'Relatórios avançados',        color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
-            { value: 'premium', label: 'Premium', desc: 'Acesso completo',             color: 'peer-checked:border-brand-yellow peer-checked:bg-brand-yellow/10' },
+            { value: 'premium', label: 'Premium', desc: 'Acesso completo',             color: 'peer-checked:border-[#EACE00] peer-checked:bg-[#EACE00]/10' },
           ].map((plan) => (
             <label key={plan.value} className="cursor-pointer">
               <input type="radio" name="plan" value={plan.value} className="peer sr-only" defaultChecked={plan.value === 'basico'} />
@@ -197,9 +197,9 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
       {/* Equipe */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Gestor de Tráfego <span className="text-red-400">*</span></Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Gestor de Tráfego <span className="text-red-400">*</span></Label>
           <Select name="traffic_manager_id" required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">
@@ -216,9 +216,9 @@ export function NewClientForm({ trafficManagers, socialMediaTeam }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Social Media <span className="text-red-400">*</span></Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Social Media <span className="text-red-400">*</span></Label>
           <Select name="social_media_id" required>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-brand-yellow">
+            <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 focus:border-[#EACE00]/60">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a1a] border-white/10">

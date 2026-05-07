@@ -30,7 +30,7 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="w-full h-11 bg-brand-yellow text-brand-black font-semibold hover:bg-brand-yellow/90 disabled:opacity-60"
+      className="w-full h-11 bg-[#EACE00] text-black font-semibold hover:bg-[#EACE00]/90 disabled:opacity-60"
     >
       {pending
         ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Criando...</span>
@@ -60,7 +60,7 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
       {/* Cliente + Nome */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Cliente <span className="text-red-400">*</span>
           </Label>
           <select
@@ -68,7 +68,7 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
             required
             value={selectedClient}
             onChange={(e) => setSelectedClient(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             {clients.length === 0
               ? <option value="">Nenhum cliente disponível</option>
@@ -79,13 +79,13 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="name" className="text-white/70 text-sm">
+          <Label htmlFor="name" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Nome da Campanha <span className="text-red-400">*</span>
           </Label>
           <Input
             id="name" name="name" required
             placeholder="Ex: Black Friday 2024 — Meta"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
           <FieldError messages={state.errors?.name} />
         </div>
@@ -93,14 +93,14 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
 
       {/* Plataforma */}
       <div className="space-y-1.5">
-        <Label className="text-white/70 text-sm">
+        <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">
           Plataforma <span className="text-red-400">*</span>
         </Label>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {PLATFORMS.map((p, i) => (
             <label key={p.value} className="cursor-pointer">
               <input type="radio" name="platform" value={p.value} className="peer sr-only" defaultChecked={i === 0} />
-              <div className="border border-white/10 rounded-xl p-3 text-center transition-all peer-checked:border-brand-yellow peer-checked:bg-brand-yellow/10 hover:border-white/20">
+              <div className="border border-white/10 rounded-xl p-3 text-center transition-all peer-checked:border-[#EACE00] peer-checked:bg-[#EACE00]/10 hover:border-white/20">
                 <p className="text-white text-xs font-medium leading-tight">{p.label}</p>
               </div>
             </label>
@@ -112,10 +112,10 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
       {/* Objetivo + Orçamento mensal */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-white/70 text-sm">Objetivo</Label>
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Objetivo</Label>
           <select
             name="objective"
-            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-brand-yellow transition-colors"
+            className="w-full h-10 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
           >
             <option value="">Selecione (opcional)</option>
             {OBJECTIVES.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -123,11 +123,11 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="budget_monthly" className="text-white/70 text-sm">Orçamento Mensal (R$)</Label>
+          <Label htmlFor="budget_monthly" className="text-[#888] text-xs font-medium uppercase tracking-wider">Orçamento Mensal (R$)</Label>
           <Input
             id="budget_monthly" name="budget_monthly"
             type="number" min="0" step="0.01" placeholder="0,00"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-brand-yellow h-10"
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
           />
         </div>
       </div>
@@ -135,17 +135,17 @@ export function NewCampaignForm({ clients }: { clients: Client[] }) {
       {/* Datas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="start_date" className="text-white/70 text-sm">Data de Início</Label>
+          <Label htmlFor="start_date" className="text-[#888] text-xs font-medium uppercase tracking-wider">Data de Início</Label>
           <Input
             id="start_date" name="start_date" type="date"
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="end_date" className="text-white/70 text-sm">Data de Término</Label>
+          <Label htmlFor="end_date" className="text-[#888] text-xs font-medium uppercase tracking-wider">Data de Término</Label>
           <Input
             id="end_date" name="end_date" type="date"
-            className="bg-white/5 border-white/10 text-white focus:border-brand-yellow h-10 [color-scheme:dark]"
+            className="bg-white/5 border-white/10 text-white focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
         </div>
       </div>

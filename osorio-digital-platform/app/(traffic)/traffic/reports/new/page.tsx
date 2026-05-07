@@ -60,29 +60,29 @@ export default async function NewReportPage() {
         <div className="mb-6">
           <Link
             href="/traffic/dashboard"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar para o Dashboard
           </Link>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-6 space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Registrar Métricas</h2>
-            <p className="text-muted-foreground text-sm mt-1">
+            <h2 className="text-lg font-semibold text-white">Registrar Métricas</h2>
+            <p className="text-[#888] text-sm mt-1">
               Insira os dados de performance de uma campanha para um período específico.
             </p>
           </div>
 
           {clients.length === 0 ? (
             <div className="py-8 text-center">
-              <p className="text-muted-foreground text-sm mb-4">
+              <p className="text-[#888] text-sm mb-4">
                 Nenhum cliente com campanhas ativas encontrado.
               </p>
               <Link
                 href="/admin/clients/new"
-                className="text-brand-yellow text-sm hover:text-brand-yellow/80 transition-colors"
+                className="text-[#EACE00] text-sm hover:text-[#EACE00]/80 transition-colors"
               >
                 Cadastrar cliente →
               </Link>

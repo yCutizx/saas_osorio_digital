@@ -89,8 +89,8 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
       <div className="space-y-6">
 
         {clientName && (
-          <p className="text-muted-foreground text-sm">
-            Visualizando posts de <span className="text-foreground font-medium">{clientName}</span> — {monthLabel}
+          <p className="text-[#888] text-sm">
+            Visualizando posts de <span className="text-white font-medium">{clientName}</span> — {monthLabel}
           </p>
         )}
 
@@ -98,8 +98,8 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
         {pending.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse" />
-              <h2 className="text-sm font-semibold text-foreground">
+              <div className="w-2 h-2 rounded-full bg-[#EACE00] animate-pulse" />
+              <h2 className="text-sm font-semibold text-white">
                 {pending.length === 1 ? '1 post aguarda' : `${pending.length} posts aguardam`} sua aprovação
               </h2>
             </div>
@@ -108,18 +108,18 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
                 <Link
                   key={post.id}
                   href={`/client/posts/${post.id}`}
-                  className="flex items-center justify-between gap-3 p-4 rounded-xl border border-brand-yellow/30 bg-brand-yellow/5 hover:bg-brand-yellow/10 transition-colors group"
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[#EACE00]/30 bg-[#EACE00]/5 hover:bg-[#EACE00]/10 transition-colors group"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{post.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-sm font-medium text-white truncate">{post.title}</p>
+                    <p className="text-xs text-[#888] mt-0.5">
                       {PLATFORM_LABEL[post.platform] ?? post.platform}
                       {post.scheduled_at && ` · ${format(new Date(post.scheduled_at), "d 'de' MMM", { locale: ptBR })}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-brand-yellow font-medium">Revisar</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-brand-yellow group-hover:translate-x-0.5 transition-transform" />
+                    <span className="text-xs text-[#EACE00] font-medium">Revisar</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-[#EACE00] group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </Link>
               ))}
@@ -130,11 +130,11 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
         {/* Legenda rápida */}
         <div className="flex flex-wrap gap-4">
           {[
-            { icon: Clock,        color: 'text-brand-yellow', label: 'Aguardando aprovação' },
+            { icon: Clock,        color: 'text-[#EACE00]', label: 'Aguardando aprovação' },
             { icon: CheckCircle2, color: 'text-green-400',   label: 'Aprovado' },
             { icon: XCircle,      color: 'text-red-400',     label: 'Reprovado' },
           ].map(({ icon: Icon, color, label }) => (
-            <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div key={label} className="flex items-center gap-1.5 text-xs text-[#888]">
               <Icon className={cn('h-3.5 w-3.5', color)} />
               {label}
             </div>
@@ -142,10 +142,10 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
         </div>
 
         {/* Calendário */}
-        <Card className="bg-card border-border">
+        <Card className="bg-[#111] border-[#222]">
           <CardContent className="p-4 lg:p-6">
             <Suspense fallback={
-              <div className="h-96 flex items-center justify-center text-muted-foreground text-sm">
+              <div className="h-96 flex items-center justify-center text-[#888] text-sm">
                 Carregando...
               </div>
             }>

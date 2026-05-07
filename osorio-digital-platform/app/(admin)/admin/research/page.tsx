@@ -30,12 +30,12 @@ export default async function AdminResearchPage() {
       <div className="space-y-6">
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#888]">
             {research?.length ?? 0} pesquisas cadastradas
           </p>
           <Link
             href="/admin/research/new"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-yellow text-brand-black text-sm font-semibold hover:bg-brand-yellow/90 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EACE00] text-black text-sm font-bold hover:bg-[#f5d800] transition-colors shadow-[0_4px_20px_rgba(234,206,0,0.2)]"
           >
             <Plus className="h-4 w-4" />
             Nova Pesquisa
@@ -43,14 +43,20 @@ export default async function AdminResearchPage() {
         </div>
 
         {!research?.length ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <FileSearch className="h-10 w-10 text-white/20" />
-            <p className="text-muted-foreground text-sm">Nenhuma pesquisa cadastrada ainda.</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <FileSearch className="h-7 w-7 text-[#888]" />
+            </div>
+            <div>
+              <p className="text-white font-semibold mb-1">Nenhuma pesquisa cadastrada ainda</p>
+              <p className="text-[#888] text-sm">Adicione pesquisas de mercado para compartilhar com seus clientes.</p>
+            </div>
             <Link
               href="/admin/research/new"
-              className="text-brand-yellow text-sm hover:underline"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EACE00] text-black text-sm font-bold hover:bg-[#f5d800] transition-colors"
             >
-              Adicionar a primeira pesquisa
+              <Plus className="h-4 w-4" />
+              Adicionar primeira pesquisa
             </Link>
           </div>
         ) : (
@@ -58,25 +64,36 @@ export default async function AdminResearchPage() {
             {research.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border"
+                className="flex items-start gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] hover:border-[#EACE00]/25 transition-colors"
               >
-                <div className="flex-1 min-w-0 space-y-1">
+                {/* Ícone PDF */}
+                <div className="w-10 h-10 rounded-xl bg-[#EACE00]/10 border border-[#EACE00]/15 flex items-center justify-center shrink-0 mt-0.5">
+                  <FileSearch className="h-4 w-4 text-[#EACE00]/70" />
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50">
+                    <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/8 text-[#888] border border-white/10">
                       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                       {(item.clients as any)?.name ?? 'Todos os clientes'}
                     </span>
                   </div>
                   {item.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+                    <p className="text-xs text-[#888] line-clamp-2 leading-relaxed">{item.description}</p>
                   )}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground/70 pt-0.5">
+                  <div className="flex items-center gap-3 text-xs text-[#888]/60 pt-0.5 flex-wrap">
                     <span>
                       {format(parseISO(item.created_at), "d 'de' MMM yyyy", { locale: ptBR })}
                     </span>
                     {item.tags && (item.tags as string[]).length > 0 && (
-                      <span>· {(item.tags as string[]).join(', ')}</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {(item.tags as string[]).map((tag) => (
+                          <span key={tag} className="px-1.5 py-0.5 rounded-full bg-white/5 border border-white/8 text-[#888]">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -84,7 +101,7 @@ export default async function AdminResearchPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Link
                     href={`/admin/research/${item.id}/edit`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium hover:bg-white/10 hover:text-white transition-colors"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Editar
@@ -94,7 +111,7 @@ export default async function AdminResearchPage() {
                     href={item.file_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 text-xs font-medium hover:bg-brand-yellow/20 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#EACE00]/10 text-[#EACE00] border border-[#EACE00]/25 text-xs font-medium hover:bg-[#EACE00]/20 transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     Abrir PDF
@@ -105,7 +122,7 @@ export default async function AdminResearchPage() {
                     <button
                       type="submit"
                       title="Excluir"
-                      className="p-1.5 rounded-lg text-white/30 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      className="p-1.5 rounded-lg text-[#888] hover:bg-red-500/10 hover:text-red-400 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

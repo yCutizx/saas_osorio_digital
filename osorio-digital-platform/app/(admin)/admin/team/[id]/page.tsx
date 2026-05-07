@@ -90,7 +90,7 @@ export default async function TeamMemberDetailPage({ params }: { params: { id: s
 
         <Link
           href="/admin/team"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Equipe
@@ -142,7 +142,7 @@ export default async function TeamMemberDetailPage({ params }: { params: { id: s
               </form>
               <Link
                 href={`/admin/team/${member.id}/edit`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium uppercase tracking-wider font-medium hover:bg-white/10 hover:text-white transition-colors"
               >
                 <Pencil className="h-4 w-4" />
                 Editar

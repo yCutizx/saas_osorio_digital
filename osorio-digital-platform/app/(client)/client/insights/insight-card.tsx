@@ -17,26 +17,26 @@ export function InsightCard({ title, content, coverUrl, tags, publishedAt }: Ins
   const isLong = content.length > 280
 
   return (
-    <div className="rounded-xl bg-card border border-border overflow-hidden">
+    <div className="rounded-2xl bg-[#111] border border-[#222] hover:border-[#EACE00]/25 transition-colors overflow-hidden">
       {coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={coverUrl}
           alt={title}
-          className="w-full h-40 object-cover"
+          className="w-full h-44 object-cover"
         />
       )}
 
       <div className="p-5 space-y-3">
         <div className="space-y-1">
-          <h3 className="text-foreground font-semibold text-base leading-snug">{title}</h3>
+          <h3 className="text-white font-bold text-base leading-snug">{title}</h3>
           {publishedAt && (
-            <p className="text-xs text-muted-foreground">{publishedAt}</p>
+            <p className="text-xs text-[#888]">{publishedAt}</p>
           )}
         </div>
 
         <p className={cn(
-          'text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap',
+          'text-sm text-white/70 leading-relaxed whitespace-pre-wrap',
           !expanded && isLong && 'line-clamp-4'
         )}>
           {content}
@@ -45,7 +45,7 @@ export function InsightCard({ title, content, coverUrl, tags, publishedAt }: Ins
         {isLong && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="flex items-center gap-1 text-xs text-brand-yellow hover:text-brand-yellow/80 transition-colors font-medium"
+            className="flex items-center gap-1 text-xs text-[#EACE00] hover:text-[#f5d800] transition-colors font-medium"
           >
             {expanded
               ? <><ChevronUp className="h-3.5 w-3.5" />Mostrar menos</>
@@ -58,7 +58,7 @@ export function InsightCard({ title, content, coverUrl, tags, publishedAt }: Ins
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-0.5 text-xs text-brand-yellow/70 bg-brand-yellow/10 px-2 py-0.5 rounded-full"
+                className="inline-flex items-center gap-0.5 text-xs text-[#EACE00]/70 bg-[#EACE00]/10 border border-[#EACE00]/15 px-2 py-0.5 rounded-full"
               >
                 <Hash className="h-2.5 w-2.5" />
                 {tag}

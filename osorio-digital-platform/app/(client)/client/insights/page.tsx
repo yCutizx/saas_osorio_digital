@@ -25,15 +25,15 @@ export default async function ClientInsightsPage() {
     <AppLayout pageTitle="Insights do Nicho">
       <div className="space-y-6">
 
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#888]">
           Conteúdos e tendências publicados pela equipe Osorio Digital.
         </p>
 
         {!insights?.length ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <Lightbulb className="h-10 w-10 text-white/20" />
-            <p className="text-muted-foreground text-sm">Nenhum insight publicado ainda.</p>
-            <p className="text-xs text-muted-foreground/60">
+            <p className="text-[#888] text-sm">Nenhum insight publicado ainda.</p>
+            <p className="text-xs text-[#888]/60">
               Em breve a equipe publicará análises e tendências do seu mercado.
             </p>
           </div>

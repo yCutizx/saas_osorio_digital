@@ -54,12 +54,12 @@ export default async function AdminTeamPage({ searchParams }: PageProps) {
         )}
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#888]">
             {members?.length ?? 0} {(members?.length ?? 0) === 1 ? 'funcionário' : 'funcionários'} cadastrados
           </p>
           <Link
             href="/admin/team/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-black font-semibold rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] shadow-[0_4px_20px_rgba(234,206,0,0.2)] transition-colors text-sm shrink-0"
           >
             <UserPlus className="h-4 w-4" />
             Novo Funcionário
@@ -69,8 +69,8 @@ export default async function AdminTeamPage({ searchParams }: PageProps) {
         {!members?.length ? (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
             <Users2 className="h-10 w-10 text-white/20" />
-            <p className="text-muted-foreground text-sm">Nenhum funcionário cadastrado.</p>
-            <Link href="/admin/team/new" className="text-brand-yellow text-sm hover:underline">
+            <p className="text-[#888] text-sm">Nenhum funcionário cadastrado.</p>
+            <Link href="/admin/team/new" className="text-[#EACE00] text-sm hover:underline">
               Adicionar o primeiro funcionário
             </Link>
           </div>
@@ -107,7 +107,7 @@ export default async function AdminTeamPage({ searchParams }: PageProps) {
                           <h3 className="font-bold text-white text-sm leading-tight truncate max-w-[140px]">
                             {member.full_name ?? '—'}
                           </h3>
-                          <p className="text-xs text-white/35 truncate mt-0.5">{member.email}</p>
+                          <p className="text-xs text-[#888] truncate mt-0.5">{member.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">

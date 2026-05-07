@@ -28,38 +28,39 @@ export function Header({ userName, userRole, avatarUrl, pageTitle, onMenuOpen }:
     .toUpperCase()
 
   return (
-    <header className="h-16 bg-[#0A0A0A] border-b border-[#1e1e1e] flex items-center justify-between px-4 md:px-6 shrink-0">
+    <header className="h-16 bg-[#0A0A0A] border-b border-[#1a1a1a] flex items-center justify-between px-4 md:px-6 shrink-0">
       <div className="flex items-center gap-3">
-        {/* Hamburger — mobile only */}
         <button
           onClick={onMenuOpen}
-          className="md:hidden p-2 rounded-lg text-white/40 hover:bg-white/5 hover:text-white transition-colors"
+          className="md:hidden p-2 rounded-lg text-[#888] hover:bg-[#1a1a1a] hover:text-white transition-colors"
           aria-label="Abrir menu"
         >
           <Menu className="h-5 w-5" />
         </button>
 
         {pageTitle && (
-          <h1 className="text-white font-bold text-base md:text-xl">{pageTitle}</h1>
+          <h1 className="text-white font-bold text-base md:text-lg tracking-tight">{pageTitle}</h1>
         )}
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
         <button
-          className="relative text-white/25 hover:text-white transition-colors"
+          className="relative text-[#888] hover:text-white transition-colors p-2 rounded-lg hover:bg-[#1a1a1a]"
           aria-label="Notificações"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4.5 w-4.5 h-[18px] w-[18px]" />
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="w-px h-5 bg-[#1a1a1a]" />
+
+        <div className="flex items-center gap-2.5">
           <div className="text-right hidden sm:block">
-            <p className="text-white text-sm font-semibold leading-none">{userName}</p>
-            <p className="text-white/35 text-xs mt-0.5">{ROLE_LABELS[userRole]}</p>
+            <p className="text-[#F5F5F0] text-sm font-semibold leading-none">{userName}</p>
+            <p className="text-[#888] text-xs mt-0.5">{ROLE_LABELS[userRole]}</p>
           </div>
-          <Avatar className="h-8 w-8 border border-[#EACE00]/30">
+          <Avatar className="h-8 w-8 ring-2 ring-[#EACE00]/35 ring-offset-1 ring-offset-[#0A0A0A]">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} />}
-            <AvatarFallback className="bg-[#EACE00] text-black text-xs font-black">
+            <AvatarFallback className="bg-gradient-to-br from-[#f5d800] to-[#EACE00] text-black text-xs font-black">
               {initials}
             </AvatarFallback>
           </Avatar>

@@ -23,13 +23,13 @@ export default async function NewInsightPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <Link
           href="/admin/insights"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-[#888] hover:text-white transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Voltar para Insights
         </Link>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-[#111] border-[#222]">
           <CardContent className="p-6">
             <NewInsightForm />
           </CardContent>
