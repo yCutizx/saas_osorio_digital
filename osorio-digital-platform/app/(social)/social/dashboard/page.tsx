@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { format, startOfMonth, endOfMonth, startOfDay, parseISO, isValid } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfDay, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { PlusCircle, Calendar, Clock, CheckCircle2, Send, ChevronLeft, Users, XCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'

@@ -8,6 +8,7 @@ import { Label }    from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AlertCircle, Send, FileEdit, Eye, X, Image } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MediaUploadField } from '@/components/posts/media-upload-field'
 
 type StaffMember = { id: string; full_name: string | null; email: string }
 
@@ -116,30 +117,27 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
           <FieldError messages={state.errors?.platform} />
         </div>
 
-        {/* Tipo de mídia e URL */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="media_type" className="text-[#888] text-xs font-medium uppercase tracking-wider">Tipo de Mídia</Label>
-            <select
-              id="media_type" name="media_type"
-              value={mediaType}
-              onChange={(e) => setMediaType(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="">Selecione...</option>
-              {MEDIA_TYPES.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="media_url" className="text-[#888] text-xs font-medium uppercase tracking-wider">URL da Mídia</Label>
-            <Input
-              id="media_url" name="media_url" type="url" placeholder="https://..."
-              className="bg-[#1a1a1a] border-[#333] text-[#ccc] placeholder:text-white/30 focus:border-[#EACE00]/60 h-10"
-            />
-            <FieldError messages={state.errors?.media_url} />
-          </div>
+        {/* Tipo de mídia */}
+        <div className="space-y-1.5">
+          <Label htmlFor="media_type" className="text-[#888] text-xs font-medium uppercase tracking-wider">Tipo de Mídia</Label>
+          <select
+            id="media_type" name="media_type"
+            value={mediaType}
+            onChange={(e) => setMediaType(e.target.value)}
+            className={SELECT_CLS}
+          >
+            <option value="">Selecione...</option>
+            {MEDIA_TYPES.map((t) => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Upload de mídia */}
+        <div className="space-y-1.5">
+          <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Arquivo de Mídia</Label>
+          <MediaUploadField fieldName="media_url" />
+          <FieldError messages={state.errors?.media_url} />
         </div>
 
         {/* Legenda */}

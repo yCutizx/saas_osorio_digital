@@ -7,9 +7,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { STATUS_CONFIG } from '@/components/calendar/calendar-grid'
 import { CustomCommentBox, CustomStatusChanger } from './interactions'
 import { cn } from '@/lib/utils'
+
+const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: string }> = {
+  draft:            { chip: 'bg-white/8 text-white/40',                                       dot: 'bg-[#555555]',   label: 'Planejado'         },
+  pending_approval: { chip: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20',   dot: 'bg-[#EACE00]',   label: 'Aguard. aprovação' },
+  approved:         { chip: 'bg-green-500/20 text-green-400 border border-green-500/20',       dot: 'bg-[#22C55E]',   label: 'Aprovado'          },
+  rejected:         { chip: 'bg-red-500/20 text-red-400 border border-red-500/20',             dot: 'bg-[#EF4444]',   label: 'Reprovado'         },
+  published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',          dot: 'bg-[#3B82F6]',   label: 'Publicado'         },
+}
 
 const PLATFORM_LABEL: Record<string, string> = {
   instagram: 'Instagram', facebook: 'Facebook',
@@ -131,17 +138,31 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {post.media_url && (
-                <a
-                  href={post.media_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Ver arquivo de mídia
-                </a>
-              )}
+              {post.media_url && (() => {
+                const url = post.media_url as string
+                const isImg = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)
+                const isVid = /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url)
+                if (isImg) return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={url} alt={post.title} className="w-full rounded-xl border border-[#222] object-cover max-h-80" />
+                )
+                if (isVid) return (
+                  <video src={url} controls className="w-full rounded-xl border border-[#222] bg-black max-h-80">
+                    <track kind="captions" />
+                  </video>
+                )
+                return (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver arquivo de mídia
+                  </a>
+                )
+              })()}
 
               {post.caption && (
                 <div className="space-y-1.5">

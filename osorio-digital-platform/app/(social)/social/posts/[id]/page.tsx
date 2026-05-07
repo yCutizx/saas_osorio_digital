@@ -173,17 +173,31 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {post.media_url && (
-                <a
-                  href={post.media_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Ver arquivo de mídia
-                </a>
-              )}
+              {post.media_url && (() => {
+                const url = post.media_url as string
+                const isImg = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)
+                const isVid = /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url)
+                if (isImg) return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={url} alt={post.title} className="w-full rounded-xl border border-[#222] object-cover max-h-80" />
+                )
+                if (isVid) return (
+                  <video src={url} controls className="w-full rounded-xl border border-[#222] bg-black max-h-80">
+                    <track kind="captions" />
+                  </video>
+                )
+                return (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver arquivo de mídia
+                  </a>
+                )
+              })()}
 
               {post.caption && (
                 <div className="space-y-1.5">
