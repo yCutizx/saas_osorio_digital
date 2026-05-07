@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { format, subDays, parseISO, eachDayOfInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -9,6 +10,7 @@ import { createClient }     from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireMinPlan }   from '@/lib/client-plan'
 import { TrafficCharts }    from '@/app/(traffic)/traffic/dashboard/traffic-charts'
+import { TrafficFilters }   from '@/app/(traffic)/traffic/dashboard/traffic-filters'
 import { TrafficHeroCard }  from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
 import { formatCurrency }   from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from '@/app/(traffic)/traffic/dashboard/traffic-charts'
@@ -174,7 +176,11 @@ function DiagBadge({ label, value, status }: { label: string; value: string; sta
 }
 
 // ── page ──────────────────────────────────────────────────────────────────────
-export default async function ClientAdsPage() {
+interface PageProps {
+  searchParams: { from?: string; to?: string }
+}
+
+export default async function ClientAdsPage({ searchParams }: PageProps) {
   await requireMinPlan('basico')
 
   const supabase  = await createClient()
@@ -200,9 +206,8 @@ export default async function ClientAdsPage() {
     )
   }
 
-  const period    = 30
-  const startDate = format(subDays(new Date(), period), 'yyyy-MM-dd')
-  const endDate   = format(new Date(), 'yyyy-MM-dd')
+  const startDate = searchParams.from ?? format(subDays(new Date(), 29), 'yyyy-MM-dd')
+  const endDate   = searchParams.to   ?? format(new Date(), 'yyyy-MM-dd')
 
   const { data: rawReports } = await supabase
     .from('traffic_reports')
@@ -266,6 +271,17 @@ export default async function ClientAdsPage() {
     <AppLayout pageTitle="Meus Anúncios">
       <div className="space-y-5">
 
+        {/* ── Filtro de período ─────────────────────────────────── */}
+        <Suspense fallback={null}>
+          <TrafficFilters
+            clients={[]}
+            currentFrom={startDate}
+            currentTo={endDate}
+            currentClientId={null}
+            basePath="/client/ads"
+          />
+        </Suspense>
+
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 bg-brand-yellow/10 rounded-2xl flex items-center justify-center mb-4">
@@ -273,7 +289,7 @@ export default async function ClientAdsPage() {
             </div>
             <h3 className="text-white font-semibold mb-1">Nenhum dado no período</h3>
             <p className="text-white/40 text-sm max-w-sm">
-              Ainda não há relatórios de tráfego para os últimos {period} dias.
+              Ainda não há relatórios de tráfego no período selecionado.
             </p>
           </div>
         ) : (
@@ -304,7 +320,7 @@ export default async function ClientAdsPage() {
                     </div>
                   </div>
                   <div className="text-2xl font-bold text-white">{card.value}</div>
-                  <p className="text-xs text-white/30 mt-0.5">últimos {period} dias</p>
+                  <p className="text-xs text-white/30 mt-0.5">no período</p>
                 </div>
               ))}
             </div>

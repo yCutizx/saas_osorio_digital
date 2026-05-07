@@ -16,6 +16,7 @@ interface Props {
   currentFrom:     string
   currentTo:       string
   currentClientId: string | null
+  basePath?:       string
 }
 
 const PRESETS = [
@@ -46,7 +47,7 @@ function formatButtonLabel(from: string, to: string): string {
   return `Personalizado: ${range}`
 }
 
-export function TrafficFilters({ clients, currentFrom, currentTo, currentClientId }: Props) {
+export function TrafficFilters({ clients, currentFrom, currentTo, currentClientId, basePath = '/traffic/dashboard' }: Props) {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -70,7 +71,7 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
   function push(updates: Record<string, string | null>) {
     const next = new URLSearchParams(params.toString())
     Object.entries(updates).forEach(([k, v]) => v === null ? next.delete(k) : next.set(k, v))
-    router.push(`/traffic/dashboard?${next}`)
+    router.push(`${basePath}?${next}`)
   }
 
   function applyPreset(p: typeof PRESETS[0]) {
