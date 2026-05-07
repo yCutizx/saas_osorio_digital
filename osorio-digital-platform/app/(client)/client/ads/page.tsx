@@ -11,10 +11,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireMinPlan }   from '@/lib/client-plan'
 import { TrafficCharts }    from '@/app/(traffic)/traffic/dashboard/traffic-charts'
 import { TrafficFilters }   from '@/app/(traffic)/traffic/dashboard/traffic-filters'
-import { TrafficHeroCard }  from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
+import { TrafficHeroCard, RESULT_TO_TYPE, RESULT_TYPE_LABELS } from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
 import { formatCurrency }   from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from '@/app/(traffic)/traffic/dashboard/traffic-charts'
-import type { BusinessMode } from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
+import type { ResultItem } from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
 
 // ── types ────────────────────────────────────────────────────────────────────
 type Report = {
@@ -56,21 +56,20 @@ function computeStats(dailyRecords: DailyRecord[], reports: Report[]) {
   return { spend, revenue, conversions, clicks, impressions, reach, roas, ctr, cpc, cpa }
 }
 
-function detectMode(reports: Report[]): BusinessMode {
-  if (reports.some(r => (r.revenue ?? 0) > 0)) return 'ecommerce'
-  const ecomWords = ['compra', 'purchase', 'venda', 'sale', 'produto', 'checkout']
-  if (reports.some(r => ecomWords.some(w => (r.result_type ?? '').toLowerCase().includes(w)))) return 'ecommerce'
-  return 'local'
-}
-
-function getResultType(reports: Report[]): string {
+function buildResultSummary(reports: Report[]): ResultItem[] {
   const counts = new Map<string, number>()
   for (const r of reports) {
-    if (r.result_type) counts.set(r.result_type, (counts.get(r.result_type) ?? 0) + 1)
+    if (!r.result_type) continue
+    counts.set(r.result_type, (counts.get(r.result_type) ?? 0) + r.conversions)
   }
-  let best = '', bestCount = 0
-  counts.forEach((c, k) => { if (c > bestCount) { best = k; bestCount = c } })
-  return best
+  const items: ResultItem[] = []
+  counts.forEach((count, resultType) => {
+    const type  = RESULT_TO_TYPE[resultType] ?? 'outro'
+    const label = RESULT_TYPE_LABELS[resultType] ?? 'resultados'
+    const existing = items.find((i) => i.type === type)
+    if (existing) { existing.count += count } else { items.push({ type, label, count }) }
+  })
+  return items.sort((a, b) => b.count - a.count)
 }
 
 function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): DailyPoint[] {
@@ -97,14 +96,15 @@ function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): 
 }
 
 function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): CampaignRow[] {
-  const meta = new Map<string, { name: string; platform: string; revenue: number }>()
+  const meta = new Map<string, { name: string; platform: string; revenue: number; result_type: string }>()
   for (const r of reports) {
     const existing = meta.get(r.campaign_id)
     if (!existing) {
       meta.set(r.campaign_id, {
-        name:     r.campaigns?.name     ?? 'Sem campanha',
-        platform: r.campaigns?.platform ?? 'other',
-        revenue:  r.revenue ?? 0,
+        name:        r.campaigns?.name     ?? 'Sem campanha',
+        platform:    r.campaigns?.platform ?? 'other',
+        revenue:     r.revenue ?? 0,
+        result_type: r.result_type ?? '',
       })
     } else {
       existing.revenue += r.revenue ?? 0
@@ -122,20 +122,22 @@ function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): Camp
   }
 
   return Array.from(agg.entries()).map(([id, c]) => {
-    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0 }
+    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0, result_type: '' }
     return {
       id,
-      name:        m.name,
-      platform:    m.platform,
-      spend:       c.spend,
-      revenue:     m.revenue,
-      clicks:      c.clicks,
-      impressions: c.impressions,
-      conversions: c.conversions,
-      ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-      cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
-      cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
-      roas: c.spend > 0 ? m.revenue / c.spend : 0,
+      name:         m.name,
+      platform:     m.platform,
+      spend:        c.spend,
+      revenue:      m.revenue,
+      clicks:       c.clicks,
+      impressions:  c.impressions,
+      conversions:  c.conversions,
+      ctr:          c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpc:          c.clicks > 0 ? c.spend / c.clicks : 0,
+      cpa:          c.conversions > 0 ? c.spend / c.conversions : 0,
+      roas:         c.spend > 0 ? m.revenue / c.spend : 0,
+      result_type:  m.result_type,
+      campaignType: RESULT_TO_TYPE[m.result_type] ?? 'outro',
     }
   }).sort((a, b) => b.spend - a.spend)
 }
@@ -229,15 +231,14 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
   const reports      = (rawReports ?? []) as unknown as Report[]
   const dailyRecords = (rawDaily   ?? []) as DailyRecord[]
   const stats        = computeStats(dailyRecords, reports)
-  const mode         = detectMode(reports)
+  const results      = buildResultSummary(reports)
+  const hasVendas    = results.some((r) => r.type === 'vendas')
   const dailyData    = buildDailyData(dailyRecords, startDate, endDate)
   const campaignRows = buildCampaignRows(dailyRecords, reports)
-  const resultType   = getResultType(reports)
   const cpm          = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
 
-  // Alertas mode-aware
   const alerts: { level: 'critico' | 'atencao' | 'ok'; msg: string }[] = []
-  if (mode === 'ecommerce') {
+  if (hasVendas) {
     if (stats.roas < 1 && stats.spend > 0)
       alerts.push({ level: 'critico', msg: `ROAS abaixo de 1x — investimento não está retornando.` })
     else if (stats.roas < 2 && stats.spend > 0)
@@ -245,7 +246,7 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
     else if (stats.spend > 0)
       alerts.push({ level: 'ok', msg: `ROAS saudável: ${stats.roas.toFixed(2)}x no período.` })
   }
-  if (mode === 'local' && stats.cpa > 0) {
+  if (!hasVendas && stats.cpa > 0) {
     if (stats.cpa > 100)
       alerts.push({ level: 'critico', msg: `Custo por resultado alto: ${formatCurrency(stats.cpa)} — fale com seu gestor de tráfego.` })
     else if (stats.cpa > 50)
@@ -257,14 +258,14 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
     alerts.push({ level: 'critico', msg: `CTR crítico: ${stats.ctr.toFixed(2)}%. Os criativos precisam de revisão.` })
   else if (stats.ctr < 2 && stats.impressions > 0)
     alerts.push({ level: 'atencao', msg: `CTR de ${stats.ctr.toFixed(2)}% — considere testar novos criativos.` })
-  if (mode === 'local' && cpm > 50 && stats.impressions > 0)
+  if (!hasVendas && cpm > 50 && stats.impressions > 0)
     alerts.push({ level: 'atencao', msg: `CPM de ${formatCurrency(cpm)} por mil impressões — o público pode estar muito restrito.` })
 
   const ctrStatus:  'critico' | 'atencao' | 'ok' = stats.ctr < 1 ? 'critico' : stats.ctr < 2 ? 'atencao' : 'ok'
   const roasStatus: 'critico' | 'atencao' | 'ok' = stats.roas < 1 ? 'critico' : stats.roas < 2 ? 'atencao' : 'ok'
-  const cpaStatus:  'critico' | 'atencao' | 'ok' = mode === 'local'
-    ? (stats.cpa > 100 ? 'critico' : stats.cpa > 50 ? 'atencao' : 'ok')
-    : (stats.cpa > 80  ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok')
+  const cpaStatus:  'critico' | 'atencao' | 'ok' = hasVendas
+    ? (stats.cpa > 80  ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok')
+    : (stats.cpa > 100 ? 'critico' : stats.cpa > 50 ? 'atencao' : 'ok')
   const cpmStatus:  'critico' | 'atencao' | 'ok' = cpm > 100 ? 'critico' : cpm > 50 ? 'atencao' : 'ok'
 
   return (
@@ -300,8 +301,7 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
               to={endDate}
               stats={stats}
               campaignCount={campaignRows.length}
-              resultType={resultType}
-              mode={mode}
+              results={results}
             />
 
             {/* KPI Cards */}
@@ -349,12 +349,12 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <DiagBadge label="CTR"  value={stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—'} status={ctrStatus} />
-                  {mode === 'ecommerce' ? (
+                  {hasVendas ? (
                     <DiagBadge label="ROAS" value={stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'} status={roasStatus} />
                   ) : (
                     <DiagBadge label="Custo/Resultado" value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
                   )}
-                  {mode === 'ecommerce' ? (
+                  {hasVendas ? (
                     <DiagBadge label="CPA" value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
                   ) : (
                     <DiagBadge label="CPM" value={cpm > 0 ? formatCurrency(cpm) : '—'} status={cpmStatus} />

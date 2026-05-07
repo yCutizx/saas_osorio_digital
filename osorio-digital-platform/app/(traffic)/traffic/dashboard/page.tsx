@@ -13,8 +13,8 @@ import { AppLayout }        from '@/components/layout/app-layout'
 import { createClient }     from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TrafficFilters }   from './traffic-filters'
-import { TrafficHeroCard }  from './traffic-hero-card'
-import type { BusinessMode } from './traffic-hero-card'
+import { TrafficHeroCard, RESULT_TO_TYPE, RESULT_TYPE_LABELS } from './traffic-hero-card'
+import type { ResultItem } from './traffic-hero-card'
 import { TrafficCharts }  from './traffic-charts'
 import { formatCurrency } from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from './traffic-charts'
@@ -63,21 +63,24 @@ function computeStats(dailyRecords: DailyRecord[], reports: Report[]) {
   return { spend, revenue, conversions, clicks, impressions, reach, roas, ctr, cpc, cpa }
 }
 
-function detectMode(reports: Report[]): BusinessMode {
-  if (reports.some(r => (r.revenue ?? 0) > 0)) return 'ecommerce'
-  const ecomWords = ['compra', 'purchase', 'venda', 'sale', 'produto', 'checkout']
-  if (reports.some(r => ecomWords.some(w => (r.result_type ?? '').toLowerCase().includes(w)))) return 'ecommerce'
-  return 'local'
-}
-
-function getResultType(reports: Report[]): string {
+function buildResultSummary(reports: Report[]): ResultItem[] {
   const counts = new Map<string, number>()
   for (const r of reports) {
-    if (r.result_type) counts.set(r.result_type, (counts.get(r.result_type) ?? 0) + 1)
+    if (!r.result_type) continue
+    counts.set(r.result_type, (counts.get(r.result_type) ?? 0) + r.conversions)
   }
-  let best = '', bestCount = 0
-  counts.forEach((c, k) => { if (c > bestCount) { best = k; bestCount = c } })
-  return best
+  const items: ResultItem[] = []
+  counts.forEach((count, resultType) => {
+    const type  = RESULT_TO_TYPE[resultType] ?? 'outro'
+    const label = RESULT_TYPE_LABELS[resultType] ?? 'resultados'
+    const existing = items.find((i) => i.type === type)
+    if (existing) {
+      existing.count += count
+    } else {
+      items.push({ type, label, count })
+    }
+  })
+  return items.sort((a, b) => b.count - a.count)
 }
 
 function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): DailyPoint[] {
@@ -105,22 +108,21 @@ function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): 
 }
 
 function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): CampaignRow[] {
-  // Campaign metadata lookup (name, platform, revenue) from traffic_reports
-  const meta = new Map<string, { name: string; platform: string; revenue: number }>()
+  const meta = new Map<string, { name: string; platform: string; revenue: number; result_type: string }>()
   for (const r of reports) {
     const existing = meta.get(r.campaign_id)
     if (!existing) {
       meta.set(r.campaign_id, {
-        name:     r.campaigns?.name     ?? 'Sem campanha',
-        platform: r.campaigns?.platform ?? 'other',
-        revenue:  r.revenue ?? 0,
+        name:        r.campaigns?.name     ?? 'Sem campanha',
+        platform:    r.campaigns?.platform ?? 'other',
+        revenue:     r.revenue ?? 0,
+        result_type: r.result_type ?? '',
       })
     } else {
       existing.revenue += r.revenue ?? 0
     }
   }
 
-  // Aggregate time-filtered metrics from traffic_daily
   const agg = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
   for (const r of dailyRecords) {
     const existing = agg.get(r.campaign_id) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
@@ -132,30 +134,32 @@ function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): Camp
   }
 
   return Array.from(agg.entries()).map(([id, c]) => {
-    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0 }
+    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0, result_type: '' }
     return {
       id,
-      name:        m.name,
-      platform:    m.platform,
-      spend:       c.spend,
-      revenue:     m.revenue,
-      clicks:      c.clicks,
-      impressions: c.impressions,
-      conversions: c.conversions,
-      ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-      cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
-      cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
-      roas: c.spend > 0 ? m.revenue / c.spend : 0,
+      name:         m.name,
+      platform:     m.platform,
+      spend:        c.spend,
+      revenue:      m.revenue,
+      clicks:       c.clicks,
+      impressions:  c.impressions,
+      conversions:  c.conversions,
+      ctr:          c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpc:          c.clicks > 0 ? c.spend / c.clicks : 0,
+      cpa:          c.conversions > 0 ? c.spend / c.conversions : 0,
+      roas:         c.spend > 0 ? m.revenue / c.spend : 0,
+      result_type:  m.result_type,
+      campaignType: RESULT_TO_TYPE[m.result_type] ?? 'outro',
     }
   }).sort((a, b) => b.spend - a.spend)
 }
 
-function buildAlerts(stats: ReturnType<typeof computeStats>, mode: BusinessMode) {
+function buildAlerts(stats: ReturnType<typeof computeStats>, results: ResultItem[]) {
   const alerts: { level: 'critico' | 'atencao' | 'ok'; msg: string }[] = []
-  const cpm = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
+  const cpm       = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
+  const hasVendas = results.some((r) => r.type === 'vendas')
 
-  // Alertas de ROAS — apenas e-commerce
-  if (mode === 'ecommerce') {
+  if (hasVendas) {
     if (stats.roas < 1 && stats.spend > 0)
       alerts.push({ level: 'critico', msg: `ROAS abaixo de 1x — você está gastando mais do que retornando.` })
     else if (stats.roas < 2 && stats.spend > 0)
@@ -164,8 +168,7 @@ function buildAlerts(stats: ReturnType<typeof computeStats>, mode: BusinessMode)
       alerts.push({ level: 'ok', msg: `ROAS saudável: ${stats.roas.toFixed(2)}x no período.` })
   }
 
-  // Alertas de CPA — apenas negócio local (ROAS não se aplica)
-  if (mode === 'local' && stats.cpa > 0) {
+  if (!hasVendas && stats.cpa > 0) {
     if (stats.cpa > 100)
       alerts.push({ level: 'critico', msg: `Custo por resultado alto: ${formatCurrency(stats.cpa)} — revise segmentação ou criativos.` })
     else if (stats.cpa > 50)
@@ -174,14 +177,12 @@ function buildAlerts(stats: ReturnType<typeof computeStats>, mode: BusinessMode)
       alerts.push({ level: 'ok', msg: `Custo por resultado saudável: ${formatCurrency(stats.cpa)} no período.` })
   }
 
-  // Alertas de CTR — ambos os modos
   if (stats.ctr < 1 && stats.impressions > 0)
     alerts.push({ level: 'critico', msg: `CTR crítico: ${stats.ctr.toFixed(2)}%. Criativos precisam de revisão urgente.` })
   else if (stats.ctr < 2 && stats.impressions > 0)
     alerts.push({ level: 'atencao', msg: `CTR de ${stats.ctr.toFixed(2)}% — considere testar novos criativos.` })
 
-  // CPM alto — apenas negócio local (público restrito é mais relevante para conversas/leads)
-  if (mode === 'local' && cpm > 50 && stats.impressions > 0)
+  if (!hasVendas && cpm > 50 && stats.impressions > 0)
     alerts.push({ level: 'atencao', msg: `CPM de ${formatCurrency(cpm)} por mil impressões — o público pode estar muito restrito.` })
 
   if (stats.cpc > 15 && stats.clicks > 0)
@@ -190,8 +191,9 @@ function buildAlerts(stats: ReturnType<typeof computeStats>, mode: BusinessMode)
   return alerts
 }
 
-function buildInsights(dailyData: DailyPoint[], campaignRows: CampaignRow[], stats: ReturnType<typeof computeStats>, mode: BusinessMode) {
+function buildInsights(dailyData: DailyPoint[], campaignRows: CampaignRow[], stats: ReturnType<typeof computeStats>, results: ResultItem[]) {
   const insights: string[] = []
+  const hasVendas = results.some((r) => r.type === 'vendas')
 
   if (campaignRows.length > 0) {
     const best = campaignRows[0]
@@ -207,7 +209,7 @@ function buildInsights(dailyData: DailyPoint[], campaignRows: CampaignRow[], sta
   if (stats.ctr >= 3)
     insights.push(`CTR acima da média do mercado (${stats.ctr.toFixed(2)}%) — criativos performando bem.`)
 
-  if (mode === 'ecommerce' && stats.roas >= 2)
+  if (hasVendas && stats.roas >= 2)
     insights.push(`ROAS de ${stats.roas.toFixed(2)}x — cada real investido retornou ${stats.roas.toFixed(2)} em receita.`)
 
   if (stats.conversions > 0 && stats.cpa > 0)
@@ -362,19 +364,19 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   const stats        = computeStats(dailyRecords, reports)
-  const mode         = detectMode(reports)
+  const results      = buildResultSummary(reports)
+  const hasVendas    = results.some((r) => r.type === 'vendas')
   const dailyData    = buildDailyData(dailyRecords, from, to)
   const campaignRows = buildCampaignRows(dailyRecords, reports)
-  const alerts       = buildAlerts(stats, mode)
-  const insights     = buildInsights(dailyData, campaignRows, stats, mode)
-  const resultType   = getResultType(reports)
+  const alerts       = buildAlerts(stats, results)
+  const insights     = buildInsights(dailyData, campaignRows, stats, results)
   const cpm          = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
 
   const ctrStatus:  'critico' | 'atencao' | 'ok' = stats.ctr < 1 ? 'critico' : stats.ctr < 2 ? 'atencao' : 'ok'
   const roasStatus: 'critico' | 'atencao' | 'ok' = stats.roas < 1 ? 'critico' : stats.roas < 2 ? 'atencao' : 'ok'
-  const cpaStatus:  'critico' | 'atencao' | 'ok' = mode === 'local'
-    ? (stats.cpa > 100 ? 'critico' : stats.cpa > 50 ? 'atencao' : 'ok')
-    : (stats.cpa > 80  ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok')
+  const cpaStatus:  'critico' | 'atencao' | 'ok' = hasVendas
+    ? (stats.cpa > 80  ? 'critico' : stats.cpa > 40 ? 'atencao' : 'ok')
+    : (stats.cpa > 100 ? 'critico' : stats.cpa > 50 ? 'atencao' : 'ok')
   const cpmStatus:  'critico' | 'atencao' | 'ok' = cpm > 100 ? 'critico' : cpm > 50 ? 'atencao' : 'ok'
 
   return (
@@ -449,8 +451,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
               to={to}
               stats={stats}
               campaignCount={campaignRows.length}
-              resultType={resultType}
-              mode={mode}
+              results={results}
             />
 
             {/* ── KPI Cards secundários ─────────────────────────────── */}
@@ -580,12 +581,12 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                 <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-3">Diagnóstico automático</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <DiagBadge label="CTR"  value={stats.ctr > 0 ? `${stats.ctr.toFixed(2).replace('.', ',')}%` : '—'} status={ctrStatus} />
-                  {mode === 'ecommerce' ? (
+                  {hasVendas ? (
                     <DiagBadge label="ROAS" value={stats.roas > 0 ? `${stats.roas.toFixed(2).replace('.', ',')}x` : '—'} status={roasStatus} />
                   ) : (
                     <DiagBadge label="Custo/Resultado" value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
                   )}
-                  {mode === 'ecommerce' ? (
+                  {hasVendas ? (
                     <DiagBadge label="CPA"  value={stats.cpa > 0 ? formatCurrency(stats.cpa) : '—'} status={cpaStatus} />
                   ) : (
                     <DiagBadge label="CPM"  value={cpm > 0 ? formatCurrency(cpm) : '—'} status={cpmStatus} />
@@ -612,7 +613,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {campaignRows.map((c) => {
-                      const status = mode === 'ecommerce'
+                      const status = hasVendas
                         ? (c.roas >= 2 ? 'ok' : c.roas >= 1 ? 'atencao' : 'critico')
                         : (c.conversions > 0 ? 'ok' : c.spend > 0 ? 'atencao' : 'critico')
                       const statusLabel = { ok: 'Ativo', atencao: 'Atenção', critico: 'Sem resultado' }
@@ -642,7 +643,7 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
                             {c.cpa > 0 ? formatCurrency(c.cpa) : '—'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            {mode === 'ecommerce' && c.roas > 0 ? (
+                            {hasVendas && c.roas > 0 ? (
                               <span className={c.roas >= 2 ? 'text-green-400' : c.roas >= 1 ? 'text-[#EACE00]' : 'text-red-400'}>
                                 {c.roas.toFixed(2).replace('.', ',')}x
                               </span>

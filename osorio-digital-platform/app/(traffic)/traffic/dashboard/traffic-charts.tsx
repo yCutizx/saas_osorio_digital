@@ -16,18 +16,20 @@ export type DailyPoint = {
 }
 
 export type CampaignRow = {
-  id:          string
-  name:        string
-  platform:    string
-  spend:       number
-  revenue:     number
-  clicks:      number
-  impressions: number
-  conversions: number
-  ctr:         number
-  cpc:         number
-  cpa:         number
-  roas:        number
+  id:           string
+  name:         string
+  platform:     string
+  spend:        number
+  revenue:      number
+  clicks:       number
+  impressions:  number
+  conversions:  number
+  ctr:          number
+  cpc:          number
+  cpa:          number
+  roas:         number
+  result_type:  string
+  campaignType: string
 }
 
 type Tab = 'investimento' | 'conversoes' | 'cliques' | 'impressoes'
