@@ -179,7 +179,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
     return (
       <div
         key={dateKey}
-        onClick={() => { if (canCreate) router.push(newPostUrl(dateKey)) }}
+        onClick={(e) => { if (canCreate && e.target === e.currentTarget) router.push(newPostUrl(dateKey)) }}
         className={cn(
           'rounded-xl border transition-colors group',
           tall ? 'min-h-[200px] p-2' : 'min-h-[100px] lg:min-h-[115px] p-1.5',
