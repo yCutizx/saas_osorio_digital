@@ -99,7 +99,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
 
   // ── Client picker view ───────────────────────────────────────────────────
   if (!clientId) {
-    const { clients, role } = await fetchClients()
+    const { clients } = await fetchClients()
 
     return (
       <AppLayout pageTitle="Calendário Editorial">

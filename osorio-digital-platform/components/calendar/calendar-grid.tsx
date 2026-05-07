@@ -63,8 +63,9 @@ function PostModal({
 }: {
   post: CalendarPost; baseHref: string; onClose: () => void
 }) {
-  const cfg  = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
-  const time = format(new Date(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })
+  const cfg     = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
+  const dateObj = new Date(post.scheduled_at)
+  const time    = isNaN(dateObj.getTime()) ? '—' : format(dateObj, "d 'de' MMMM 'às' HH:mm", { locale: ptBR })
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }

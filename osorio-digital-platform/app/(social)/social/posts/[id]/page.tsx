@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { format, parseISO } from 'date-fns'
+import { notFound, redirect } from 'next/navigation'
+import { format, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ArrowLeft, ExternalLink, Hash } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,26 +22,27 @@ const COMMENT_TYPE_CONFIG = {
 }
 
 interface PageProps {
-  params: { id: string }
+  params:       { id: string }
+  searchParams: { from?: string }
 }
 
-export default async function PostDetailPage({ params }: PageProps) {
+export default async function PostDetailPage({ params, searchParams }: PageProps) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) notFound()
+  if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
 
-  // Buscar o post
-  const { data: post } = await supabase
+  // Buscar o post — sem join a profiles (não usado no render e pode ser ambíguo)
+  const { data: post, error: postError } = await supabase
     .from('content_posts')
-    .select('*, clients(name), profiles(full_name)')
+    .select('*, clients(name)')
     .eq('id', params.id)
     .single()
 
-  if (!post) notFound()
+  if (postError || !post) notFound()
 
   // Verificar acesso ao cliente deste post
   if (profile?.role !== 'admin') {
@@ -50,23 +51,28 @@ export default async function PostDetailPage({ params }: PageProps) {
       .select('id')
       .eq('client_id', post.client_id)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
     if (!assignment) notFound()
   }
 
   // Buscar comentários
   const { data: comments } = await supabase
     .from('post_comments')
-    .select('*, profiles(full_name, role)')
+    .select('*, profiles(full_name)')
     .eq('post_id', params.id)
     .order('created_at', { ascending: true })
 
-  const role     = profile?.role ?? 'client'
-  const isClient = role === 'client'
-  const canEdit  = ['admin', 'social_media'].includes(role)
+  const role      = profile?.role ?? 'client'
+  const isClient  = role === 'client'
+  const canEdit   = ['admin', 'social_media'].includes(role)
   const statusCfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
 
-  const backHref = isClient ? '/client/calendar' : '/social/dashboard'
+  // Back link: preserve client context when coming from /social/dashboard?client=ID
+  const backHref = isClient
+    ? '/client/calendar'
+    : post.client_id
+      ? `/social/dashboard?client=${post.client_id}`
+      : '/social/dashboard'
 
   return (
     <AppLayout>
@@ -98,7 +104,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                   <span>·</span>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   <span>{(post.clients as any)?.name ?? '—'}</span>
-                  {post.scheduled_at && (
+                  {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
                     <>
                       <span>·</span>
                       <span>
@@ -189,7 +195,9 @@ export default async function PostDetailPage({ params }: PageProps) {
                         </span>
                       </div>
                       <span className="text-xs text-[#888] shrink-0">
-                        {format(parseISO(c.created_at), "dd/MM 'às' HH:mm")}
+                        {isValid(parseISO(c.created_at))
+                          ? format(parseISO(c.created_at), "dd/MM 'às' HH:mm")
+                          : '—'}
                       </span>
                     </div>
                     <p className="text-sm text-white/80 leading-relaxed">{c.content}</p>
