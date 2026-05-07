@@ -96,7 +96,7 @@ function CardModal({ mode, card, defaultColId, onClose, onSave }: {
           </div>
           <div>
             <label className="text-xs text-white/50 mb-1 block">Prioridade</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value)}
+            <select value={priority} onChange={(e) => setPriority(e.target.value as 'baixa' | 'media' | 'alta')}
               className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
               <option value="baixa">Baixa</option>
               <option value="media">Média</option>
