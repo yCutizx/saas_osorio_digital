@@ -1,4 +1,4 @@
-import { format, subDays, parseISO } from 'date-fns'
+import { format, subDays, parseISO, eachDayOfInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   DollarSign, Eye, MousePointerClick, TrendingUp,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { AppLayout }        from '@/components/layout/app-layout'
 import { createClient }     from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireMinPlan }   from '@/lib/client-plan'
 import { TrafficCharts }    from '@/app/(traffic)/traffic/dashboard/traffic-charts'
 import { TrafficHeroCard }  from '@/app/(traffic)/traffic/dashboard/traffic-hero-card'
@@ -28,13 +29,23 @@ type Report = {
   campaigns:    { name: string; platform: string } | null
 }
 
+type DailyRecord = {
+  date:        string
+  spend:       number
+  impressions: number
+  clicks:      number
+  conversions: number
+  client_id:   string
+  campaign_id: string
+}
+
 // ── builders ─────────────────────────────────────────────────────────────────
-function computeStats(reports: Report[]) {
-  const spend       = reports.reduce((s, r) => s + r.spend, 0)
+function computeStats(dailyRecords: DailyRecord[], reports: Report[]) {
+  const spend       = dailyRecords.reduce((s, r) => s + r.spend, 0)
+  const clicks      = dailyRecords.reduce((s, r) => s + r.clicks, 0)
+  const impressions = dailyRecords.reduce((s, r) => s + r.impressions, 0)
+  const conversions = dailyRecords.reduce((s, r) => s + r.conversions, 0)
   const revenue     = reports.reduce((s, r) => s + (r.revenue ?? 0), 0)
-  const conversions = reports.reduce((s, r) => s + r.conversions, 0)
-  const clicks      = reports.reduce((s, r) => s + r.clicks, 0)
-  const impressions = reports.reduce((s, r) => s + r.impressions, 0)
   const reach       = reports.reduce((s, r) => s + (r.reach ?? 0), 0)
   const roas = spend > 0 ? revenue / spend : 0
   const ctr  = impressions > 0 ? (clicks / impressions) * 100 : 0
@@ -60,57 +71,71 @@ function getResultType(reports: Report[]): string {
   return best
 }
 
-function buildDailyData(reports: Report[]): DailyPoint[] {
+function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): DailyPoint[] {
   const map = new Map<string, DailyPoint>()
-  for (const r of reports) {
-    const existing = map.get(r.period_start) ?? {
-      date:         format(parseISO(r.period_start), 'dd/MM', { locale: ptBR }),
+  for (const r of dailyRecords) {
+    const key      = r.date.slice(0, 10)
+    const existing = map.get(key) ?? {
+      date:         format(parseISO(key), 'dd/MM', { locale: ptBR }),
       investimento: 0, conversoes: 0, cliques: 0, impressoes: 0,
     }
     existing.investimento += r.spend
     existing.conversoes   += r.conversions
     existing.cliques      += r.clicks
     existing.impressoes   += r.impressions
-    map.set(r.period_start, existing)
+    map.set(key, existing)
   }
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, v]) => v)
+  return eachDayOfInterval({ start: parseISO(from), end: parseISO(to) }).map((day) => {
+    const key = format(day, 'yyyy-MM-dd')
+    return map.get(key) ?? {
+      date: format(day, 'dd/MM', { locale: ptBR }),
+      investimento: 0, conversoes: 0, cliques: 0, impressoes: 0,
+    }
+  })
 }
 
-function buildCampaignRows(reports: Report[]): CampaignRow[] {
-  const map = new Map<string, {
-    name: string; platform: string
-    spend: number; revenue: number; clicks: number; impressions: number; conversions: number
-  }>()
+function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): CampaignRow[] {
+  const meta = new Map<string, { name: string; platform: string; revenue: number }>()
   for (const r of reports) {
-    const key = r.campaign_id
-    const existing = map.get(key) ?? {
-      name: r.campaigns?.name ?? 'Sem campanha',
-      platform: r.campaigns?.platform ?? 'other',
-      spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0,
+    const existing = meta.get(r.campaign_id)
+    if (!existing) {
+      meta.set(r.campaign_id, {
+        name:     r.campaigns?.name     ?? 'Sem campanha',
+        platform: r.campaigns?.platform ?? 'other',
+        revenue:  r.revenue ?? 0,
+      })
+    } else {
+      existing.revenue += r.revenue ?? 0
     }
+  }
+
+  const agg = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
+  for (const r of dailyRecords) {
+    const existing = agg.get(r.campaign_id) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
     existing.spend       += r.spend
-    existing.revenue     += r.revenue ?? 0
     existing.clicks      += r.clicks
     existing.impressions += r.impressions
     existing.conversions += r.conversions
-    map.set(key, existing)
+    agg.set(r.campaign_id, existing)
   }
-  return Array.from(map.entries()).map(([id, c]) => ({
-    id,
-    name:        c.name,
-    platform:    c.platform,
-    spend:       c.spend,
-    revenue:     c.revenue,
-    clicks:      c.clicks,
-    impressions: c.impressions,
-    conversions: c.conversions,
-    ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-    cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
-    cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
-    roas: c.spend > 0 ? c.revenue / c.spend : 0,
-  })).sort((a, b) => b.spend - a.spend)
+
+  return Array.from(agg.entries()).map(([id, c]) => {
+    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0 }
+    return {
+      id,
+      name:        m.name,
+      platform:    m.platform,
+      spend:       c.spend,
+      revenue:     m.revenue,
+      clicks:      c.clicks,
+      impressions: c.impressions,
+      conversions: c.conversions,
+      ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
+      cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
+      roas: c.spend > 0 ? m.revenue / c.spend : 0,
+    }
+  }).sort((a, b) => b.spend - a.spend)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -183,15 +208,25 @@ export default async function ClientAdsPage() {
     .from('traffic_reports')
     .select('id, campaign_id, period_start, spend, revenue, impressions, clicks, conversions, reach, result_type, campaigns(name, platform)')
     .eq('client_id', clientId)
-    .gte('period_start', startDate)
-    .lte('period_end', endDate)
+    .lte('period_start', endDate)
+    .gte('period_end', startDate)
     .order('period_start', { ascending: true })
 
+  const admin = createAdminClient()
+  const { data: rawDaily } = await admin
+    .from('traffic_daily')
+    .select('date, spend, impressions, clicks, conversions, client_id, campaign_id')
+    .eq('client_id', clientId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true })
+
   const reports      = (rawReports ?? []) as unknown as Report[]
-  const stats        = computeStats(reports)
+  const dailyRecords = (rawDaily   ?? []) as DailyRecord[]
+  const stats        = computeStats(dailyRecords, reports)
   const mode         = detectMode(reports)
-  const dailyData    = buildDailyData(reports)
-  const campaignRows = buildCampaignRows(reports)
+  const dailyData    = buildDailyData(dailyRecords, startDate, endDate)
+  const campaignRows = buildCampaignRows(dailyRecords, reports)
   const resultType   = getResultType(reports)
   const cpm          = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
 

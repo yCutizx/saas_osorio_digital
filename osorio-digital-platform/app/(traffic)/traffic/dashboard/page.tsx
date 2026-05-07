@@ -42,15 +42,19 @@ type DailyRecord = {
   clicks:      number
   conversions: number
   client_id:   string
+  campaign_id: string
 }
 
 // ── builders ────────────────────────────────────────────────────────────────
-function computeStats(reports: Report[]) {
-  const spend       = reports.reduce((s, r) => s + r.spend, 0)
+// KPIs time-sensitive (spend/clicks/impressions/conversions) come from traffic_daily
+// which has exact per-day rows — correctly responds to date filtering.
+// Revenue and reach are metadata from traffic_reports (no per-day equivalent).
+function computeStats(dailyRecords: DailyRecord[], reports: Report[]) {
+  const spend       = dailyRecords.reduce((s, r) => s + r.spend, 0)
+  const clicks      = dailyRecords.reduce((s, r) => s + r.clicks, 0)
+  const impressions = dailyRecords.reduce((s, r) => s + r.impressions, 0)
+  const conversions = dailyRecords.reduce((s, r) => s + r.conversions, 0)
   const revenue     = reports.reduce((s, r) => s + (r.revenue ?? 0), 0)
-  const conversions = reports.reduce((s, r) => s + r.conversions, 0)
-  const clicks      = reports.reduce((s, r) => s + r.clicks, 0)
-  const impressions = reports.reduce((s, r) => s + r.impressions, 0)
   const reach       = reports.reduce((s, r) => s + (r.reach ?? 0), 0)
   const roas = spend > 0 ? revenue / spend : 0
   const ctr  = impressions > 0 ? (clicks / impressions) * 100 : 0
@@ -100,39 +104,50 @@ function buildDailyData(dailyRecords: DailyRecord[], from: string, to: string): 
   })
 }
 
-function buildCampaignRows(reports: Report[]): CampaignRow[] {
-  const map = new Map<string, {
-    name: string; platform: string
-    spend: number; revenue: number; clicks: number; impressions: number; conversions: number
-  }>()
+function buildCampaignRows(dailyRecords: DailyRecord[], reports: Report[]): CampaignRow[] {
+  // Campaign metadata lookup (name, platform, revenue) from traffic_reports
+  const meta = new Map<string, { name: string; platform: string; revenue: number }>()
   for (const r of reports) {
-    const key = r.campaign_id
-    const existing = map.get(key) ?? {
-      name: r.campaigns?.name ?? 'Sem campanha',
-      platform: r.campaigns?.platform ?? 'other',
-      spend: 0, revenue: 0, clicks: 0, impressions: 0, conversions: 0,
+    const existing = meta.get(r.campaign_id)
+    if (!existing) {
+      meta.set(r.campaign_id, {
+        name:     r.campaigns?.name     ?? 'Sem campanha',
+        platform: r.campaigns?.platform ?? 'other',
+        revenue:  r.revenue ?? 0,
+      })
+    } else {
+      existing.revenue += r.revenue ?? 0
     }
+  }
+
+  // Aggregate time-filtered metrics from traffic_daily
+  const agg = new Map<string, { spend: number; clicks: number; impressions: number; conversions: number }>()
+  for (const r of dailyRecords) {
+    const existing = agg.get(r.campaign_id) ?? { spend: 0, clicks: 0, impressions: 0, conversions: 0 }
     existing.spend       += r.spend
-    existing.revenue     += r.revenue ?? 0
     existing.clicks      += r.clicks
     existing.impressions += r.impressions
     existing.conversions += r.conversions
-    map.set(key, existing)
+    agg.set(r.campaign_id, existing)
   }
-  return Array.from(map.entries()).map(([id, c]) => ({
-    id,
-    name:        c.name,
-    platform:    c.platform,
-    spend:       c.spend,
-    revenue:     c.revenue,
-    clicks:      c.clicks,
-    impressions: c.impressions,
-    conversions: c.conversions,
-    ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-    cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
-    cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
-    roas: c.spend > 0 ? c.revenue / c.spend : 0,
-  })).sort((a, b) => b.spend - a.spend)
+
+  return Array.from(agg.entries()).map(([id, c]) => {
+    const m = meta.get(id) ?? { name: 'Sem campanha', platform: 'other', revenue: 0 }
+    return {
+      id,
+      name:        m.name,
+      platform:    m.platform,
+      spend:       c.spend,
+      revenue:     m.revenue,
+      clicks:      c.clicks,
+      impressions: c.impressions,
+      conversions: c.conversions,
+      ctr:  c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpc:  c.clicks > 0 ? c.spend / c.clicks : 0,
+      cpa:  c.conversions > 0 ? c.spend / c.conversions : 0,
+      roas: c.spend > 0 ? m.revenue / c.spend : 0,
+    }
+  }).sort((a, b) => b.spend - a.spend)
 }
 
 function buildAlerts(stats: ReturnType<typeof computeStats>, mode: BusinessMode) {
@@ -244,7 +259,7 @@ async function fetchDashboardData(from: string, to: string, clientId?: string) {
   const admin = createAdminClient()
   let dailyQuery = admin
     .from('traffic_daily')
-    .select('date, spend, impressions, clicks, conversions, client_id')
+    .select('date, spend, impressions, clicks, conversions, client_id, campaign_id')
     .gte('date', startDate)
     .lte('date', endDate)
     .order('date', { ascending: true })
@@ -323,10 +338,10 @@ export default async function TrafficDashboardPage({ searchParams }: PageProps) 
   const canEdit = isAdmin || profile?.role === 'traffic_manager'
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
-  const stats        = computeStats(reports)
+  const stats        = computeStats(dailyRecords, reports)
   const mode         = detectMode(reports)
   const dailyData    = buildDailyData(dailyRecords, from, to)
-  const campaignRows = buildCampaignRows(reports)
+  const campaignRows = buildCampaignRows(dailyRecords, reports)
   const alerts       = buildAlerts(stats, mode)
   const insights     = buildInsights(dailyData, campaignRows, stats, mode)
   const resultType   = getResultType(reports)
