@@ -29,6 +29,8 @@ interface PageProps {
 export default async function PostDetailPage({ params }: PageProps) {
   const { id } = await params
 
+  console.log('Post ID recebido:', id)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -45,11 +47,12 @@ export default async function PostDetailPage({ params }: PageProps) {
     const admin = createAdminClient()
 
     // Fetch post via admin client to bypass RLS
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: post, error: postError } = await admin
       .from('content_posts')
       .select('*, clients(name)')
       .eq('id', id)
-      .maybeSingle()
+      .maybeSingle() as { data: any; error: any }
 
     if (postError) {
       console.error('[PostDetailPage] post error:', postError.message, '| id:', id)
@@ -59,6 +62,8 @@ export default async function PostDetailPage({ params }: PageProps) {
       console.error('[PostDetailPage] post not found for id:', id)
       notFound()
     }
+
+    console.log('[PostDetailPage] post encontrado:', post.id, '| status:', post.status, '| client_id:', post.client_id)
 
     // Access check for non-admin: verify client assignment
     if (role !== 'admin') {
@@ -79,9 +84,13 @@ export default async function PostDetailPage({ params }: PageProps) {
       }
     }
 
+    // Safely access columns that may not yet exist in generated DB types
+    const assignedTo:     string | null = post.assigned_to     ?? null
+    const internalNotes:  string | null = post.internal_notes  ?? null
+
     // Fetch assignee if set
-    const assignee = post.assigned_to
-      ? (await admin.from('profiles').select('full_name, email').eq('id', post.assigned_to).maybeSingle()).data
+    const assignee = assignedTo
+      ? (await admin.from('profiles').select('full_name, email').eq('id', assignedTo).maybeSingle()).data as { full_name: string | null; email: string } | null
       : null
 
     // Fetch comments via admin
@@ -95,12 +104,12 @@ export default async function PostDetailPage({ params }: PageProps) {
       console.error('[PostDetailPage] comments error:', commentsError.message)
     }
 
-    const statusCfg = STATUS_CONFIG[post?.status] ?? STATUS_CONFIG.draft
-    const platforms = (post?.platform ?? '').split(',').filter(Boolean)
+    const statusCfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
+    const platforms = ((post.platform ?? '') as string).split(',').filter(Boolean)
 
     const backHref = isClient
       ? '/client/calendar'
-      : post?.client_id
+      : post.client_id
         ? `/social/dashboard?client=${post.client_id}`
         : '/social/dashboard'
 
@@ -128,8 +137,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                 <div className="space-y-1 min-w-0">
                   <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    <span>{(post.clients as any)?.name ?? '—'}</span>
+                    <span>{post.clients?.name ?? '—'}</span>
                     {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
                       <>
                         <span>·</span>
@@ -180,11 +188,11 @@ export default async function PostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {isStaff && post.internal_notes && (
+              {isStaff && internalNotes && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-[#888] font-medium uppercase tracking-wider">Observações Internas</p>
                   <p className="text-white/70 text-sm whitespace-pre-wrap leading-relaxed bg-yellow-500/5 border border-yellow-500/15 rounded-lg p-3">
-                    {post.internal_notes}
+                    {internalNotes}
                   </p>
                 </div>
               )}
@@ -260,6 +268,8 @@ export default async function PostDetailPage({ params }: PageProps) {
       </AppLayout>
     )
   } catch (err) {
+    // Re-throw Next.js internal errors (redirect, notFound) so they're handled correctly
+    if ((err as { digest?: string })?.digest?.startsWith('NEXT_')) throw err
     console.error('[PostDetailPage] unhandled exception:', err)
     notFound()
   }
