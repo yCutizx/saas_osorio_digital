@@ -52,7 +52,7 @@ export default async function PostDetailPage({ params }: PageProps) {
       .from('content_posts')
       .select('*, clients(name)')
       .eq('id', id)
-      .maybeSingle() as { data: any; error: any }
+      .maybeSingle() as { data: { id: string; title: string; caption: string | null; platform: string; media_type: string | null; media_url: string | null; scheduled_at: string; status: string; hashtags: string[] | null; internal_notes: string | null; assigned_to: string | null; client_id: string; author_id: string | null; clients: { name: string } | null } | null; error: { message: string } | null }
 
     if (postError) {
       console.error('[PostDetailPage] post error:', postError.message, '| id:', id)
