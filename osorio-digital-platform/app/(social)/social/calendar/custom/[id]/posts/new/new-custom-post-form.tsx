@@ -282,6 +282,7 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
                   </div>
                 </div>
                 <div className="bg-[#181818] aspect-square flex flex-col items-center justify-center gap-2">
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
                   <Image className="h-10 w-10 text-white/10" aria-hidden="true" />
                   {mediaType && <span className="text-white/20 text-xs capitalize">{mediaType}</span>}
                 </div>
