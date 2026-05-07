@@ -7,7 +7,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { STATUS_CONFIG } from '@/components/calendar/calendar-grid'
+const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: string }> = {
+  draft:            { chip: 'bg-white/8 text-white/40',                                       dot: 'bg-[#555555]',   label: 'Planejado'         },
+  pending_approval: { chip: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20',   dot: 'bg-[#EACE00]',   label: 'Aguard. aprovação' },
+  approved:         { chip: 'bg-green-500/20 text-green-400 border border-green-500/20',       dot: 'bg-[#22C55E]',   label: 'Aprovado'          },
+  rejected:         { chip: 'bg-red-500/20 text-red-400 border border-red-500/20',             dot: 'bg-[#EF4444]',   label: 'Reprovado'         },
+  published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',          dot: 'bg-[#3B82F6]',   label: 'Publicado'         },
+}
 import { ApprovalButtons, CommentBox, StatusChanger, DeleteButton } from './post-interactions'
 import { cn } from '@/lib/utils'
 
