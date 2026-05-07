@@ -17,6 +17,17 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/admin/dashboard')
 
+  // Non-admins can only access boards they're members of
+  if (profile?.role !== 'admin') {
+    const { data: membership } = await adminSupabase
+      .from('kanban_board_members')
+      .select('board_id')
+      .eq('board_id', params.id)
+      .eq('profile_id', user.id)
+      .maybeSingle()
+    if (!membership) redirect('/admin/kanban')
+  }
+
   const [
     { data: board },
     { data: members },

@@ -18,11 +18,35 @@ export default async function SocialKanbanPage() {
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/social/dashboard')
 
-  const { data: boards } = await adminSupabase
-    .from('kanban_boards')
-    .select('id, name, description, color, columns, created_at, kanban_cards(count)')
-    .eq('board_type', 'content')
-    .order('created_at', { ascending: false })
+  const isAdmin = profile?.role === 'admin'
+
+  const BOARD_SELECT = 'id, name, description, color, columns, created_at, kanban_cards(count)'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let boards: any[] = []
+  if (isAdmin) {
+    const { data } = await adminSupabase
+      .from('kanban_boards')
+      .select(BOARD_SELECT)
+      .eq('board_type', 'content')
+      .order('created_at', { ascending: false })
+    boards = data ?? []
+  } else {
+    const { data: memberships } = await adminSupabase
+      .from('kanban_board_members')
+      .select('board_id')
+      .eq('profile_id', user.id)
+    const boardIds = (memberships ?? []).map((m: { board_id: string }) => m.board_id)
+    if (boardIds.length > 0) {
+      const { data } = await adminSupabase
+        .from('kanban_boards')
+        .select(BOARD_SELECT)
+        .eq('board_type', 'content')
+        .in('id', boardIds)
+        .order('created_at', { ascending: false })
+      boards = data ?? []
+    }
+  }
 
   return (
     <AppLayout pageTitle="Kanban de Conteúdo">

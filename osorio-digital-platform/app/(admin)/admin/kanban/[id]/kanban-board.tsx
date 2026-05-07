@@ -624,7 +624,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
             </button>
           )}
           {isAdmin && (
-            <Link href={`/admin/kanban/${board.id}/edit`}
+            <Link href={`/admin/kanban/${board.id}/settings`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
               <Settings className="h-3.5 w-3.5" />Configurar
             </Link>

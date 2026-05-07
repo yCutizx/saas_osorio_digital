@@ -1,8 +1,9 @@
 'use client'
 
-import { Bell, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { type UserRole } from '@/types'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin:           'Administrador',
@@ -44,12 +45,7 @@ export function Header({ userName, userRole, avatarUrl, pageTitle, onMenuOpen }:
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
-        <button
-          className="relative text-[#888] hover:text-white transition-colors p-2 rounded-lg hover:bg-[#1a1a1a]"
-          aria-label="Notificações"
-        >
-          <Bell className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-        </button>
+        <NotificationBell />
 
         <div className="w-px h-5 bg-[#1a1a1a]" />
 
