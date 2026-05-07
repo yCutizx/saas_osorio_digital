@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { createTeamMemberAction, type FormState } from './actions'
 import { Input }  from '@/components/ui/input'
 import { Label }  from '@/components/ui/label'
-import { AlertCircle, Loader2, Eye, EyeOff, RefreshCw, TrendingUp, Camera } from 'lucide-react'
+import { AlertCircle, Loader2, Eye, EyeOff, RefreshCw, TrendingUp, Camera, ShieldCheck } from 'lucide-react'
 
 type Client = { id: string; name: string }
 
@@ -94,16 +94,17 @@ export function NewMemberForm({ clients }: { clients: Client[] }) {
       {/* Role */}
       <div className="space-y-1.5">
         <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Função <span className="text-red-400">*</span></Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { value: 'traffic_manager', label: 'Gestor de Tráfego', icon: TrendingUp, color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
-            { value: 'social_media',    label: 'Social Media',       icon: Camera,     color: 'peer-checked:border-purple-500 peer-checked:bg-purple-500/10' },
+            { value: 'admin',           label: 'Administrador',     icon: ShieldCheck, color: 'peer-checked:border-[#EACE00] peer-checked:bg-[#EACE00]/10' },
+            { value: 'traffic_manager', label: 'Gestor de Tráfego', icon: TrendingUp,  color: 'peer-checked:border-blue-500 peer-checked:bg-blue-500/10' },
+            { value: 'social_media',    label: 'Social Media',      icon: Camera,      color: 'peer-checked:border-purple-500 peer-checked:bg-purple-500/10' },
           ].map((r) => (
             <label key={r.value} className="cursor-pointer">
               <input type="radio" name="role" value={r.value} className="peer sr-only" defaultChecked={r.value === 'traffic_manager'} />
-              <div className={`flex items-center gap-3 border border-white/10 rounded-xl p-4 transition-all ${r.color} hover:border-white/20`}>
+              <div className={`flex flex-col items-center gap-2 border border-white/10 rounded-xl p-4 transition-all ${r.color} hover:border-white/20`}>
                 <r.icon className="h-5 w-5 text-white/40" />
-                <p className="text-white font-medium text-sm">{r.label}</p>
+                <p className="text-white font-medium text-xs text-center">{r.label}</p>
               </div>
             </label>
           ))}

@@ -66,6 +66,7 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
         members={members ?? []}
         clients={clients ?? []}
         currentUserId={user.id}
+        userRole={profile?.role ?? ''}
       />
     </AppLayout>
   )

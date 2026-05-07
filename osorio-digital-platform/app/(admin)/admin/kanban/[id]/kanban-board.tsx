@@ -54,7 +54,7 @@ interface KanbanCard {
   profiles?: { full_name: string } | null
 }
 
-interface Member { id: string; full_name: string; email: string; role?: string }
+interface Member { id: string; full_name: string | null; email: string; role?: string }
 interface Client { id: string; name: string }
 
 interface Props {
@@ -63,6 +63,7 @@ interface Props {
   members:      Member[]
   clients:      Client[]
   currentUserId: string
+  userRole:     string
 }
 
 const PRIORITY_COLOR = { baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444' }
@@ -145,13 +146,14 @@ function SortableCard({ card, onOpen, isDragging, isContent, disabled }: {
 
 // ─── Sortable column ──────────────────────────────────────────────────────────
 
-function SortableColumn({ col, cards, onAdd, onOpen, activeCardId, isContent, onRename, onDelete, isDraggingColumn }: {
+function SortableColumn({ col, cards, onAdd, onOpen, activeCardId, isContent, isAdmin, onRename, onDelete, isDraggingColumn }: {
   col: Column
   cards: KanbanCard[]
   onAdd: (id: string) => void
   onOpen: (c: KanbanCard) => void
   activeCardId: string | null
   isContent: boolean
+  isAdmin: boolean
   onRename: (id: string, label: string) => void
   onDelete: (id: string) => void
   isDraggingColumn: boolean
@@ -224,24 +226,26 @@ function SortableColumn({ col, cards, onAdd, onOpen, activeCardId, isContent, on
           <Plus className="h-4 w-4" />
         </button>
 
-        <div className="relative shrink-0" ref={menuRef}>
-          <button onClick={() => setShowMenu((v) => !v)}
-            className="text-white/20 hover:text-white/60 transition-colors">
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {showMenu && (
-            <div className="absolute right-0 top-full mt-1 z-20 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-xl py-1 min-w-[140px]">
-              <button onClick={() => { setShowMenu(false); setRenaming(true) }}
-                className="w-full text-left px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
-                Renomear
-              </button>
-              <button onClick={() => { setShowMenu(false); onDelete(col.id) }}
-                className="w-full text-left px-4 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition-colors">
-                Excluir coluna
-              </button>
-            </div>
-          )}
-        </div>
+        {isAdmin && (
+          <div className="relative shrink-0" ref={menuRef}>
+            <button onClick={() => setShowMenu((v) => !v)}
+              className="text-white/20 hover:text-white/60 transition-colors">
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 z-20 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-xl py-1 min-w-[140px]">
+                <button onClick={() => { setShowMenu(false); setRenaming(true) }}
+                  className="w-full text-left px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+                  Renomear
+                </button>
+                <button onClick={() => { setShowMenu(false); onDelete(col.id) }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition-colors">
+                  Excluir coluna
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Cards drop zone */}
@@ -303,9 +307,9 @@ function AddColumnWidget({ onAdd }: { onAdd: (label: string) => void }) {
 
 const INIT: FormState = {}
 
-function CardModal({ mode, card, defaultColId, boardId, members, clients, isContent, onClose, onDelete }: {
+function CardModal({ mode, card, defaultColId, boardId, members, clients, isContent, isAdmin, onClose, onDelete }: {
   mode: 'create' | 'edit'; card?: KanbanCard; defaultColId: string; boardId: string
-  members: Member[]; clients: Client[]; isContent: boolean; onClose: () => void; onDelete?: () => void
+  members: Member[]; clients: Client[]; isContent: boolean; isAdmin: boolean; onClose: () => void; onDelete?: () => void
 }) {
   const router = useRouter()
   const action = mode === 'create' ? createCardAction : updateCardAction
@@ -323,7 +327,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, isCont
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#222]">
           <h2 className="text-white font-semibold">{mode === 'create' ? 'Novo Card' : 'Editar Card'}</h2>
           <div className="flex gap-2">
-            {onDelete && (
+            {isAdmin && onDelete && (
               <button onClick={onDelete} className="text-red-400/60 hover:text-red-400 transition-colors">
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -391,7 +395,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, isCont
               <select name="assigned_to" defaultValue={card?.assigned_to ?? ''}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
                 <option value="">— Nenhum —</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name ?? m.email}</option>)}
               </select>
             </div>
           </div>
@@ -459,7 +463,8 @@ function DeleteConfirm({ title, onConfirm, onClose }: { title: string; onConfirm
 
 // ─── Main board ───────────────────────────────────────────────────────────────
 
-export function KanbanBoard({ board, initialCards, members, clients, currentUserId }: Props) {
+export function KanbanBoard({ board, initialCards, members, clients, currentUserId, userRole }: Props) {
+  const isAdmin = userRole === 'admin'
   const [cards, setCards]       = useState<KanbanCard[]>(initialCards)
   const [columns, setColumns]   = useState<Column[]>(board.columns)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -605,7 +610,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
           <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)}
             className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#EACE00]">
             <option value="">Todos os membros</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+            {members.map((m) => <option key={m.id} value={m.id}>{m.full_name ?? m.email}</option>)}
           </select>
           <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)}
             className="bg-[#111] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#EACE00]">
@@ -618,10 +623,12 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
               Limpar
             </button>
           )}
-          <Link href={`/admin/kanban/${board.id}/edit`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
-            <Settings className="h-3.5 w-3.5" />Configurar
-          </Link>
+          {isAdmin && (
+            <Link href={`/admin/kanban/${board.id}/edit`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
+              <Settings className="h-3.5 w-3.5" />Configurar
+            </Link>
+          )}
         </div>
       </div>
 
@@ -639,12 +646,13 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
                   onOpen={(card) => setOpenCard(card)}
                   activeCardId={dragType === 'card' ? activeId : null}
                   isContent={isContent}
+                  isAdmin={isAdmin}
                   onRename={handleRenameColumn}
                   onDelete={handleDeleteColumn}
                   isDraggingColumn={dragType === 'column'}
                 />
               ))}
-              <AddColumnWidget onAdd={handleAddColumn} />
+              {isAdmin && <AddColumnWidget onAdd={handleAddColumn} />}
             </div>
           </SortableContext>
 
@@ -683,14 +691,14 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
       {/* Create modal */}
       {createColId && !openCard && (
         <CardModal mode="create" defaultColId={createColId} boardId={board.id}
-          members={members} clients={clients} isContent={isContent}
+          members={members} clients={clients} isContent={isContent} isAdmin={isAdmin}
           onClose={() => setCreateColId(null)} />
       )}
 
       {/* Edit modal */}
       {editCard && (
         <CardModal mode="edit" card={editCard} defaultColId={editCard.column_id} boardId={board.id}
-          members={members} clients={clients} isContent={isContent}
+          members={members} clients={clients} isContent={isContent} isAdmin={isAdmin}
           onClose={() => setEditCard(null)}
           onDelete={() => { setDeleteTarget({ type: 'card', card: editCard }); setEditCard(null) }} />
       )}

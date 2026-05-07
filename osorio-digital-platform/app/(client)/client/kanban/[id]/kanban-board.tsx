@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import {
   Building2, Calendar, Film, Globe, Tag, User, Plus, X, Loader2, MessageSquare,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Column { id: string; label: string; color: string }
 
@@ -37,6 +38,8 @@ interface Props {
   addComment:   (cardId: string, content: string) => Promise<Comment | null>
   deleteComment: (commentId: string) => Promise<void>
   getComments:  (cardId: string) => Promise<Comment[]>
+  createCard:   (columnId: string, title: string, description: string, priority: string) => Promise<KanbanCard | null>
+  updateCard:   (cardId: string, title: string, description: string, priority: string) => Promise<boolean>
 }
 
 const PRIORITY_COLOR = { baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444' }
@@ -44,12 +47,87 @@ const PRIORITY_LABEL = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
 const FORMAT_LABEL:   Record<string, string> = { reels: 'Reels', feed: 'Feed', stories: 'Stories', carrossel: 'Carrossel' }
 const PLATFORM_LABEL: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn' }
 
-function CardDetail({ card, currentUserId, addComment, deleteComment, getComments, onClose }: {
+// ── Card modal (create / edit) ────────────────────────────────────────────────
+
+function CardModal({ mode, card, defaultColId, onClose, onSave }: {
+  mode: 'create' | 'edit'
+  card?: KanbanCard
+  defaultColId: string
+  onClose: () => void
+  onSave: (colId: string, title: string, description: string, priority: string) => Promise<void>
+}) {
+  const [title, setTitle]       = useState(card?.title ?? '')
+  const [description, setDesc]  = useState(card?.description ?? '')
+  const [priority, setPriority] = useState(card?.priority ?? 'media')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) { setError('Título obrigatório.'); return }
+    setSaving(true)
+    await onSave(defaultColId, title, description, priority)
+    setSaving(false)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#222]">
+          <h2 className="text-white font-semibold">{mode === 'create' ? 'Novo Card' : 'Editar Card'}</h2>
+          <button onClick={onClose} className="text-white/30 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div>
+            <label className="text-xs text-white/50 mb-1 block">Título *</label>
+            <input
+              value={title} onChange={(e) => setTitle(e.target.value)} autoFocus required
+              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-white/50 mb-1 block">Descrição</label>
+            <textarea
+              value={description} onChange={(e) => setDesc(e.target.value)} rows={3}
+              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00] resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-white/50 mb-1 block">Prioridade</label>
+            <select value={priority} onChange={(e) => setPriority(e.target.value)}
+              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
+              <option value="baixa">Baixa</option>
+              <option value="media">Média</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2 rounded-lg bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors disabled:opacity-60">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : mode === 'create' ? 'Criar' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Card detail drawer ────────────────────────────────────────────────────────
+
+function CardDetail({ card, currentUserId, addComment, deleteComment, getComments, onEdit, onClose }: {
   card: KanbanCard
   currentUserId: string
   addComment: (cardId: string, content: string) => Promise<Comment | null>
   deleteComment: (commentId: string) => Promise<void>
   getComments: (cardId: string) => Promise<Comment[]>
+  onEdit: () => void
   onClose: () => void
 }) {
   const [comments, setComments]         = useState<Comment[]>([])
@@ -58,7 +136,6 @@ function CardDetail({ card, currentUserId, addComment, deleteComment, getComment
   const [posting, setPosting]           = useState(false)
   const [, startT]                      = useTransition()
 
-  // Load comments on first render
   if (!loaded) {
     setLoaded(true)
     getComments(card.id).then(setComments)
@@ -91,13 +168,16 @@ function CardDetail({ card, currentUserId, addComment, deleteComment, getComment
               </p>
             )}
           </div>
+          <button onClick={onEdit}
+            className="px-2.5 py-1 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white transition-colors">
+            Editar
+          </button>
           <button onClick={onClose} className="p-1.5 text-white/30 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Meta */}
           <div className="flex flex-wrap gap-2">
             <span className="text-xs px-2 py-1 rounded-full font-medium"
               style={{ background: PRIORITY_COLOR[card.priority] + '20', color: PRIORITY_COLOR[card.priority] }}>
@@ -131,7 +211,6 @@ function CardDetail({ card, currentUserId, addComment, deleteComment, getComment
             ))}
           </div>
 
-          {/* Description */}
           {card.description && (
             <div>
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wide mb-2">Descrição</p>
@@ -141,7 +220,6 @@ function CardDetail({ card, currentUserId, addComment, deleteComment, getComment
             </div>
           )}
 
-          {/* Comments */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="h-4 w-4 text-white/40" />
@@ -187,19 +265,46 @@ function CardDetail({ card, currentUserId, addComment, deleteComment, getComment
   )
 }
 
-export function ClientKanbanBoard({ boardName, columns, cards, currentUserId, addComment, deleteComment, getComments }: Props) {
-  const [openCard, setOpenCard] = useState<KanbanCard | null>(null)
+// ── Main board ────────────────────────────────────────────────────────────────
+
+export function ClientKanbanBoard({ boardName, columns, cards: initialCards, currentUserId, addComment, deleteComment, getComments, createCard, updateCard }: Props) {
+  const [cards, setCards]           = useState<KanbanCard[]>(initialCards)
+  const [openCard, setOpenCard]     = useState<KanbanCard | null>(null)
+  const [createColId, setCreateColId] = useState<string | null>(null)
+  const [editingCard, setEditingCard] = useState<KanbanCard | null>(null)
+  const router = useRouter()
+
+  useEffect(() => { setCards(initialCards) }, [initialCards])
 
   function cardsForCol(colId: string) {
     return cards.filter((c) => c.column_id === colId)
   }
 
+  async function handleCreate(colId: string, title: string, description: string, priority: string) {
+    const newCard = await createCard(colId, title, description, priority)
+    if (newCard) {
+      setCards((prev) => [...prev, newCard as KanbanCard])
+      router.refresh()
+    }
+  }
+
+  async function handleUpdate(cardId: string, title: string, description: string, priority: string) {
+    const ok = await updateCard(cardId, title, description, priority)
+    if (ok) {
+      setCards((prev) => prev.map((c) => c.id === cardId
+        ? { ...c, title, description: description || null, priority: priority as KanbanCard['priority'] }
+        : c
+      ))
+      if (openCard?.id === cardId) {
+        setOpenCard((prev) => prev ? { ...prev, title, description: description || null, priority: priority as KanbanCard['priority'] } : null)
+      }
+      router.refresh()
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-white text-lg font-bold">{boardName}</h1>
-        <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">somente leitura</span>
-      </div>
+      <h1 className="text-white text-lg font-bold">{boardName}</h1>
 
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-4 min-w-max items-start">
@@ -212,6 +317,10 @@ export function ClientKanbanBoard({ boardName, columns, cards, currentUserId, ad
                   <span className="w-2 h-2 rounded-full" style={{ background: col.color }} />
                   <span className="text-sm font-semibold text-white flex-1">{col.label}</span>
                   <span className="text-xs text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">{colCards.length}</span>
+                  <button onClick={() => setCreateColId(col.id)}
+                    className="text-white/30 hover:text-[#EACE00] transition-colors">
+                    <Plus className="h-4 w-4" />
+                  </button>
                 </div>
                 <div className="flex-1 p-2 space-y-2">
                   {colCards.map((card) => (
@@ -263,26 +372,36 @@ export function ClientKanbanBoard({ boardName, columns, cards, currentUserId, ad
         </div>
       </div>
 
-      {openCard && (
+      {openCard && !editingCard && (
         <CardDetail
           card={openCard}
           currentUserId={currentUserId}
           addComment={addComment}
           deleteComment={deleteComment}
           getComments={getComments}
+          onEdit={() => { setEditingCard(openCard); setOpenCard(null) }}
           onClose={() => setOpenCard(null)}
         />
       )}
-    </div>
-  )
-}
 
-// Inline add-column placeholder for type consistency
-export function AddColumn() {
-  return (
-    <button className="flex items-center gap-2 h-fit px-4 py-3 rounded-2xl border border-dashed border-[#333] text-white/20 w-64 shrink-0 cursor-not-allowed">
-      <Plus className="h-4 w-4" />
-      <span className="text-sm">Somente leitura</span>
-    </button>
+      {createColId && (
+        <CardModal
+          mode="create"
+          defaultColId={createColId}
+          onClose={() => setCreateColId(null)}
+          onSave={(colId, title, description, priority) => handleCreate(colId, title, description, priority)}
+        />
+      )}
+
+      {editingCard && (
+        <CardModal
+          mode="edit"
+          card={editingCard}
+          defaultColId={editingCard.column_id}
+          onClose={() => setEditingCard(null)}
+          onSave={(_, title, description, priority) => handleUpdate(editingCard.id, title, description, priority)}
+        />
+      )}
+    </div>
   )
 }

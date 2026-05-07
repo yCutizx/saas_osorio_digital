@@ -9,7 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const Schema = z.object({
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   email:     z.string().email('E-mail inválido'),
-  role:      z.enum(['traffic_manager', 'social_media'] as const),
+  role:      z.enum(['admin', 'traffic_manager', 'social_media'] as const),
   password:  z.string().min(8, 'Mínimo de 8 caracteres').optional().or(z.literal('')),
 })
 

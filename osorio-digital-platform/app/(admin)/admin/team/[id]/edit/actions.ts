@@ -9,7 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const Schema = z.object({
   member_id: z.string().uuid(),
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  role:      z.enum(['traffic_manager', 'social_media'] as const),
+  role:      z.enum(['admin', 'traffic_manager', 'social_media'] as const),
   active:    z.string().optional(),
 })
 
@@ -59,7 +59,7 @@ export async function updateTeamMemberAction(
     .from('client_assignments')
     .delete()
     .eq('user_id', d.member_id)
-    .in('role', ['traffic_manager', 'social_media'])
+    .in('role', ['admin', 'traffic_manager', 'social_media'])
 
   if (clientIds.length > 0) {
     await adminSupabase.from('client_assignments').insert(

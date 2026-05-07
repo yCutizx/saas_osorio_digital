@@ -42,7 +42,6 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     .eq('archived', false)
     .order('position', { ascending: true })
 
-  // Server actions for comments (client can read + comment)
   async function addComment(cardId: string, content: string) {
     'use server'
     const sb = await createClient()
@@ -67,7 +66,6 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     const { data: p } = await sb.from('profiles').select('role').eq('id', u.id).single()
     if (p?.role !== 'client') return
     const admin = createAdminClient()
-    // Only delete own comments
     await admin.from('kanban_comments').delete().eq('id', commentId).eq('user_id', u.id)
   }
 
@@ -80,6 +78,48 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
       .order('created_at', { ascending: true })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data ?? []) as any[]
+  }
+
+  async function createCard(columnId: string, title: string, description: string, priority: string) {
+    'use server'
+    const sb = await createClient()
+    const { data: { user: u } } = await sb.auth.getUser()
+    if (!u) return null
+    const { data: p } = await sb.from('profiles').select('role').eq('id', u.id).single()
+    if (p?.role !== 'client') return null
+    const admin = createAdminClient()
+    const { data, error } = await admin.from('kanban_cards').insert({
+      board_id:    params.id,
+      board_type:  'agency',
+      column_id:   columnId,
+      title:       title.trim(),
+      description: description.trim() || null,
+      priority:    priority || 'media',
+      created_by:  u.id,
+      position:    Date.now(),
+    }).select('id, column_id, title, description, priority, tags, format, platform, due_date').single()
+    if (error) return null
+    return data
+  }
+
+  async function updateCard(cardId: string, title: string, description: string, priority: string) {
+    'use server'
+    const sb = await createClient()
+    const { data: { user: u } } = await sb.auth.getUser()
+    if (!u) return false
+    const { data: p } = await sb.from('profiles').select('role').eq('id', u.id).single()
+    if (p?.role !== 'client') return false
+    const admin = createAdminClient()
+    // Verify card belongs to a board the client has access to
+    const { data: membership } = await admin.from('kanban_board_members')
+      .select('board_id').eq('board_id', params.id).eq('profile_id', u.id).single()
+    if (!membership) return false
+    const { error } = await admin.from('kanban_cards').update({
+      title:       title.trim(),
+      description: description.trim() || null,
+      priority:    priority || 'media',
+    }).eq('id', cardId).eq('board_id', params.id)
+    return !error
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,6 +136,8 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
         addComment={addComment}
         deleteComment={deleteComment}
         getComments={getComments}
+        createCard={createCard}
+        updateCard={updateCard}
       />
     </AppLayout>
   )
