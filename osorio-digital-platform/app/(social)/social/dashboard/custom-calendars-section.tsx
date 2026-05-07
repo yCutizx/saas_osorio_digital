@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
-  Plus, Calendar, Settings, X, UserPlus, UserMinus, Trash2, Loader2,
+  Plus, Calendar, Settings, X, UserPlus, UserMinus, Trash2,
 } from 'lucide-react'
 import {
   createCalendarAction,
