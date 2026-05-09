@@ -20,7 +20,7 @@ export default function LoginPage() {
         {[1, 2, 3].map((n) => (
           <div
             key={n}
-            className="absolute inset-0 bg-cover"
+            className={`absolute inset-0 bg-cover${n === 3 ? ' login-photo-3' : ''}`}
             style={{
               backgroundImage:    `url(/images/login-bg-${n}.jpg)`,
               backgroundPosition: n === 3 ? 'right 30% center' : 'center center',
