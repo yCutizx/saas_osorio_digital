@@ -15,11 +15,29 @@ export default async function ClientInsightsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: insights } = await supabase
+  // Get the client this user is assigned to
+  const { data: assignment } = await supabase
+    .from('client_assignments')
+    .select('client_id')
+    .eq('profile_id', user.id)
+    .single()
+
+  const clientId = assignment?.client_id ?? null
+
+  // Show insights specific to this client OR general (no client)
+  let query = supabase
     .from('insights')
-    .select('id, title, content, cover_url, tags, published_at')
+    .select('id, title, content, type, cover_url, file_url, tags, published_at')
     .eq('published', true)
     .order('published_at', { ascending: false })
+
+  if (clientId) {
+    query = query.or(`client_id.eq.${clientId},client_id.is.null`)
+  } else {
+    query = query.is('client_id', null)
+  }
+
+  const { data: insights } = await query
 
   return (
     <AppLayout pageTitle="Insights do Nicho">
@@ -44,7 +62,9 @@ export default async function ClientInsightsPage() {
                 key={insight.id}
                 title={insight.title}
                 content={insight.content}
+                type={(insight.type as string | null) ?? null}
                 coverUrl={insight.cover_url}
+                fileUrl={(insight as { file_url?: string | null }).file_url ?? null}
                 tags={(insight.tags as string[] | null) ?? []}
                 publishedAt={insight.published_at
                   ? format(parseISO(insight.published_at), "d 'de' MMMM yyyy", { locale: ptBR })
