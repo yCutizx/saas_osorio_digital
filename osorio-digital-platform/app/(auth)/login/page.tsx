@@ -22,12 +22,13 @@ export default function LoginPage() {
         {[1, 2, 3].map((n) => (
           <div
             key={n}
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-0 bg-cover"
             style={{
-              backgroundImage: `url(/images/login-bg-${n}.jpg)`,
-              opacity:         0,
-              filter:          'grayscale(100%)',
-              animation:       `loginBgSlide 15s linear ${(n - 1) * 5}s infinite both`,
+              backgroundImage:    `url(/images/login-bg-${n}.jpg)`,
+              backgroundPosition: n === 3 ? 'center right' : 'center center',
+              opacity:            0,
+              filter:             'grayscale(100%)',
+              animation:          `loginBgSlide 15s linear ${(n - 1) * 5}s infinite both`,
             }}
           />
         ))}
@@ -97,7 +98,7 @@ export default function LoginPage() {
               <img
                 src="/images/logo.png"
                 alt="Osorio Digital"
-                className="h-16 w-auto mx-auto"
+                className="h-24 w-auto mx-auto"
                 style={{ filter: 'drop-shadow(0 0 20px rgba(234,206,0,0.4))' }}
               />
             </div>

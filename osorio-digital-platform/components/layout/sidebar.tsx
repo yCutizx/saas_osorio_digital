@@ -105,10 +105,10 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
         collapsed ? 'px-3 justify-center' : 'px-4'
       )}>
         {collapsed
-          ? <img src="/images/logo.png" alt="Osorio Digital" className="h-8 w-auto" />
+          ? <img src="/images/logo.png" alt="Osorio Digital" className="h-10 w-auto" />
           : (
             <>
-              <img src="/images/logo.png" alt="Osorio Digital" className="h-8 w-auto flex-1" />
+              <img src="/images/logo.png" alt="Osorio Digital" className="h-10 w-auto flex-1" />
               {onClose && (
                 <button
                   onClick={onClose}
