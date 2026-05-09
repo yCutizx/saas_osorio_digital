@@ -22,8 +22,8 @@ export default function LoginPage() {
             key={n}
             className={`absolute inset-0 bg-cover${n === 3 ? ' login-photo-3' : ''}`}
             style={{
-              backgroundImage:    `url(/images/login-bg-${n}.jpg)`,
-              backgroundPosition: n === 3 ? 'right 30% center' : 'center center',
+              backgroundImage:    n === 2 ? `url(/images/login-bg-2.jpg?v=2)` : `url(/images/login-bg-${n}.jpg)`,
+              backgroundPosition: n === 3 ? '20% center' : 'center center',
               opacity:            0,
               filter:             'grayscale(100%)',
               animation:          `loginBgSlide 15s linear ${(n - 1) * 5}s infinite both`,

@@ -75,9 +75,9 @@
   to   { opacity: 1; transform: translateY(0) }
 }
 
-/* Foto 3 do slideshow: no mobile empurra para a direita para mostrar o rosto */
+/* Foto 3 do slideshow: rosto no lado esquerdo */
 @media (max-width: 1023px) {
-  .login-photo-3 { background-position: 85% center !important; }
+  .login-photo-3 { background-position: 15% center !important; }
 }
 
 /* Animações responsivas: mobile usa slide vertical, desktop usa slide horizontal */
