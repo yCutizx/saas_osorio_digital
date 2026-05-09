@@ -171,7 +171,8 @@ export default function LoginForm() {
           <button
             type="submit"
             disabled={loginPending}
-            className="relative w-full h-12 rounded-xl bg-[#EACE00] text-black font-bold text-sm overflow-hidden group shadow-[0_0_24px_rgba(234,206,0,0.22)] hover:shadow-[0_0_40px_rgba(234,206,0,0.42)] transition-all duration-300 hover:-translate-y-px active:translate-y-0 disabled:opacity-55 disabled:pointer-events-none mt-1"
+            className="relative w-full h-12 rounded-xl bg-[#EACE00] text-black font-bold text-sm overflow-hidden group transition-all duration-300 hover:-translate-y-px active:translate-y-0 disabled:opacity-55 disabled:pointer-events-none mt-1"
+            style={{ animation: 'loginButtonGlow 2.5s ease-in-out infinite alternate' }}
           >
             {/* Shimmer — brilho da esquerda para direita no hover */}
             <span className="absolute inset-0 -skew-x-12 translate-x-[-150%] group-hover:translate-x-[200%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none" />

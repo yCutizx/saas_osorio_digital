@@ -55,9 +55,10 @@ export function LeftPanel() {
           <span
             className="text-[#EACE00] inline-block"
             style={{
-              transition: 'opacity 0.38s ease, transform 0.38s ease',
-              opacity:   show ? 1 : 0,
-              transform: show ? 'translateY(0)' : 'translateY(10px)',
+              transition:  'opacity 0.38s ease, transform 0.38s ease',
+              opacity:     show ? 1 : 0,
+              transform:   show ? 'translateY(0)' : 'translateY(10px)',
+              animation:   show ? 'loginTypewriterGlow 2s ease-in-out infinite alternate' : undefined,
             }}
           >
             {WORDS[idx]}

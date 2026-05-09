@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
-import { Lock }     from 'lucide-react'
-import { LeftPanel } from './left-panel'
-import LoginForm     from './login-form'
+import { Suspense }   from 'react'
+import { Lock }       from 'lucide-react'
+import { LeftPanel }  from './left-panel'
+import LoginForm      from './login-form'
+import { Particles }  from './particles'
 
 export const metadata = {
   title:       'Osorio Digital — Entrar',
@@ -48,6 +49,25 @@ export default function LoginPage() {
 
         {/* Gradiente vertical: topo e base escuros */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A]/70 via-transparent to-[#0A0A0A]/80 pointer-events-none" />
+
+        {/* Particles */}
+        <Particles />
+
+        {/* Light beams */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-[15%] left-0 w-[60%] h-[1px] bg-gradient-to-r from-transparent via-[#EACE00]/20 to-transparent"
+            style={{ animation: 'loginBeam 8s ease-in-out 0s infinite' }}
+          />
+          <div
+            className="absolute top-[52%] left-0 w-[45%] h-[1px] bg-gradient-to-r from-transparent via-[#EACE00]/15 to-transparent"
+            style={{ animation: 'loginBeam 11s ease-in-out 3s infinite' }}
+          />
+          <div
+            className="absolute top-[80%] left-0 w-[70%] h-[1px] bg-gradient-to-r from-transparent via-[#EACE00]/12 to-transparent"
+            style={{ animation: 'loginBeam 9s ease-in-out 6s infinite' }}
+          />
+        </div>
 
         {/* Conteúdo do painel esquerdo (typewriter + cards) */}
         <LeftPanel />

@@ -42,6 +42,28 @@
   to   { opacity: 1 }
 }
 
+@keyframes loginParticlePulse {
+  0%, 100% { opacity: 0; transform: scale(0.6) }
+  50%      { opacity: 1; transform: scale(1) }
+}
+
+@keyframes loginTypewriterGlow {
+  from { text-shadow: 0 0 8px rgba(234,206,0,0.3), 0 0 20px rgba(234,206,0,0.1) }
+  to   { text-shadow: 0 0 16px rgba(234,206,0,0.7), 0 0 40px rgba(234,206,0,0.35), 0 0 80px rgba(234,206,0,0.12) }
+}
+
+@keyframes loginButtonGlow {
+  from { box-shadow: 0 0 24px rgba(234,206,0,0.22) }
+  to   { box-shadow: 0 0 48px rgba(234,206,0,0.55), 0 0 80px rgba(234,206,0,0.2) }
+}
+
+@keyframes loginBeam {
+  0%   { transform: translateX(-100%) skewX(-20deg); opacity: 0 }
+  10%  { opacity: 1 }
+  90%  { opacity: 1 }
+  100% { transform: translateX(400%) skewX(-20deg); opacity: 0 }
+}
+
 @layer base {
   /*
    * Variáveis em formato HSL puro (sem hsl()).
