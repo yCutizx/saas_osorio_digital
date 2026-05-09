@@ -32,13 +32,14 @@ const SOURCE_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = 
   manual:    { icon: <Pencil className="h-3 w-3" style={{ color: '#6B7280' }} />, label: 'Manual' },
 }
 
-function getInitials(name: string) {
-  return name
+function getInitials(name: string | null | undefined) {
+  return (name ?? '')
     .split(' ')
     .map((n) => n[0])
+    .filter(Boolean)
     .slice(0, 2)
     .join('')
-    .toUpperCase()
+    .toUpperCase() || '?'
 }
 
 export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
@@ -80,7 +81,7 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
             <div className="h-5 w-5 rounded-full bg-[#EACE00] flex items-center justify-center text-black font-bold text-[9px] shrink-0">
               {getInitials(lead.responsible.full_name)}
             </div>
-            <span className="text-[#666] text-xs truncate max-w-[80px]">{lead.responsible.full_name.split(' ')[0]}</span>
+            <span className="text-[#666] text-xs truncate max-w-[80px]">{(lead.responsible.full_name ?? '').split(' ')[0]}</span>
           </div>
         ) : (
           <span className="text-[#555] text-xs">Sem resp.</span>
