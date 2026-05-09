@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { TrendingUp, CalendarDays, Target } from 'lucide-react'
 
 const WORDS = ['Escalar.', 'Converter.', 'Crescer.', 'Dominar.']
@@ -44,7 +45,7 @@ export function LeftPanel() {
         className="flex items-center"
         style={{ animation: 'loginSlideLeft 0.5s ease-out 0.3s both' }}
       >
-        <img src="/images/logo.png" alt="Osorio Digital" className="h-12 lg:h-14 w-auto" />
+        <Image src="/images/logo.png" alt="Osorio Digital" width={200} height={56} className="h-12 lg:h-14 w-auto" />
       </header>
 
       {/* Center — headline + ticker + cards */}
