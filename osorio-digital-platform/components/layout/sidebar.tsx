@@ -104,28 +104,23 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
         'flex items-center gap-3 h-16 border-b border-[#1a1a1a] shrink-0',
         collapsed ? 'px-3 justify-center' : 'px-4'
       )}>
-        <div className="relative shrink-0">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#f5d800] to-[#EACE00] grid place-items-center font-black text-black text-base shadow-[0_0_20px_rgba(234,206,0,0.35)]">
-            O
-          </div>
-          <div className="absolute -inset-1 rounded-xl bg-[#EACE00]/20 blur-md -z-10" />
-        </div>
-        {!collapsed && (
-          <>
-            <span className="font-black text-base tracking-tight flex-1 text-white">
-              Osorio <span className="text-[#EACE00]">Digital</span>
-            </span>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="md:hidden p-1.5 rounded-lg text-[#888] hover:text-white hover:bg-[#1a1a1a] transition-colors"
-                aria-label="Fechar menu"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </>
-        )}
+        {collapsed
+          ? <img src="/images/logo.png" alt="Osorio Digital" className="h-8 w-auto" />
+          : (
+            <>
+              <img src="/images/logo.png" alt="Osorio Digital" className="h-8 w-auto flex-1" />
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="md:hidden p-1.5 rounded-lg text-[#888] hover:text-white hover:bg-[#1a1a1a] transition-colors"
+                  aria-label="Fechar menu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          )
+        }
       </div>
 
       {/* ── Navegação ─────────────────────────────────────── */}

@@ -32,13 +32,10 @@ export function LeftPanel() {
 
       {/* Logo */}
       <header
-        className="flex items-center gap-3"
+        className="flex items-center"
         style={{ animation: 'loginSlideLeft 0.5s ease-out 0.3s both' }}
       >
-        <div className="h-10 w-10 rounded-xl bg-[#EACE00] grid place-items-center font-black text-black text-lg leading-none shadow-[0_0_18px_rgba(234,206,0,0.35)]">
-          O
-        </div>
-        <span className="font-black text-white tracking-tight">Osorio Digital</span>
+        <img src="/images/logo.png" alt="Osorio Digital" className="h-10 w-auto" />
       </header>
 
       {/* Center — headline + cards */}

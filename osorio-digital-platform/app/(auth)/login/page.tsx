@@ -94,11 +94,12 @@ export default function LoginPage() {
           {/* Logo mark + título */}
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <div className="h-14 w-14 rounded-2xl bg-[#EACE00] grid place-items-center font-black text-black text-2xl leading-none shadow-[0_0_32px_rgba(234,206,0,0.5)]">
-                O
-              </div>
-              {/* Glow ao redor do logo */}
-              <div className="absolute -inset-3 rounded-3xl bg-[#EACE00]/18 blur-xl -z-10" />
+              <img
+                src="/images/logo.png"
+                alt="Osorio Digital"
+                className="h-16 w-auto mx-auto"
+                style={{ filter: 'drop-shadow(0 0 20px rgba(234,206,0,0.4))' }}
+              />
             </div>
             <div className="text-center">
               <h2 className="text-2xl font-black text-white tracking-tight">Bem-vindo de volta</h2>
