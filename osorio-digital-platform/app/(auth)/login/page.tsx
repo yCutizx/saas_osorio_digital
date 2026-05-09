@@ -22,7 +22,7 @@ export default function LoginPage() {
             key={n}
             className={`absolute inset-0 bg-cover${n === 3 ? ' login-photo-3' : ''}`}
             style={{
-              backgroundImage:    n === 2 ? `url(/images/login-bg-2.jpg?v=2)` : `url(/images/login-bg-${n}.jpg)`,
+              backgroundImage:    n === 2 ? `url(/images/login-bg-2b.jpg)` : `url(/images/login-bg-${n}.jpg)`,
               backgroundPosition: n === 3 ? '20% center' : 'center center',
               opacity:            0,
               filter:             'grayscale(100%)',
