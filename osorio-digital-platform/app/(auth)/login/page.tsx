@@ -23,7 +23,7 @@ export default function LoginPage() {
             className="absolute inset-0 bg-cover"
             style={{
               backgroundImage:    `url(/images/login-bg-${n}.jpg)`,
-              backgroundPosition: n === 3 ? 'center right' : 'center center',
+              backgroundPosition: n === 3 ? '70% center' : 'center center',
               opacity:            0,
               filter:             'grayscale(100%)',
               animation:          `loginBgSlide 15s linear ${(n - 1) * 5}s infinite both`,
