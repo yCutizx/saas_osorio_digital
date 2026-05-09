@@ -26,6 +26,7 @@ export async function changeStatusAction(postId: string, status: string) {
 
   revalidatePath(`/social/posts/${postId}`)
   revalidatePath('/social/dashboard')
+  revalidatePath('/client/calendar')
   return { ok: true }
 }
 

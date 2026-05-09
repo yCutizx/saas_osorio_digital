@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { format, parseISO, isValid } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+
 import { ArrowLeft, ExternalLink, Hash, User } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -144,11 +143,15 @@ export default async function PostDetailPage({ params }: PageProps) {
                   <h1 className="text-white font-semibold text-lg leading-tight">{post.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-[#888]">
                     <span>{post.clients?.name ?? '—'}</span>
-                    {post.scheduled_at && isValid(parseISO(post.scheduled_at)) && (
+                    {post.scheduled_at && (
                       <>
                         <span>·</span>
                         <span>
-                          {format(parseISO(post.scheduled_at), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                          {new Date(post.scheduled_at).toLocaleString('pt-BR', {
+                            timeZone: 'America/Sao_Paulo',
+                            day: 'numeric', month: 'long',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
                         </span>
                       </>
                     )}
@@ -265,8 +268,12 @@ export default async function PostDetailPage({ params }: PageProps) {
                           </span>
                         </div>
                         <span className="text-xs text-[#888] shrink-0">
-                          {c.created_at && isValid(parseISO(c.created_at))
-                            ? format(parseISO(c.created_at), "dd/MM 'às' HH:mm")
+                          {c.created_at
+                            ? new Date(c.created_at).toLocaleString('pt-BR', {
+                                timeZone: 'America/Sao_Paulo',
+                                day: '2-digit', month: '2-digit',
+                                hour: '2-digit', minute: '2-digit',
+                              })
                             : '—'}
                         </span>
                       </div>
@@ -277,11 +284,9 @@ export default async function PostDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {!isClient && (
-              <div className="pt-2">
-                <CommentBox postId={post.id} />
-              </div>
-            )}
+            <div className="pt-2">
+              <CommentBox postId={post.id} />
+            </div>
           </div>
 
         </div>

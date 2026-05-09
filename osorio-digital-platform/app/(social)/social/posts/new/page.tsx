@@ -83,7 +83,7 @@ export default async function NewPostPage({ searchParams }: PageProps) {
               </Link>
             </div>
           ) : (
-            <NewPostForm clients={clients} staff={staff} defaultDate={searchParams.date} />
+            <NewPostForm clients={clients} staff={staff} defaultDate={searchParams.date} defaultClientId={searchParams.client} />
           )}
         </div>
       </div>

@@ -21,7 +21,13 @@ const PLATFORMS = [
   { value: 'twitter',  label: 'Twitter',   color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
 ]
 
-const MEDIA_TYPES = ['image', 'video', 'carousel', 'reel', 'story']
+const MEDIA_TYPES = [
+  { value: 'image',    label: 'Imagem'    },
+  { value: 'video',    label: 'Vídeo'     },
+  { value: 'carousel', label: 'Carrossel' },
+  { value: 'story',    label: 'Story'     },
+  { value: 'reel',     label: 'Reel'      },
+]
 
 const SELECT_CLS = 'w-full h-10 px-3 rounded-lg bg-[#1a1a1a] border border-[#333] text-[#ccc] text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors [color-scheme:dark]'
 
@@ -31,18 +37,20 @@ function FieldError({ messages }: { messages?: string[] }) {
 }
 
 interface Props {
-  clients:      Client[]
-  staff:        StaffMember[]
-  defaultDate?: string
+  clients:          Client[]
+  staff:            StaffMember[]
+  defaultDate?:     string
+  defaultClientId?: string
 }
 
-export function NewPostForm({ clients, staff, defaultDate }: Props) {
+export function NewPostForm({ clients, staff, defaultDate, defaultClientId }: Props) {
   const [state, action] = useFormState<FormState, FormData>(createPostAction, {})
   const [platforms,   setPlatforms]   = useState<Set<string>>(new Set(['instagram']))
   const [title,       setTitle]       = useState('')
   const [caption,     setCaption]     = useState('')
   const [hashtags,    setHashtags]    = useState('')
   const [mediaType,   setMediaType]   = useState('')
+  const [mediaUrl,    setMediaUrl]    = useState('')
   const [showPreview, setShowPreview] = useState(false)
 
   const captionLen = caption.length
@@ -75,7 +83,7 @@ export function NewPostForm({ clients, staff, defaultDate }: Props) {
           <Label htmlFor="client_id" className="text-[#888] text-xs font-medium uppercase tracking-wider">
             Cliente <span className="text-red-400">*</span>
           </Label>
-          <select id="client_id" name="client_id" required className={SELECT_CLS}>
+          <select id="client_id" name="client_id" required defaultValue={defaultClientId ?? ''} className={SELECT_CLS}>
             <option value="">Selecione um cliente...</option>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -139,7 +147,7 @@ export function NewPostForm({ clients, staff, defaultDate }: Props) {
           >
             <option value="">Selecione...</option>
             {MEDIA_TYPES.map((t) => (
-              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
         </div>
@@ -147,7 +155,7 @@ export function NewPostForm({ clients, staff, defaultDate }: Props) {
         {/* Upload de mídia */}
         <div className="space-y-1.5">
           <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Arquivo de Mídia</Label>
-          <MediaUploadField fieldName="media_url" />
+          <MediaUploadField fieldName="media_url" onUrlChange={setMediaUrl} />
           <FieldError messages={state.errors?.media_url} />
         </div>
 
@@ -290,10 +298,21 @@ export function NewPostForm({ clients, staff, defaultDate }: Props) {
                     </p>
                   </div>
                 </div>
-                <div className="bg-[#181818] aspect-square flex flex-col items-center justify-center gap-2">
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <Image className="h-10 w-10 text-white/10" aria-hidden="true" />
-                  {mediaType && <span className="text-white/20 text-xs capitalize">{mediaType}</span>}
+                <div className="bg-[#181818] aspect-square flex flex-col items-center justify-center gap-2 overflow-hidden">
+                  {mediaUrl && /\.(mp4|mov|webm)(\?|$)/i.test(mediaUrl) ? (
+                    <video src={mediaUrl} controls className="w-full h-full object-cover">
+                      <track kind="captions" />
+                    </video>
+                  ) : mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                      <Image className="h-10 w-10 text-white/10" aria-hidden="true" />
+                      {mediaType && <span className="text-white/20 text-xs">{MEDIA_TYPES.find(t => t.value === mediaType)?.label}</span>}
+                    </>
+                  )}
                 </div>
                 <div className="p-3 space-y-2">
                   {title && <p className="text-white text-xs font-semibold">{title}</p>}

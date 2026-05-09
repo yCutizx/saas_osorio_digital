@@ -6,10 +6,11 @@ import { Upload, X, Film, Link2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  fieldName?: string
+  fieldName?:   string
+  onUrlChange?: (url: string) => void
 }
 
-export function MediaUploadField({ fieldName = 'media_url' }: Props) {
+export function MediaUploadField({ fieldName = 'media_url', onUrlChange }: Props) {
   const [file,        setFile]        = useState<File | null>(null)
   const [preview,     setPreview]     = useState<string | null>(null)
   const [uploading,   setUploading]   = useState(false)
@@ -48,6 +49,7 @@ export function MediaUploadField({ fieldName = 'media_url' }: Props) {
 
       const { data } = supabase.storage.from('post-media').getPublicUrl(path)
       setUploadedUrl(data.publicUrl)
+      onUrlChange?.(data.publicUrl)
     } catch {
       setUploadError('Erro no upload. Insira a URL manualmente se preferir.')
     } finally {
@@ -60,6 +62,7 @@ export function MediaUploadField({ fieldName = 'media_url' }: Props) {
     setPreview(null)
     setUploadedUrl('')
     setUploadError('')
+    onUrlChange?.('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -157,7 +160,7 @@ export function MediaUploadField({ fieldName = 'media_url' }: Props) {
               type="url"
               placeholder="https://..."
               value={manualUrl}
-              onChange={(e) => setManualUrl(e.target.value)}
+              onChange={(e) => { setManualUrl(e.target.value); onUrlChange?.(e.target.value) }}
               className="flex-1 h-9 px-3 rounded-lg bg-[#1a1a1a] border border-[#333] text-[#ccc] placeholder:text-white/30 text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors"
             />
             <button

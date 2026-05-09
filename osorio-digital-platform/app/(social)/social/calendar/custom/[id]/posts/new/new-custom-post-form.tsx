@@ -20,7 +20,13 @@ const PLATFORMS = [
   { value: 'twitter',  label: 'Twitter',   color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
 ]
 
-const MEDIA_TYPES = ['image', 'video', 'carousel', 'reel', 'story']
+const MEDIA_TYPES = [
+  { value: 'image',    label: 'Imagem'    },
+  { value: 'video',    label: 'Vídeo'     },
+  { value: 'carousel', label: 'Carrossel' },
+  { value: 'story',    label: 'Story'     },
+  { value: 'reel',     label: 'Reel'      },
+]
 
 const SELECT_CLS = 'w-full h-10 px-3 rounded-lg bg-[#1a1a1a] border border-[#333] text-[#ccc] text-sm focus:outline-none focus:border-[#EACE00]/60 transition-colors [color-scheme:dark]'
 
@@ -42,6 +48,7 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
   const [caption,     setCaption]     = useState('')
   const [hashtags,    setHashtags]    = useState('')
   const [mediaType,   setMediaType]   = useState('')
+  const [mediaUrl,    setMediaUrl]    = useState('')
   const [showPreview, setShowPreview] = useState(false)
 
   const captionLen = caption.length
@@ -128,7 +135,7 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
           >
             <option value="">Selecione...</option>
             {MEDIA_TYPES.map((t) => (
-              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
         </div>
@@ -136,7 +143,7 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
         {/* Upload de mídia */}
         <div className="space-y-1.5">
           <Label className="text-[#888] text-xs font-medium uppercase tracking-wider">Arquivo de Mídia</Label>
-          <MediaUploadField fieldName="media_url" />
+          <MediaUploadField fieldName="media_url" onUrlChange={setMediaUrl} />
           <FieldError messages={state.errors?.media_url} />
         </div>
 
@@ -279,10 +286,21 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
                     </p>
                   </div>
                 </div>
-                <div className="bg-[#181818] aspect-square flex flex-col items-center justify-center gap-2">
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <Image className="h-10 w-10 text-white/10" aria-hidden="true" />
-                  {mediaType && <span className="text-white/20 text-xs capitalize">{mediaType}</span>}
+                <div className="bg-[#181818] aspect-square flex flex-col items-center justify-center gap-2 overflow-hidden">
+                  {mediaUrl && /\.(mp4|mov|webm)(\?|$)/i.test(mediaUrl) ? (
+                    <video src={mediaUrl} controls className="w-full h-full object-cover">
+                      <track kind="captions" />
+                    </video>
+                  ) : mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                      <Image className="h-10 w-10 text-white/10" aria-hidden="true" />
+                      {mediaType && <span className="text-white/20 text-xs">{MEDIA_TYPES.find(t => t.value === mediaType)?.label}</span>}
+                    </>
+                  )}
                 </div>
                 <div className="p-3 space-y-2">
                   {title && <p className="text-white text-xs font-semibold">{title}</p>}

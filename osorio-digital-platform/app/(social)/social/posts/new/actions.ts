@@ -62,6 +62,11 @@ export async function createPostAction(
 
   const d = result.data
 
+  // Treat datetime-local value as Brasilia time (UTC-3) and store with timezone offset
+  const scheduledAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d.scheduled_at)
+    ? d.scheduled_at + ':00-03:00'
+    : d.scheduled_at + '-03:00'
+
   const hashtags = d.hashtags_raw
     ? d.hashtags_raw.split(/[\s,]+/).map((t) => t.replace(/^#/, '').trim()).filter(Boolean)
     : []
@@ -74,7 +79,7 @@ export async function createPostAction(
     platform:       d.platform,
     media_type:     d.media_type ?? null,
     media_url:      d.media_url || null,
-    scheduled_at:   d.scheduled_at,
+    scheduled_at:   scheduledAt,
     status:         d.status,
     hashtags:       hashtags.length > 0 ? hashtags : null,
     internal_notes: d.internal_notes ?? null,
@@ -83,6 +88,6 @@ export async function createPostAction(
 
   if (error) return { message: 'Erro ao criar post: ' + error.message }
 
-  const month = format(new Date(d.scheduled_at), 'yyyy-MM')
+  const month = format(new Date(scheduledAt), 'yyyy-MM')
   redirect(`/social/dashboard?month=${month}&client=${d.client_id}`)
 }
