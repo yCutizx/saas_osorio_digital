@@ -7,7 +7,7 @@ import {
   subMonths, parseISO, startOfWeek, endOfWeek, subWeeks,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarDays, ChevronDown } from 'lucide-react'
+import { CalendarDays, ChevronDown, Maximize2 } from 'lucide-react'
 
 type Client = { id: string; name: string }
 
@@ -16,6 +16,9 @@ interface Props {
   currentFrom:     string
   currentTo:       string
   currentClientId: string | null
+  isMax?:          boolean
+  actualFrom?:     string
+  actualTo?:       string
   basePath?:       string
 }
 
@@ -26,28 +29,39 @@ const PRESETS = [
   { label: 'Últimos 14 dias', from: () => format(subDays(new Date(), 13), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
   { label: 'Últimos 28 dias', from: () => format(subDays(new Date(), 27), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
   { label: 'Últimos 30 dias', from: () => format(subDays(new Date(), 29), 'yyyy-MM-dd'),                        to: () => format(new Date(), 'yyyy-MM-dd') },
-  { label: 'Esta semana',     from: () => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),                    to: () => format(new Date(), 'yyyy-MM-dd') },
-  { label: 'Semana passada',  from: () => format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd'),     to: () => format(endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd') },
+  { label: 'Esta semana',     from: () => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),   to: () => format(new Date(), 'yyyy-MM-dd') },
+  { label: 'Semana passada',  from: () => format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd'), to: () => format(endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), 'yyyy-MM-dd') },
   { label: 'Este mês',        from: () => format(startOfMonth(new Date()), 'yyyy-MM-dd'),                       to: () => format(endOfMonth(new Date()), 'yyyy-MM-dd') },
-  { label: 'Mês passado',     from: () => format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),          to: () => format(endOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd') },
+  { label: 'Mês passado',     from: () => format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),         to: () => format(endOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd') },
 ]
 
 function formatDateRange(from: string, to: string) {
   try {
     const f = parseISO(from), t = parseISO(to)
     if (from === to) return format(f, "d MMM yyyy", { locale: ptBR })
-    return `${format(f, "d MMM", { locale: ptBR })} – ${format(t, "d MMM yyyy", { locale: ptBR })}`
-  } catch { return `${from} – ${to}` }
+    return `${format(f, "d MMM yyyy", { locale: ptBR })} — ${format(t, "d MMM yyyy", { locale: ptBR })}`
+  } catch { return `${from} — ${to}` }
 }
 
-function formatButtonLabel(from: string, to: string): string {
+function formatButtonLabel(
+  from: string, to: string,
+  isMax: boolean, actualFrom?: string, actualTo?: string,
+): string {
+  if (isMax) {
+    if (actualFrom && actualTo) return `Máximo: ${formatDateRange(actualFrom, actualTo)}`
+    return 'Máximo'
+  }
   const match = PRESETS.find((p) => p.from() === from && p.to() === to)
   const range = formatDateRange(from, to)
   if (match) return `${match.label}: ${range}`
   return `Personalizado: ${range}`
 }
 
-export function TrafficFilters({ clients, currentFrom, currentTo, currentClientId, basePath = '/traffic/dashboard' }: Props) {
+export function TrafficFilters({
+  clients, currentFrom, currentTo, currentClientId,
+  isMax = false, actualFrom, actualTo,
+  basePath = '/traffic/dashboard',
+}: Props) {
   const router = useRouter()
   const params = useSearchParams()
 
@@ -75,14 +89,20 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
   }
 
   function applyPreset(p: typeof PRESETS[0]) {
-    push({ from: p.from(), to: p.to() })
+    push({ from: p.from(), to: p.to(), max: null })
+    setOpen(false)
+    setCustom(false)
+  }
+
+  function applyMax() {
+    push({ max: '1', from: null, to: null })
     setOpen(false)
     setCustom(false)
   }
 
   function applyCustom() {
     if (cfrom && cto && cfrom <= cto) {
-      push({ from: cfrom, to: cto })
+      push({ from: cfrom, to: cto, max: null })
       setOpen(false)
       setCustom(false)
     }
@@ -98,7 +118,7 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
           className="flex items-center gap-2 h-9 px-3 rounded-lg bg-[#111] border border-white/10 text-white text-sm hover:border-[#EACE00]/40 transition-colors"
         >
           <CalendarDays className="h-3.5 w-3.5 text-[#EACE00] shrink-0" />
-          <span className="font-medium">{formatButtonLabel(currentFrom, currentTo)}</span>
+          <span className="font-medium">{formatButtonLabel(currentFrom, currentTo, isMax, actualFrom, actualTo)}</span>
           <ChevronDown className={`h-3.5 w-3.5 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
@@ -114,9 +134,20 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
               </button>
             ))}
             <div className="border-t border-[#2a2a2a] my-1" />
+            {/* Máximo */}
+            <button
+              onClick={applyMax}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
+                isMax ? 'text-[#EACE00] bg-[#EACE00]/5' : 'text-[#EACE00]/70 hover:text-[#EACE00] hover:bg-white/5'
+              }`}
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+              Máximo
+            </button>
+            <div className="border-t border-[#2a2a2a] my-1" />
             <button
               onClick={() => setCustom(v => !v)}
-              className="w-full text-left px-4 py-2 text-sm text-[#EACE00]/70 hover:text-[#EACE00] hover:bg-white/5 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-white/40 hover:text-white hover:bg-white/5 transition-colors"
             >
               Personalizado
             </button>
@@ -150,7 +181,7 @@ export function TrafficFilters({ clients, currentFrom, currentTo, currentClientI
         )}
       </div>
 
-      {/* Seletor de cliente */}
+      {/* Seletor de cliente — só mostra quando há múltiplos */}
       {clients.length > 1 && (
         <select
           value={currentClientId ?? ''}
