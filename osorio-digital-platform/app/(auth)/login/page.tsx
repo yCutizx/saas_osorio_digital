@@ -14,7 +14,7 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[#0A0A0A] flex flex-col lg:flex-row overflow-hidden">
 
       {/* ── Hero — showcase (topo no mobile, esquerda no desktop) ──────── */}
-      <div className="login-hero-anim relative w-full h-[50vh] lg:h-screen lg:w-1/2 overflow-hidden shrink-0">
+      <div className="login-hero-anim relative w-full h-[65vh] lg:h-screen lg:w-1/2 overflow-hidden shrink-0">
 
         {/* Slideshow — 3 fotos em loop com crossfade */}
         {[1, 2, 3].map((n) => (
@@ -74,13 +74,13 @@ export default function LoginPage() {
       </div>
 
       {/* ── Formulário ────────────────────────────────────────────────── */}
-      <div className="login-form-anim flex-1 flex flex-col items-center justify-center bg-[#0A0A0A] lg:border-l lg:border-[#181818] px-6 py-10 lg:py-12 relative overflow-hidden">
+      <div className="login-form-anim flex-1 flex flex-col items-center justify-center bg-[#0A0A0A] lg:border-l lg:border-[#181818] px-6 py-6 lg:py-12 relative overflow-hidden">
 
         {/* Glow amarelo difuso */}
         <div className="absolute top-[-80px] right-[-80px] w-[420px] h-[420px] bg-[#EACE00]/6 blur-[130px] pointer-events-none rounded-full" />
         <div className="absolute bottom-[-80px] left-[-40px] w-[300px] h-[300px] bg-[#EACE00]/4 blur-[100px] pointer-events-none rounded-full" />
 
-        <div className="relative w-full max-w-[400px] space-y-8 z-10">
+        <div className="relative w-full max-w-[400px] space-y-6 lg:space-y-8 z-10">
 
           {/* Logo — apenas no desktop (no mobile já aparece no hero) */}
           <div className="hidden lg:flex flex-col items-center gap-4">

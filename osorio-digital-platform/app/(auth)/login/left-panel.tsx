@@ -35,7 +35,7 @@ export function LeftPanel() {
         className="flex items-center"
         style={{ animation: 'loginSlideLeft 0.5s ease-out 0.3s both' }}
       >
-        <img src="/images/logo.png" alt="Osorio Digital" className="h-10 lg:h-14 w-auto" />
+        <img src="/images/logo.png" alt="Osorio Digital" className="h-12 lg:h-14 w-auto" />
       </header>
 
       {/* Center — headline + cards */}
@@ -47,7 +47,7 @@ export function LeftPanel() {
         </p>
 
         {/* Typewriter headline */}
-        <h1 className="font-black text-3xl lg:text-5xl xl:text-[3.6rem] text-white leading-[1.06] tracking-tight">
+        <h1 className="font-black text-4xl lg:text-5xl xl:text-[3.6rem] text-white leading-[1.06] tracking-tight">
           A hora de
           <br />
           <span
@@ -68,14 +68,14 @@ export function LeftPanel() {
           Métricas de tráfego, calendário editorial, insights e CRM em um único lugar.
         </p>
 
-        {/* Floating metric cards — escondidos no mobile */}
-        <div className="hidden lg:block mt-8 space-y-3">
+        {/* Floating metric cards */}
+        <div className="mt-4 lg:mt-8 space-y-2 lg:space-y-3">
           {CARDS.map((card) => {
             const Icon = card.icon
             return (
               <div
                 key={card.metric}
-                className="flex items-center gap-3 rounded-xl border border-[#2a2a2a] px-4 py-3 w-fit"
+                className="flex items-center gap-2 lg:gap-3 rounded-xl border border-[#2a2a2a] px-3 py-2 lg:px-4 lg:py-3 w-fit"
                 style={{
                   background:           'rgba(13,13,13,0.92)',
                   backdropFilter:       'blur(10px)',
@@ -84,14 +84,14 @@ export function LeftPanel() {
                 }}
               >
                 <div
-                  className="p-2 rounded-lg shrink-0"
+                  className="p-1.5 lg:p-2 rounded-lg shrink-0"
                   style={{ background: card.color + '22' }}
                 >
-                  <Icon className="h-4 w-4" style={{ color: card.color }} />
+                  <Icon className="h-3 w-3 lg:h-4 lg:w-4" style={{ color: card.color }} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white leading-tight">{card.metric}</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: card.color + 'bb' }}>
+                  <p className="text-xs lg:text-sm font-bold text-white leading-tight">{card.metric}</p>
+                  <p className="text-[10px] lg:text-[11px] mt-0.5" style={{ color: card.color + 'bb' }}>
                     {card.sub}
                   </p>
                 </div>
