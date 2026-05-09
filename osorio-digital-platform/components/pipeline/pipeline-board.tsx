@@ -314,7 +314,7 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
       <div
         ref={containerRef}
         {...scrollHandlers}
-        className="overflow-x-auto pb-4 scrollbar-hide"
+        className="overflow-x-auto pb-14 scrollbar-hide"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

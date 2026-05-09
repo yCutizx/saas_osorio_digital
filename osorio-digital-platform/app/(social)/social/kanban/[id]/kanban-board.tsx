@@ -671,7 +671,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
       <div
         ref={containerRef}
         {...scrollHandlers}
-        className="overflow-x-auto pb-4 scrollbar-hide"
+        className="overflow-x-auto pb-14 scrollbar-hide"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCorners}

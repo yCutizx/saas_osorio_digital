@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   DndContext,
   DragOverlay,
@@ -173,6 +174,7 @@ export function ProjectBoard({ deliverables, projectId, readOnly = false }: Proj
   const [activeDeliverable, setActiveDeliverable] = useState<Deliverable | null>(null)
   const [localDeliverables, setLocalDeliverables] = useState<Deliverable[]>(deliverables)
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null)
+  const { containerRef, grabbing, stop, scrollHandlers } = useDragToScroll()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -183,6 +185,7 @@ export function ProjectBoard({ deliverables, projectId, readOnly = false }: Proj
   }
 
   function handleDragStart(event: DragStartEvent) {
+    stop()
     const d = localDeliverables.find((d) => d.id === event.active.id)
     setActiveDeliverable(d ?? null)
   }
@@ -224,8 +227,14 @@ export function ProjectBoard({ deliverables, projectId, readOnly = false }: Proj
   }
 
   return (
+    <div
+      ref={containerRef}
+      {...scrollHandlers}
+      className="overflow-x-auto pb-14 scrollbar-hide"
+      style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
+    >
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-4 min-w-max">
         {COLUMNS.map((col) => {
           const colDeliverables = getDeliverablesForStatus(col.key)
           return (
@@ -294,5 +303,6 @@ export function ProjectBoard({ deliverables, projectId, readOnly = false }: Proj
         )}
       </DragOverlay>
     </DndContext>
+    </div>
   )
 }

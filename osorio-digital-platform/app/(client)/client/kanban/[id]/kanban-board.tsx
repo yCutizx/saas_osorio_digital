@@ -311,7 +311,7 @@ export function ClientKanbanBoard({ boardName, columns, cards: initialCards, cur
       <div
         ref={containerRef}
         {...scrollHandlers}
-        className="overflow-x-auto pb-4 scrollbar-hide"
+        className="overflow-x-auto pb-14 scrollbar-hide"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
         <div className="flex gap-4 min-w-max items-start">
