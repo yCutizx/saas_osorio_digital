@@ -1,4 +1,5 @@
 import { Suspense }   from 'react'
+import Image          from 'next/image'
 import { Lock }       from 'lucide-react'
 import { LeftPanel }  from './left-panel'
 import LoginForm      from './login-form'
@@ -85,9 +86,11 @@ export default function LoginPage() {
           {/* Logo — apenas no desktop (no mobile já aparece no hero) */}
           <div className="hidden lg:flex flex-col items-center gap-4">
             <div className="relative">
-              <img
+              <Image
                 src="/images/logo.png"
                 alt="Osorio Digital"
+                width={200}
+                height={96}
                 className="h-24 w-auto mx-auto"
                 style={{ filter: 'drop-shadow(0 0 20px rgba(234,206,0,0.4))' }}
               />
