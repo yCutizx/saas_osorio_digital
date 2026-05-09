@@ -17,33 +17,37 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
     .from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') redirect(`/admin/kanban/${params.id}`)
 
-  const { data: board } = await adminSupabase
-    .from('kanban_boards')
-    .select('id, name, description, color, columns')
-    .eq('id', params.id)
-    .single()
+  const [
+    { data: board },
+    { data: memberships },
+    { data: allStaff },
+    { data: clients },
+  ] = await Promise.all([
+    adminSupabase
+      .from('kanban_boards')
+      .select('id, name, description, color, columns, client_id')
+      .eq('id', params.id)
+      .single(),
+    adminSupabase
+      .from('kanban_board_members')
+      .select('profile_id')
+      .eq('board_id', params.id),
+    adminSupabase
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .in('role', ['admin', 'traffic_manager', 'social_media'])
+      .eq('active', true)
+      .order('full_name'),
+    adminSupabase
+      .from('clients')
+      .select('id, name')
+      .eq('active', true)
+      .order('name'),
+  ])
 
   if (!board) notFound()
 
-  // Current board members
-  const { data: memberships } = await adminSupabase
-    .from('kanban_board_members')
-    .select('profile_id')
-    .eq('board_id', params.id)
-
-  const memberIds = (memberships ?? []).map((m) => m.profile_id)
-
-  // All active staff (non-client roles)
-  const { data: allStaff } = await adminSupabase
-    .from('profiles')
-    .select('id, full_name, email, role')
-    .in('role', ['admin', 'traffic_manager', 'social_media'])
-    .eq('active', true)
-    .order('full_name')
-
-  const staff = allStaff ?? []
-  const members    = staff.filter((s) => memberIds.includes(s.id))
-  const nonMembers = staff.filter((s) => !memberIds.includes(s.id))
+  const currentMemberIds = (memberships ?? []).map((m) => m.profile_id)
 
   return (
     <AppLayout pageTitle="Configurações do Quadro">
@@ -60,33 +64,34 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
           <h1 className="text-xl font-bold text-white">Configurações do Quadro</h1>
         </div>
 
-        {/* Board settings */}
+        {/* Unified settings: name + client + members */}
         <section>
-          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider text-xs mb-4">
-            Informações do Quadro
+          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">
+            Configurações Gerais
+          </h2>
+          <p className="text-xs text-white/30 mb-4">
+            Defina o nome, cliente vinculado e membros com acesso ao quadro.
+          </p>
+          <SettingsForm
+            boardId={params.id}
+            boardName={board.name}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            clientId={(board as any).client_id ?? null}
+            currentMemberIds={currentMemberIds}
+            allStaff={allStaff ?? []}
+            clients={clients ?? []}
+          />
+        </section>
+
+        <div className="border-t border-[#222]" />
+
+        {/* Column / appearance editing */}
+        <section>
+          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">
+            Aparência e Colunas
           </h2>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <EditBoardForm board={board as any} />
-        </section>
-
-        {/* Divider */}
-        <div className="border-t border-[#222]" />
-
-        {/* Member management */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider text-xs">
-              Membros do Quadro
-            </h2>
-            <p className="text-xs text-white/30 mt-1">
-              Apenas membros adicionados podem ver e acessar este quadro (admin sempre tem acesso).
-            </p>
-          </div>
-          <SettingsForm
-            boardId={params.id}
-            members={members}
-            allStaff={[...members, ...nonMembers]}
-          />
         </section>
       </div>
     </AppLayout>

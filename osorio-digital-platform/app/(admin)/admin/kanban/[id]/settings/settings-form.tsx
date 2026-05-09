@@ -1,123 +1,139 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { UserPlus, UserMinus } from 'lucide-react'
-import { addBoardMemberAction, removeBoardMemberAction } from './actions'
+import { useState } from 'react'
+import { useFormState } from 'react-dom'
+import { Check, CheckCircle2, AlertCircle } from 'lucide-react'
+import { updateBoardSettingsAction } from './actions'
+import { cn } from '@/lib/utils'
 
-type Member = { id: string; full_name: string | null; email: string; role: string }
+type Member     = { id: string; full_name: string | null; email: string; role: string }
+type ClientItem = { id: string; name: string }
 
 interface Props {
-  boardId:   string
-  members:   Member[]
-  allStaff:  Member[]
+  boardId:       string
+  boardName:     string
+  clientId:      string | null
+  currentMemberIds: string[]
+  allStaff:      Member[]
+  clients:       ClientItem[]
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  admin:           'Admin',
-  traffic_manager: 'Tráfego',
-  social_media:    'Social Media',
+  admin: 'Admin', traffic_manager: 'Tráfego', social_media: 'Social Media',
 }
 
-export function SettingsForm({ boardId, members, allStaff }: Props) {
-  const [memberList, setMemberList]   = useState<Member[]>(members)
-  const [error, setError]             = useState('')
-  const [, startT]                    = useTransition()
+export function SettingsForm({
+  boardId, boardName, clientId, currentMemberIds, allStaff, clients,
+}: Props) {
+  const [members, setMembers] = useState<Set<string>>(new Set(currentMemberIds))
+  const [state, action]       = useFormState<{ error?: string; success?: boolean }, FormData>(
+    updateBoardSettingsAction,
+    {},
+  )
 
-  const memberIds = new Set(memberList.map((m) => m.id))
-  const nonMembers = allStaff.filter((s) => !memberIds.has(s.id))
-
-  function handleAdd(staff: Member) {
-    setError('')
-    setMemberList((prev) => [...prev, staff])
-    startT(async () => {
-      const res = await addBoardMemberAction(boardId, staff.id)
-      if (res.error) {
-        setMemberList((prev) => prev.filter((m) => m.id !== staff.id))
-        setError(res.error)
-      }
-    })
-  }
-
-  function handleRemove(staffId: string) {
-    setError('')
-    setMemberList((prev) => prev.filter((m) => m.id !== staffId))
-    startT(async () => {
-      const res = await removeBoardMemberAction(boardId, staffId)
-      if (res.error) setError(res.error)
+  function toggleMember(id: string) {
+    setMembers((p) => {
+      const next = new Set(p)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
     })
   }
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
-          {error}
+    <form action={action} className="space-y-8">
+      <input type="hidden" name="board_id" value={boardId} />
+      {/* Pass selected members as hidden inputs */}
+      {Array.from(members).map((id) => (
+        <input key={id} type="hidden" name="member_ids" value={id} />
+      ))}
+
+      {/* Feedback */}
+      {state.error && (
+        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {state.error}
+        </div>
+      )}
+      {state.success && (
+        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl px-4 py-3 text-sm">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Configurações salvas com sucesso.
         </div>
       )}
 
-      {/* Current members */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider text-xs">
-          Membros ({memberList.length})
-        </h3>
-        {memberList.length === 0 ? (
-          <p className="text-white/30 text-sm italic">Nenhum membro adicionado.</p>
-        ) : (
-          <div className="space-y-2">
-            {memberList.map((m) => (
-              <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/8">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#EACE00]/20 flex items-center justify-center text-[#EACE00] text-xs font-black">
-                    {(m.full_name ?? m.email)[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{m.full_name ?? m.email}</p>
-                    <p className="text-xs text-white/40">{ROLE_LABELS[m.role] ?? m.role}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleRemove(m.id)}
-                  className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                  title="Remover membro"
-                >
-                  <UserMinus className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Nome */}
+      <div>
+        <label className="text-xs text-white/50 mb-1.5 block">Nome do Quadro *</label>
+        <input
+          name="name"
+          required
+          defaultValue={boardName}
+          className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] placeholder:text-white/20"
+        />
       </div>
 
-      {/* Add members */}
-      {nonMembers.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider text-xs">
-            Adicionar membro
-          </h3>
-          <div className="space-y-2">
-            {nonMembers.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/40 text-xs font-black">
-                    {(s.full_name ?? s.email)[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white/70">{s.full_name ?? s.email}</p>
-                    <p className="text-xs text-white/30">{ROLE_LABELS[s.role] ?? s.role}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleAdd(s)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#EACE00]/30 text-[#EACE00] text-xs hover:bg-[#EACE00]/10 transition-colors"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Adicionar
-                </button>
-              </div>
+      {/* Cliente */}
+      {clients.length > 0 && (
+        <div>
+          <label className="text-xs text-white/50 mb-1.5 block">Cliente vinculado</label>
+          <select
+            name="client_id"
+            defaultValue={clientId ?? ''}
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] [color-scheme:dark]"
+          >
+            <option value="">Nenhum cliente</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
-    </div>
+
+      {/* Membros */}
+      <div>
+        <p className="text-xs text-white/50 mb-3">
+          Membros — {members.size} selecionado{members.size !== 1 ? 's' : ''}
+        </p>
+        <div className="space-y-1.5">
+          {allStaff.map((s) => {
+            const isSelected = members.has(s.id)
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => toggleMember(s.id)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors text-left',
+                  isSelected
+                    ? 'bg-[#EACE00]/8 border-[#EACE00]/30'
+                    : 'bg-[#0a0a0a] border-[#222] hover:border-[#333]',
+                )}
+              >
+                <div className={cn(
+                  'w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors',
+                  isSelected ? 'bg-[#EACE00] border-[#EACE00]' : 'border-[#444]',
+                )}>
+                  {isSelected && <Check className="h-3 w-3 text-black" />}
+                </div>
+                <div className="w-8 h-8 rounded-full bg-[#EACE00]/20 flex items-center justify-center text-[#EACE00] text-xs font-black shrink-0">
+                  {((s.full_name ?? s.email)[0] ?? '?').toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">{s.full_name ?? s.email}</p>
+                  <p className="text-xs text-white/30">{ROLE_LABELS[s.role] ?? s.role}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className="w-full py-2.5 rounded-xl bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors"
+      >
+        Salvar alterações
+      </button>
+    </form>
   )
 }

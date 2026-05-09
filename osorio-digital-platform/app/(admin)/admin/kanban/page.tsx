@@ -3,9 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, LayoutList } from 'lucide-react'
+import { Plus, LayoutList, Shield } from 'lucide-react'
 
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
+
+const BOARD_SELECT = 'id, name, description, color, columns, created_at, kanban_cards(count)'
 
 export default async function AdminKanbanPage() {
   const supabase      = await createClient()
@@ -20,33 +22,24 @@ export default async function AdminKanbanPage() {
 
   const isAdmin = profile?.role === 'admin'
 
-  const BOARD_SELECT = 'id, name, description, color, columns, created_at, kanban_cards(count)'
+  // Boards where the user is a member
+  const { data: memberships } = await adminSupabase
+    .from('kanban_board_members')
+    .select('board_id')
+    .eq('profile_id', user.id)
+  const memberBoardIds = (memberships ?? []).map((m: { board_id: string }) => m.board_id)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let boards: any[] = []
-  if (isAdmin) {
-    const { data } = await adminSupabase
-      .from('kanban_boards')
-      .select(BOARD_SELECT)
-      .eq('board_type', 'agency')
-      .order('created_at', { ascending: false })
-    boards = data ?? []
-  } else {
-    const { data: memberships } = await adminSupabase
-      .from('kanban_board_members')
-      .select('board_id')
-      .eq('profile_id', user.id)
-    const boardIds = (memberships ?? []).map((m: { board_id: string }) => m.board_id)
-    if (boardIds.length > 0) {
-      const { data } = await adminSupabase
-        .from('kanban_boards')
-        .select(BOARD_SELECT)
-        .eq('board_type', 'agency')
-        .in('id', boardIds)
-        .order('created_at', { ascending: false })
-      boards = data ?? []
-    }
-  }
+  // Same rule for all roles: created_by OR member
+  const orFilter = memberBoardIds.length > 0
+    ? `created_by.eq.${user.id},id.in.(${memberBoardIds.join(',')})`
+    : `created_by.eq.${user.id}`
+
+  const { data: boards } = await adminSupabase
+    .from('kanban_boards')
+    .select(BOARD_SELECT)
+    .eq('board_type', 'agency')
+    .or(orFilter)
+    .order('created_at', { ascending: false })
 
   return (
     <AppLayout pageTitle="Kanban">
@@ -56,10 +49,18 @@ export default async function AdminKanbanPage() {
             <h1 className="text-xl font-bold text-white">Quadros da Agência</h1>
             <p className="text-white/40 text-sm mt-0.5">Organize o trabalho em quadros personalizados</p>
           </div>
-          <Link href="/admin/kanban/new"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors">
-            <Plus className="h-4 w-4" />Novo Quadro
-          </Link>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Link href="/admin/kanban/all"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#333] text-white/50 text-sm hover:text-white hover:border-[#555] transition-colors">
+                <Shield className="h-4 w-4" />Ver todos
+              </Link>
+            )}
+            <Link href="/admin/kanban/new"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors">
+              <Plus className="h-4 w-4" />Novo Quadro
+            </Link>
+          </div>
         </div>
 
         {(!boards || boards.length === 0) ? (
@@ -74,7 +75,7 @@ export default async function AdminKanbanPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {boards.map((board) => {
+            {(boards ?? []).map((board) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const cardCount = (board.kanban_cards as any)?.[0]?.count ?? 0
               const cols      = Array.isArray(board.columns) ? board.columns as { id: string; color: string }[] : []

@@ -7,6 +7,8 @@ import { Plus, LayoutList } from 'lucide-react'
 
 const ALLOWED = ['admin', 'social_media']
 
+const BOARD_SELECT = 'id, name, description, color, columns, created_at, kanban_cards(count)'
+
 export default async function SocialKanbanPage() {
   const supabase      = await createClient()
   const adminSupabase = createAdminClient()
@@ -18,35 +20,25 @@ export default async function SocialKanbanPage() {
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/social/dashboard')
 
-  const isAdmin = profile?.role === 'admin'
+  // Boards where the user is a member
+  const { data: memberships } = await adminSupabase
+    .from('kanban_board_members')
+    .select('board_id')
+    .eq('profile_id', user.id)
+  const memberBoardIds = (memberships ?? []).map((m: { board_id: string }) => m.board_id)
 
-  const BOARD_SELECT = 'id, name, description, color, columns, created_at, kanban_cards(count)'
+  // Boards the user created OR is a member of (all roles — same visibility rule)
+  const query = adminSupabase
+    .from('kanban_boards')
+    .select(BOARD_SELECT)
+    .eq('board_type', 'content')
+    .order('created_at', { ascending: false })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let boards: any[] = []
-  if (isAdmin) {
-    const { data } = await adminSupabase
-      .from('kanban_boards')
-      .select(BOARD_SELECT)
-      .eq('board_type', 'content')
-      .order('created_at', { ascending: false })
-    boards = data ?? []
-  } else {
-    const { data: memberships } = await adminSupabase
-      .from('kanban_board_members')
-      .select('board_id')
-      .eq('profile_id', user.id)
-    const boardIds = (memberships ?? []).map((m: { board_id: string }) => m.board_id)
-    if (boardIds.length > 0) {
-      const { data } = await adminSupabase
-        .from('kanban_boards')
-        .select(BOARD_SELECT)
-        .eq('board_type', 'content')
-        .in('id', boardIds)
-        .order('created_at', { ascending: false })
-      boards = data ?? []
-    }
-  }
+  const orFilter = memberBoardIds.length > 0
+    ? `created_by.eq.${user.id},id.in.(${memberBoardIds.join(',')})`
+    : `created_by.eq.${user.id}`
+
+  const { data: boards } = await query.or(orFilter)
 
   return (
     <AppLayout pageTitle="Kanban de Conteúdo">
@@ -74,7 +66,7 @@ export default async function SocialKanbanPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {boards.map((board) => {
+            {(boards ?? []).map((board) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const cardCount = (board.kanban_cards as any)?.[0]?.count ?? 0
               const cols      = Array.isArray(board.columns) ? board.columns as { id: string; color: string }[] : []

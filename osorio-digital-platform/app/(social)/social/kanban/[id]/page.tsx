@@ -17,16 +17,22 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/social/dashboard')
 
-  // Non-admins can only access boards they're members of
-  if (profile?.role !== 'admin') {
-    const { data: membership } = await adminSupabase
+  // Access: must be a member OR the board creator
+  const [{ data: membership }, { data: boardOwner }] = await Promise.all([
+    adminSupabase
       .from('kanban_board_members')
       .select('board_id')
       .eq('board_id', params.id)
       .eq('profile_id', user.id)
-      .maybeSingle()
-    if (!membership) redirect('/social/kanban')
-  }
+      .maybeSingle(),
+    adminSupabase
+      .from('kanban_boards')
+      .select('created_by')
+      .eq('id', params.id)
+      .maybeSingle(),
+  ])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!membership && (boardOwner as any)?.created_by !== user.id) redirect('/social/kanban')
 
   const [
     { data: board },

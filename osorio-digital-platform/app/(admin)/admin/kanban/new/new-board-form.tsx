@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useFormState } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createBoardAction, type FormState } from '../actions'
-import { Plus, X, GripVertical } from 'lucide-react'
+import { Plus, X, GripVertical, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const COLORS = ['#EACE00', '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
 
@@ -15,36 +16,53 @@ const DEFAULT_COLUMNS = [
   { id: 'done',        label: 'Concluído',    color: '#22c55e' },
 ]
 
-type Column = { id: string; label: string; color: string }
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin', social_media: 'Social Media', traffic_manager: 'Tráfego',
+}
+
+type Column      = { id: string; label: string; color: string }
+type ClientItem  = { id: string; name: string }
+type StaffMember = { id: string; full_name: string | null; email: string; role: string }
+
+interface Props {
+  clients:       ClientItem[]
+  staff:         StaffMember[]
+  currentUserId: string
+}
 
 const INIT: FormState = {}
 
-export function NewBoardForm() {
+const INPUT_CLS = 'w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] placeholder:text-white/20'
+
+export function NewBoardForm({ clients, staff, currentUserId }: Props) {
   const router = useRouter()
   const [state, dispatch] = useFormState(createBoardAction, INIT)
-  const [color, setColor]     = useState(COLORS[0])
+  const [color,   setColor]   = useState(COLORS[0])
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS)
+  const [members, setMembers] = useState<Set<string>>(new Set([currentUserId]))
 
   function addColumn() {
-    setColumns((prev) => [...prev, { id: `col_${Date.now()}`, label: 'Nova Coluna', color: '#555555' }])
+    setColumns((p) => [...p, { id: `col_${Date.now()}`, label: 'Nova Coluna', color: '#555555' }])
   }
-
-  function removeColumn(id: string) {
-    setColumns((prev) => prev.filter((c) => c.id !== id))
-  }
-
-  function updateLabel(id: string, label: string) {
-    setColumns((prev) => prev.map((c) => c.id === id ? { ...c, label } : c))
-  }
-
-  function updateColColor(id: string, val: string) {
-    setColumns((prev) => prev.map((c) => c.id === id ? { ...c, color: val } : c))
+  function removeColumn(id: string)                { setColumns((p) => p.filter((c) => c.id !== id)) }
+  function updateLabel(id: string, label: string)  { setColumns((p) => p.map((c) => c.id === id ? { ...c, label } : c)) }
+  function updateColColor(id: string, val: string) { setColumns((p) => p.map((c) => c.id === id ? { ...c, color: val } : c)) }
+  function toggleMember(id: string) {
+    setMembers((p) => {
+      const next = new Set(p)
+      if (id === currentUserId) return next  // cannot remove self
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
   }
 
   return (
-    <form action={dispatch} className="space-y-6">
-      <input type="hidden" name="color" value={color} />
+    <form action={dispatch} className="space-y-7">
+      <input type="hidden" name="color"        value={color} />
       <input type="hidden" name="columns_json" value={JSON.stringify(columns)} />
+      {Array.from(members).map((id) => (
+        <input key={id} type="hidden" name="member_ids" value={id} />
+      ))}
 
       {state.message && (
         <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -56,7 +74,7 @@ export function NewBoardForm() {
       <div>
         <label className="text-xs text-white/50 mb-1.5 block">Nome do Quadro *</label>
         <input name="name" required placeholder="Ex: Projetos — Junho"
-          className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] placeholder:text-white/20" />
+          className={INPUT_CLS} />
         {state.errors?.name && <p className="text-red-400 text-xs mt-1">{state.errors.name[0]}</p>}
       </div>
 
@@ -64,8 +82,22 @@ export function NewBoardForm() {
       <div>
         <label className="text-xs text-white/50 mb-1.5 block">Descrição (opcional)</label>
         <textarea name="description" rows={2} placeholder="Sobre o que é este quadro?"
-          className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] resize-none placeholder:text-white/20" />
+          className={cn(INPUT_CLS, 'resize-none')} />
       </div>
+
+      {/* Cliente vinculado */}
+      {clients.length > 0 && (
+        <div>
+          <label className="text-xs text-white/50 mb-1.5 block">Vincular cliente (opcional)</label>
+          <select name="client_id"
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#EACE00] [color-scheme:dark]">
+            <option value="">Nenhum cliente</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Cor */}
       <div>
@@ -78,6 +110,46 @@ export function NewBoardForm() {
           ))}
         </div>
       </div>
+
+      {/* Membros */}
+      {staff.length > 0 && (
+        <div>
+          <label className="text-xs text-white/50 mb-2 block">Membros</label>
+          <div className="space-y-1.5">
+            {staff.map((s) => {
+              const isSelf     = s.id === currentUserId
+              const isSelected = members.has(s.id)
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleMember(s.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors text-left',
+                    isSelected
+                      ? 'bg-[#EACE00]/8 border-[#EACE00]/30'
+                      : 'bg-[#0a0a0a] border-[#222] hover:border-[#333]',
+                  )}
+                >
+                  <div className={cn(
+                    'w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors',
+                    isSelected ? 'bg-[#EACE00] border-[#EACE00]' : 'border-[#444]',
+                  )}>
+                    {isSelected && <Check className="h-3 w-3 text-black" />}
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-[#EACE00]/20 flex items-center justify-center text-[#EACE00] text-[10px] font-black shrink-0">
+                    {((s.full_name ?? s.email)[0] ?? '?').toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white truncate">{s.full_name ?? s.email}</p>
+                    <p className="text-[10px] text-white/30">{ROLE_LABELS[s.role] ?? s.role}{isSelf ? ' · você' : ''}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Colunas */}
       <div>
@@ -93,17 +165,11 @@ export function NewBoardForm() {
             <div key={col.id}
               className="flex items-center gap-2 bg-[#0a0a0a] border border-[#222] rounded-xl px-3 py-2">
               <GripVertical className="h-4 w-4 text-white/20 shrink-0" />
-              <input
-                type="color"
-                value={col.color}
+              <input type="color" value={col.color}
                 onChange={(e) => updateColColor(col.id, e.target.value)}
-                className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0 shrink-0"
-              />
-              <input
-                value={col.label}
-                onChange={(e) => updateLabel(col.id, e.target.value)}
-                className="flex-1 bg-transparent text-sm text-white focus:outline-none"
-              />
+                className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0 shrink-0" />
+              <input value={col.label} onChange={(e) => updateLabel(col.id, e.target.value)}
+                className="flex-1 bg-transparent text-sm text-white focus:outline-none" />
               {columns.length > 1 && (
                 <button type="button" onClick={() => removeColumn(col.id)}
                   className="text-white/20 hover:text-red-400 transition-colors shrink-0">

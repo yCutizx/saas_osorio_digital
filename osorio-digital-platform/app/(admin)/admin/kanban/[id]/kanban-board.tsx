@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCorners, type DragStartEvent, type DragEndEvent, useDroppable,
@@ -15,6 +15,7 @@ import {
   createCardAction, updateCardAction, deleteCard, moveCard,
   updateBoardColumnsAction, type FormState,
 } from '../actions'
+import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import { CardDrawer } from './card-drawer'
 import {
   Plus, X, GripVertical, Trash2, Calendar, Tag,
@@ -482,6 +483,46 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
   // Sync when server re-renders after revalidatePath
   useEffect(() => { setCards(initialCards) }, [initialCards])
   useEffect(() => { setColumns(board.columns) }, [board.columns])
+
+  // Realtime: sync card changes from other users
+  const boardId = board.id
+  const router  = useRouter()
+  const handleRealtimeCard = useCallback((payload: { eventType: string; old: { id?: string }; new: { id?: string; column_id?: string; position?: number; archived?: boolean } }) => {
+    if (payload.eventType === 'DELETE') {
+      setCards((prev) => prev.filter((c) => c.id !== payload.old.id))
+    } else if (payload.eventType === 'UPDATE') {
+      const updated = payload.new
+      if (updated.archived) {
+        setCards((prev) => prev.filter((c) => c.id !== updated.id))
+      } else if (updated.column_id !== undefined) {
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === updated.id
+              ? { ...c, column_id: updated.column_id!, position: updated.position ?? c.position }
+              : c,
+          ),
+        )
+      } else {
+        router.refresh()
+      }
+    } else if (payload.eventType === 'INSERT') {
+      router.refresh()
+    }
+  }, [router])
+
+  useEffect(() => {
+    const supabase = createBrowserClient()
+    const channel  = supabase
+      .channel(`admin-board-${boardId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kanban_cards', filter: `board_id=eq.${boardId}` },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => handleRealtimeCard(payload),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [boardId, handleRealtimeCard])
 
   const sensors    = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const activeCard = cards.find((c) => c.id === activeId) ?? null

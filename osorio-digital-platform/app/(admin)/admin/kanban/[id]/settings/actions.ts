@@ -14,7 +14,6 @@ export async function addBoardMemberAction(boardId: string, profileId: string): 
   if (profile?.role !== 'admin') return { error: 'Sem permissão' }
 
   const admin = createAdminClient()
-
   const { error } = await admin
     .from('kanban_board_members')
     .insert({ board_id: boardId, profile_id: profileId })
@@ -46,7 +45,6 @@ export async function removeBoardMemberAction(boardId: string, profileId: string
   if (profile?.role !== 'admin') return { error: 'Sem permissão' }
 
   const admin = createAdminClient()
-
   await admin
     .from('kanban_board_members')
     .delete()
@@ -55,4 +53,47 @@ export async function removeBoardMemberAction(boardId: string, profileId: string
 
   revalidatePath(`/admin/kanban/${boardId}/settings`)
   return {}
+}
+
+export async function updateBoardSettingsAction(
+  _prev: { error?: string; success?: boolean },
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return { error: 'Sem permissão' }
+
+  const boardId   = formData.get('board_id') as string | null
+  const name      = (formData.get('name') as string | null)?.trim()
+  const clientId  = (formData.get('client_id') as string | null) || null
+  const memberIds = (formData.getAll('member_ids') as string[]).filter(Boolean)
+
+  if (!boardId || !name || name.length < 1) return { error: 'Nome obrigatório.' }
+
+  const admin = createAdminClient()
+
+  // Update board name and client
+  const { error: updateErr } = await admin.from('kanban_boards').update({
+    name,
+    client_id: clientId,
+  }).eq('id', boardId)
+
+  if (updateErr) return { error: updateErr.message }
+
+  // Replace all members: delete existing, insert new
+  await admin.from('kanban_board_members').delete().eq('board_id', boardId)
+
+  if (memberIds.length > 0) {
+    await admin.from('kanban_board_members').insert(
+      memberIds.map((pid) => ({ board_id: boardId, profile_id: pid })),
+    )
+  }
+
+  revalidatePath(`/admin/kanban/${boardId}/settings`)
+  revalidatePath(`/admin/kanban/${boardId}`)
+  revalidatePath('/admin/kanban')
+  return { success: true }
 }

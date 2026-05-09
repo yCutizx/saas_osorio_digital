@@ -50,6 +50,7 @@ const BoardSchema = z.object({
   description:  z.string().optional(),
   color:        z.string().min(1),
   columns_json: z.string().min(1),
+  client_id:    z.string().uuid().optional().or(z.literal('')),
 })
 
 export async function createBoardAction(
@@ -64,6 +65,7 @@ export async function createBoardAction(
     description:  (formData.get('description') as string) || undefined,
     color:        formData.get('color'),
     columns_json: formData.get('columns_json'),
+    client_id:    (formData.get('client_id') as string) || '',
   })
   if (!result.success) return { errors: result.error.flatten().fieldErrors as FormState['errors'] }
 
@@ -76,10 +78,21 @@ export async function createBoardAction(
     color:       result.data.color,
     board_type:  'content',
     columns,
+    client_id:   result.data.client_id || null,
     created_by:  ctx.user.id,
   }).select('id').single()
 
   if (error) return { message: error.message }
+
+  // Add selected members + creator to kanban_board_members
+  const memberIds = (formData.getAll('member_ids') as string[]).filter(Boolean)
+  const allMembers = Array.from(new Set([...memberIds, ctx.user.id]))
+  if (allMembers.length > 0) {
+    await ctx.admin.from('kanban_board_members').upsert(
+      allMembers.map((profileId) => ({ board_id: data.id, profile_id: profileId })),
+      { onConflict: 'board_id,profile_id', ignoreDuplicates: true },
+    )
+  }
 
   revalidatePath('/social/kanban')
   redirect(`/social/kanban/${data.id}`)

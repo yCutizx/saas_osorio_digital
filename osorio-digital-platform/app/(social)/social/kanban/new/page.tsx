@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { NewBoardForm } from './new-board-form'
@@ -8,12 +9,22 @@ const ALLOWED = ['admin', 'social_media']
 
 export default async function NewSocialBoardPage() {
   const supabase = await createClient()
+  const admin    = createAdminClient()
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
   if (!ALLOWED.includes(profile?.role ?? '')) redirect('/social/kanban')
+
+  const [{ data: clients }, { data: staff }] = await Promise.all([
+    admin.from('clients').select('id, name').eq('active', true).order('name'),
+    admin.from('profiles').select('id, full_name, email, role')
+      .in('role', ['admin', 'social_media'])
+      .eq('active', true)
+      .order('full_name'),
+  ])
 
   return (
     <AppLayout pageTitle="Novo Quadro">
@@ -27,7 +38,7 @@ export default async function NewSocialBoardPage() {
           <h1 className="text-xl font-bold text-white">Criar Novo Quadro</h1>
           <p className="text-white/40 text-sm mt-0.5">Configure o quadro e defina as colunas de conteúdo</p>
         </div>
-        <NewBoardForm />
+        <NewBoardForm clients={clients ?? []} staff={staff ?? []} currentUserId={user.id} />
       </div>
     </AppLayout>
   )
