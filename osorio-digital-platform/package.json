@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "security-check": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

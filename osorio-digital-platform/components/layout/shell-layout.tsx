@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Sidebar } from './sidebar'
-import { Header } from './header'
-import { type UserRole } from '@/types'
+import { Sidebar }         from './sidebar'
+import { Header }          from './header'
+import { SessionTimeout }  from './session-timeout'
+import { type UserRole }   from '@/types'
 
 interface ShellLayoutProps {
   children:    React.ReactNode
@@ -60,6 +61,7 @@ export function ShellLayout({
         </main>
       </div>
 
+      <SessionTimeout />
     </div>
   )
 }
