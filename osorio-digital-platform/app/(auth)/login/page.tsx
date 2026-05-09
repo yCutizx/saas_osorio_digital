@@ -22,11 +22,12 @@ export default function LoginPage() {
         {[1, 2, 3].map((n) => (
           <div
             key={n}
-            className="absolute inset-0 bg-cover bg-center grayscale"
+            className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage:   `url(/images/login-bg-${n}.jpg)`,
-              animation:         'loginBgSlide 15s linear infinite',
-              animationDelay:    `${(n - 1) * 5}s`,
+              backgroundImage: `url(/images/login-bg-${n}.jpg)`,
+              opacity:         0,
+              filter:          'grayscale(100%)',
+              animation:       `loginBgSlide 15s linear ${(n - 1) * 5}s infinite both`,
             }}
           />
         ))}

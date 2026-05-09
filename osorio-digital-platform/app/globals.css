@@ -11,10 +11,11 @@
 
 /* ── Login page animations ──────────────────────────────────────────────── */
 @keyframes loginBgSlide {
-  0%, 100% { opacity: 0 }
-  7%        { opacity: 0.18 }
-  33%       { opacity: 0.18 }
-  40%       { opacity: 0 }
+  0%   { opacity: 0;    filter: grayscale(100%) }
+  8%   { opacity: 0.15; filter: grayscale(100%) }
+  33%  { opacity: 0.15; filter: grayscale(100%) }
+  41%  { opacity: 0;    filter: grayscale(100%) }
+  100% { opacity: 0;    filter: grayscale(100%) }
 }
 
 @keyframes loginGridPulse {
