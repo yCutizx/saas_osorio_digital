@@ -11,13 +11,11 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-[#0A0A0A] flex overflow-hidden">
+    <main className="min-h-screen bg-[#0A0A0A] flex flex-col lg:flex-row overflow-hidden">
 
-      {/* ── Lado esquerdo — showcase ──────────────────────────────────── */}
-      <div
-        className="hidden lg:block lg:w-1/2 relative overflow-hidden"
-        style={{ animation: 'loginSlideLeft 0.6s ease-out both' }}
-      >
+      {/* ── Hero — showcase (topo no mobile, esquerda no desktop) ──────── */}
+      <div className="login-hero-anim relative w-full h-[50vh] lg:h-screen lg:w-1/2 overflow-hidden shrink-0">
+
         {/* Slideshow — 3 fotos em loop com crossfade */}
         {[1, 2, 3].map((n) => (
           <div
@@ -75,16 +73,8 @@ export default function LoginPage() {
         <LeftPanel />
       </div>
 
-      {/* ── Lado direito — formulário ─────────────────────────────────── */}
-      <div
-        className="flex-1 flex flex-col items-center justify-center bg-[#0A0A0A] lg:border-l lg:border-[#181818] px-6 py-12 relative overflow-hidden"
-        style={{ animation: 'loginSlideRight 0.6s ease-out 0.2s both' }}
-      >
-        {/* Mobile: foto de fundo com opacidade 10% */}
-        <div
-          className="lg:hidden absolute inset-0 bg-cover bg-center grayscale opacity-10 pointer-events-none"
-          style={{ backgroundImage: 'url(/images/login-bg-1.jpg)' }}
-        />
+      {/* ── Formulário ────────────────────────────────────────────────── */}
+      <div className="login-form-anim flex-1 flex flex-col items-center justify-center bg-[#0A0A0A] lg:border-l lg:border-[#181818] px-6 py-10 lg:py-12 relative overflow-hidden">
 
         {/* Glow amarelo difuso */}
         <div className="absolute top-[-80px] right-[-80px] w-[420px] h-[420px] bg-[#EACE00]/6 blur-[130px] pointer-events-none rounded-full" />
@@ -92,8 +82,8 @@ export default function LoginPage() {
 
         <div className="relative w-full max-w-[400px] space-y-8 z-10">
 
-          {/* Logo mark + título */}
-          <div className="flex flex-col items-center gap-4">
+          {/* Logo — apenas no desktop (no mobile já aparece no hero) */}
+          <div className="hidden lg:flex flex-col items-center gap-4">
             <div className="relative">
               <img
                 src="/images/logo.png"
@@ -106,6 +96,12 @@ export default function LoginPage() {
               <h2 className="text-2xl font-black text-white tracking-tight">Bem-vindo de volta</h2>
               <p className="text-sm text-[#666] mt-1.5">Entre com suas credenciais para continuar</p>
             </div>
+          </div>
+
+          {/* Título — apenas no mobile (no desktop fica dentro do bloco da logo acima) */}
+          <div className="lg:hidden text-center">
+            <h2 className="text-2xl font-black text-white tracking-tight">Bem-vindo de volta</h2>
+            <p className="text-sm text-[#666] mt-1.5">Entre com suas credenciais para continuar</p>
           </div>
 
           {/* Formulário */}
