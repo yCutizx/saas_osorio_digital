@@ -21,16 +21,6 @@ import Link from 'next/link'
 
 type Stage = { id: string; name: string; order: number; color: string }
 type Member = { id: string; full_name: string; role: string }
-type Activity = {
-  id: string
-  lead_id: string
-  user_id: string
-  type: string
-  description: string
-  scheduled_at: string | null
-  done: boolean
-  created_at: string
-}
 
 interface PipelineBoardProps {
   stages: Stage[]
