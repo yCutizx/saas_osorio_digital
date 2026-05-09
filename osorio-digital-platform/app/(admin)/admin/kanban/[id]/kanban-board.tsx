@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
+import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCorners, type DragStartEvent, type DragEndEvent, useDroppable,
@@ -528,6 +529,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
   const activeCard = cards.find((c) => c.id === activeId) ?? null
   const activeCol  = columns.find((c) => c.id === activeId) ?? null
   const isContent  = board.board_type === 'content'
+  const { containerRef, grabbing, stop, scrollHandlers } = useDragToScroll()
 
   function cardsForCol(colId: string) {
     return cards.filter((c) => {
@@ -539,6 +541,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
   }
 
   function onDragStart({ active }: DragStartEvent) {
+    stop()
     const type = active.data.current?.type as 'card' | 'column' | undefined
     setDragType(type ?? 'card')
     setActiveId(active.id as string)
@@ -674,7 +677,12 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
       </div>
 
       {/* Board */}
-      <div className="overflow-x-auto pb-4">
+      <div
+        ref={containerRef}
+        {...scrollHandlers}
+        className="overflow-x-auto pb-4 scrollbar-hide"
+        style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
+      >
         <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>

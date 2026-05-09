@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   DndContext,
   DragOverlay,
@@ -207,12 +208,14 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
   )
 
   const overdueSet = new Set(overdueLeadIds)
+  const { containerRef, grabbing, stop, scrollHandlers } = useDragToScroll()
 
   function getLeadsForStage(stageName: string) {
     return localLeads.filter((l) => l.stage === stageName)
   }
 
   function handleDragStart(event: DragStartEvent) {
+    stop()
     const lead = localLeads.find((l) => l.id === event.active.id)
     setActiveLead(lead ?? null)
   }
@@ -289,8 +292,14 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
       </div>
 
       {/* Board */}
+      <div
+        ref={containerRef}
+        {...scrollHandlers}
+        className="overflow-x-auto pb-4 scrollbar-hide"
+        style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
+      >
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 min-w-max">
           {stages.sort((a, b) => a.order - b.order).map((stageItem) => {
             const stageLeads = getLeadsForStage(stageItem.name)
             return (
@@ -350,6 +359,7 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
           )}
         </DragOverlay>
       </DndContext>
+      </div>
 
       {/* Lead Modal */}
       {selectedLead && (

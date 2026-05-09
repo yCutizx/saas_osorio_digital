@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Oculta scrollbar nativa nos containers de kanban */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

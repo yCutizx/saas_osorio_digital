@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
+import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   Building2, Calendar, Film, Globe, Tag, User, Plus, X, Loader2, MessageSquare,
 } from 'lucide-react'
@@ -273,6 +274,7 @@ export function ClientKanbanBoard({ boardName, columns, cards: initialCards, cur
   const [createColId, setCreateColId] = useState<string | null>(null)
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null)
   const router = useRouter()
+  const { containerRef, grabbing, scrollHandlers } = useDragToScroll()
 
   useEffect(() => { setCards(initialCards) }, [initialCards])
 
@@ -306,7 +308,12 @@ export function ClientKanbanBoard({ boardName, columns, cards: initialCards, cur
     <div className="flex flex-col gap-4">
       <h1 className="text-white text-lg font-bold">{boardName}</h1>
 
-      <div className="overflow-x-auto pb-4">
+      <div
+        ref={containerRef}
+        {...scrollHandlers}
+        className="overflow-x-auto pb-4 scrollbar-hide"
+        style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
+      >
         <div className="flex gap-4 min-w-max items-start">
           {columns.map((col) => {
             const colCards = cardsForCol(col.id)
