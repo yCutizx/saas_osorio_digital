@@ -18,7 +18,7 @@ import type { ResultItem }   from '../traffic-hero-card'
 import { TrafficCharts }     from '../traffic-charts'
 import { formatCurrency }    from '@/lib/utils'
 import type { DailyPoint, CampaignRow } from '../traffic-charts'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
