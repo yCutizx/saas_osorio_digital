@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList, GitMerge,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -29,6 +29,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
     { label: 'Kanban',     href: '/admin/kanban',         icon: LayoutList },
+    { label: 'Pipeline',   href: '/admin/pipeline',       icon: GitMerge },
   ],
   traffic_manager: [
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
@@ -43,12 +44,14 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Insights',   href: '/admin/insights',    icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',    icon: FileSearch },
     { label: 'Kanban',     href: '/social/kanban',     icon: LayoutList },
+    { label: 'Pipeline',   href: '/social/pipeline',   icon: GitMerge },
   ],
 }
 
 const CLIENT_NAV: NavItem[] = [
   { label: 'Meu Painel', href: '/client/home',     icon: LayoutDashboard },
   { label: 'Quadros',    href: '/client/kanban',   icon: LayoutList },
+  { label: 'Projetos',   href: '/client/pipeline', icon: GitMerge },
   { label: 'Anúncios',   href: '/client/ads',      icon: BarChart2 },
   { label: 'Calendário', href: '/client/calendar', icon: Calendar },
   { label: 'Insights',   href: '/client/insights', icon: Lightbulb },
