@@ -6,6 +6,8 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -195,6 +197,23 @@ function SortableLeadCard({ lead, isOverdue, onClick }: { lead: Lead; isOverdue:
   )
 }
 
+function DroppableColumn({ stage, children }: { stage: Stage; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: stage.name,
+    data: { type: 'column', stageName: stage.name },
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-none w-72 flex flex-col bg-[#0A0A0A] border rounded-2xl overflow-hidden transition-colors ${
+        isOver ? 'border-[#EACE00]/50' : 'border-[#1a1a1a]'
+      }`}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboardHref }: PipelineBoardProps) {
   const [, startTransition] = useTransition()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
@@ -298,16 +317,12 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
         className="overflow-x-auto pb-4 scrollbar-hide"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 min-w-max">
           {stages.sort((a, b) => a.order - b.order).map((stageItem) => {
             const stageLeads = getLeadsForStage(stageItem.name)
             return (
-              <div
-                key={stageItem.id}
-                id={stageItem.name}
-                className="flex-none w-72 flex flex-col bg-[#0A0A0A] border border-[#1a1a1a] rounded-2xl overflow-hidden"
-              >
+              <DroppableColumn key={stageItem.id} stage={stageItem}>
                 {/* Column header */}
                 <div className="flex items-center justify-between px-3 py-3 border-b border-[#1a1a1a]">
                   <div className="flex items-center gap-2">
@@ -346,7 +361,7 @@ export function PipelineBoard({ stages, leads, members, overdueLeadIds, dashboar
                     )}
                   </div>
                 </SortableContext>
-              </div>
+              </DroppableColumn>
             )
           })}
         </div>

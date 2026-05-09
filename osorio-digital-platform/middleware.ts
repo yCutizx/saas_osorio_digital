@@ -30,7 +30,8 @@ function applyCors(response: NextResponse, origin: string) {
 }
 
 export async function middleware(request: NextRequest) {
-  const { pathname, method } = request.nextUrl
+  const { pathname } = request.nextUrl
+  const method = request.method
   const requestId = crypto.randomUUID()
   const origin    = request.headers.get('origin') ?? ''
   const isApi     = pathname.startsWith('/api/')

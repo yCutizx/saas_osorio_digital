@@ -10,7 +10,10 @@ export function useDragToScroll() {
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
     const el = e.target as HTMLElement
-    if (el.closest('button, a, input, textarea, select')) return
+    if (
+      el.closest('button, a, input, textarea, select, [data-no-scroll-drag]') ||
+      el.closest('[aria-roledescription="sortable"]')
+    ) return
     isScrolling.current   = true
     setGrabbing(true)
     startX.current        = e.clientX

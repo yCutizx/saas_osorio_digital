@@ -5,7 +5,7 @@ const SENSITIVE = new Set([
 
 function isSensitive(key: string) {
   const lower = key.toLowerCase()
-  return SENSITIVE.has(lower) || [...SENSITIVE].some((s) => lower.includes(s))
+  return SENSITIVE.has(lower) || Array.from(SENSITIVE).some((s) => lower.includes(s))
 }
 
 function sanitize(value: unknown, depth = 0): unknown {
