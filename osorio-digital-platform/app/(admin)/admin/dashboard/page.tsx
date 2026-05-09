@@ -5,8 +5,9 @@ import {
   Building2, FileCheck2, Clock, Users,
   ArrowRight, ArrowUpRight, ArrowDownRight, UserPlus,
   TrendingUp, Calendar, Lightbulb, Activity, MessageSquare,
+  AlertTriangle, BellDot,
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import dynamic from 'next/dynamic'
 import type { ChartDay } from './dashboard-chart'
@@ -47,6 +48,9 @@ export default async function AdminDashboardPage() {
   const startLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const thirtyDaysAgo  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   const sixtyDaysAgo   = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+  const twoDaysAgo     = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+  const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+  const todayEnd       = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
   const dow       = now.getDay()
   const weekStart = new Date(now)
@@ -66,6 +70,8 @@ export default async function AdminDashboardPage() {
     { count: pendingCount },
     { data: weekPostsRaw },
     { data: commentsRaw },
+    { data: stalePendingRaw },
+    { data: todayUnpublishedRaw },
   ] = await Promise.all([
     admin.from('clients').select('*', { count: 'exact', head: true }).eq('active', true),
     admin.from('clients').select('*', { count: 'exact', head: true }).gte('created_at', startThisMonth.toISOString()),
@@ -95,12 +101,28 @@ export default async function AdminDashboardPage() {
       .select('id, content, created_at, user_id, profiles(full_name)')
       .order('created_at', { ascending: false })
       .limit(10),
+    admin.from('content_posts')
+      .select('id, title, client_id, updated_at, clients(name)')
+      .eq('status', 'pending_approval')
+      .lt('updated_at', twoDaysAgo.toISOString())
+      .order('updated_at', { ascending: true })
+      .limit(10),
+    admin.from('content_posts')
+      .select('id, title, client_id, scheduled_at, clients(name)')
+      .neq('status', 'published')
+      .not('scheduled_at', 'is', null)
+      .gte('scheduled_at', todayStart.toISOString())
+      .lte('scheduled_at', todayEnd.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(10),
   ])
 
-  const posts    = posts60      ?? []
-  const weekPosts = weekPostsRaw ?? []
-  const comments  = commentsRaw  ?? []
-  const clients5  = recentClients ?? []
+  const posts           = posts60             ?? []
+  const weekPosts       = weekPostsRaw        ?? []
+  const comments        = commentsRaw         ?? []
+  const clients5        = recentClients       ?? []
+  const stalePending    = stalePendingRaw     ?? []
+  const todayUnpublished = todayUnpublishedRaw ?? []
 
   // ── Published metrics ──────────────────────────────────────────────
   const publishedThisMonth = posts.filter(
@@ -433,6 +455,70 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* ── 6. Alertas ───────────────────────────────────────────── */}
+        {(stalePending.length > 0 || todayUnpublished.length > 0) && (
+          <div className="bg-[#111] border border-[#222] rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-[#1a1a1a]">
+              <BellDot className="h-3.5 w-3.5 text-yellow-400" />
+              <h2 className="text-xs font-bold text-white/40 uppercase tracking-wider">Alertas</h2>
+              <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">
+                {stalePending.length + todayUnpublished.length}
+              </span>
+            </div>
+            <div className="divide-y divide-[#1a1a1a]">
+              {stalePending.map((post) => (
+                <div key={post.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-yellow-500/10 shrink-0">
+                      <Clock className="h-3.5 w-3.5 text-yellow-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-white/70">Aprovação pendente há mais de 2 dias</p>
+                      <p className="text-[11px] text-white/35 truncate">
+                        &quot;{post.title}&quot;
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {(post.clients as any)?.name ? ` · ${(post.clients as any).name}` : ''}
+                        {' · '}
+                        {formatDistanceToNow(new Date(post.updated_at), { locale: ptBR, addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/social/dashboard"
+                    className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg border border-yellow-500/25 text-yellow-400 hover:bg-yellow-500/10 transition-colors whitespace-nowrap"
+                  >
+                    Ver →
+                  </Link>
+                </div>
+              ))}
+              {todayUnpublished.map((post) => (
+                <div key={post.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-red-500/10 shrink-0">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-white/70">Agendado para hoje — não publicado</p>
+                      <p className="text-[11px] text-white/35 truncate">
+                        &quot;{post.title}&quot;
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {(post.clients as any)?.name ? ` · ${(post.clients as any).name}` : ''}
+                        {post.scheduled_at ? ` · às ${format(parseISO(post.scheduled_at), 'HH:mm')}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/social/dashboard"
+                    className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg border border-red-500/25 text-red-400 hover:bg-red-500/10 transition-colors whitespace-nowrap"
+                  >
+                    Ver →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── 4 + 5. Week calendar + Quick actions ─────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
