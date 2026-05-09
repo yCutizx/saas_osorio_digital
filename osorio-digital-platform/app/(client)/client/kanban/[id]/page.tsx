@@ -15,23 +15,25 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     .from('profiles').select('role, full_name').eq('id', user.id).single()
   if (profile?.role !== 'client') redirect('/client/home')
 
-  // Verify the client has access to this board
-  const { data: membership } = await adminSupabase
-    .from('kanban_board_members')
-    .select('board_id')
-    .eq('board_id', params.id)
-    .eq('profile_id', user.id)
-    .single()
-
-  if (!membership) notFound()
-
-  const { data: board } = await adminSupabase
-    .from('kanban_boards')
-    .select('id, name, color, board_type, columns')
-    .eq('id', params.id)
-    .single()
+  const [{ data: membership }, { data: board }] = await Promise.all([
+    adminSupabase
+      .from('kanban_board_members')
+      .select('board_id')
+      .eq('board_id', params.id)
+      .eq('profile_id', user.id)
+      .maybeSingle(),
+    adminSupabase
+      .from('kanban_boards')
+      .select('id, name, color, board_type, columns, created_by')
+      .eq('id', params.id)
+      .maybeSingle(),
+  ])
 
   if (!board) notFound()
+
+  // Access: must be a member OR the board creator
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!membership && (board as any).created_by !== user.id) notFound()
 
   const cardSelect = 'id, column_id, title, description, priority, tags, format, platform, due_date, clients(name), profiles(full_name)'
 
@@ -110,10 +112,13 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     const { data: p } = await sb.from('profiles').select('role').eq('id', u.id).single()
     if (p?.role !== 'client') return false
     const admin = createAdminClient()
-    // Verify card belongs to a board the client has access to
-    const { data: membership } = await admin.from('kanban_board_members')
-      .select('board_id').eq('board_id', params.id).eq('profile_id', u.id).single()
-    if (!membership) return false
+    // Verify the client has access to this board (member or creator)
+    const [{ data: mem }, { data: brd }] = await Promise.all([
+      admin.from('kanban_board_members').select('board_id').eq('board_id', params.id).eq('profile_id', u.id).maybeSingle(),
+      admin.from('kanban_boards').select('created_by').eq('id', params.id).maybeSingle(),
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!mem && (brd as any)?.created_by !== u.id) return false
     const { error } = await admin.from('kanban_cards').update({
       title:       title.trim(),
       description: description.trim() || null,
