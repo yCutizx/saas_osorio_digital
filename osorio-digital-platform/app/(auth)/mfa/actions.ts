@@ -108,6 +108,14 @@ export async function activateMfa(code: string): Promise<{
     throw new Error('MFA ativado, mas houve um problema ao gerar os códigos de backup.')
   }
 
+  // User just proved they have the authenticator — mark session as verified
+  cookies().set('mfa_verified', user.id, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path:     '/',
+    secure:   process.env.NODE_ENV === 'production',
+  })
+
   logger.info('mfa/activate: MFA ativado com sucesso', { userId: user.id })
   return { success: true, backupCodes }
 }

@@ -18,7 +18,6 @@ export function VerifyForm() {
     start(async () => {
       try {
         await verifyMfaLogin(code, trustDevice)
-        router.refresh()
         router.push('/')
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : 'Código inválido')
