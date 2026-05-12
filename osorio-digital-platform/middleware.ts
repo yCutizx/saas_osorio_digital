@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { updateSession }  from '@/lib/supabase/middleware'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const ALLOWED_ORIGINS = [
   'https://app.osoriodigital.com.br',
@@ -57,15 +58,73 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Supabase session refresh ─────────────────────────────────────────────────
-  // Skip for API routes using Bearer auth (server-to-server webhooks)
   const hasBearerAuth = request.headers.get('authorization')?.startsWith('Bearer ')
   let response: NextResponse
+  let sessionUser: { id: string } | null = null
 
   if (isApi && hasBearerAuth) {
     response = NextResponse.next({ request })
   } else {
-    const { supabaseResponse } = await updateSession(request)
-    response = supabaseResponse
+    const result = await updateSession(request)
+    response    = result.supabaseResponse
+    sessionUser = result.user
+  }
+
+  // ── MFA enforcement (authenticated, non-API, non-MFA, non-auth routes) ───────
+  const isMfaRoute  = pathname.startsWith('/mfa/')
+  const isAuthRoute = pathname === '/login' || pathname.startsWith('/reset-password') || pathname === '/'
+  const shouldCheck = sessionUser && !isApi && !isMfaRoute && !isAuthRoute
+
+  if (shouldCheck) {
+    const mfaVerified   = request.cookies.get('mfa_verified')?.value
+    const alreadyPassed = mfaVerified === sessionUser!.id
+
+    if (!alreadyPassed) {
+      // Check trusted device before DB lookup for MFA status
+      const deviceToken = request.cookies.get('trusted_device')?.value
+      let trustedDevice = false
+
+      if (deviceToken) {
+        try {
+          const admin = createAdminClient()
+          const { data: device } = await admin
+            .from('trusted_devices')
+            .select('id')
+            .eq('user_id', sessionUser!.id)
+            .eq('device_token', deviceToken)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle()
+          trustedDevice = !!device
+        } catch { /* ignore — fail open for device check, MFA check handles it */ }
+      }
+
+      if (trustedDevice) {
+        // Stamp the mfa_verified cookie so future requests skip the DB
+        response.cookies.set('mfa_verified', sessionUser!.id, {
+          httpOnly: true,
+          sameSite: 'lax',
+          path:     '/',
+          secure:   process.env.NODE_ENV === 'production',
+        })
+      } else {
+        // Check if MFA is enabled
+        try {
+          const admin = createAdminClient()
+          const { data: mfa } = await admin
+            .from('user_mfa')
+            .select('enabled')
+            .eq('user_id', sessionUser!.id)
+            .maybeSingle()
+
+          const redirectTo = !mfa?.enabled ? '/mfa/setup' : '/mfa/verify'
+          const redirectUrl = request.nextUrl.clone()
+          redirectUrl.pathname = redirectTo
+          const redirectResponse = NextResponse.redirect(redirectUrl)
+          applySecurity(redirectResponse, requestId)
+          return redirectResponse
+        } catch { /* fail open — don't block if DB is unreachable */ }
+      }
+    }
   }
 
   // ── Security headers on all responses ────────────────────────────────────────

@@ -5,6 +5,7 @@ import { redirect }       from 'next/navigation'
 import { headers }        from 'next/headers'
 import { createClient }   from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { cookies }        from 'next/headers'
 
 const ROLE_REDIRECTS: Record<string, string> = {
   admin:           '/admin/dashboard',
@@ -74,8 +75,48 @@ export async function login(formData: FormData) {
     .eq('id', user!.id)
     .single()
 
+  // Check MFA status — redirect if setup required or verification needed
+  const admin2 = createAdminClient()
+  const { data: mfa } = await admin2
+    .from('user_mfa')
+    .select('enabled')
+    .eq('user_id', user!.id)
+    .maybeSingle()
+
+  if (!mfa?.enabled) {
+    revalidatePath('/', 'layout')
+    redirect('/mfa/setup')
+  }
+
+  // Clear stale mfa_verified so middleware re-checks
+  cookies().delete('mfa_verified')
+
+  // Check trusted device
+  const deviceToken = cookies().get('trusted_device')?.value
+  if (deviceToken) {
+    const { data: device } = await admin2
+      .from('trusted_devices')
+      .select('id')
+      .eq('user_id', user!.id)
+      .eq('device_token', deviceToken)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle()
+
+    if (device) {
+      // Device trusted — set mfa_verified and go to dashboard
+      cookies().set('mfa_verified', user!.id, {
+        httpOnly: true,
+        sameSite: 'lax',
+        path:     '/',
+        secure:   process.env.NODE_ENV === 'production',
+      })
+      revalidatePath('/', 'layout')
+      redirect(ROLE_REDIRECTS[profile?.role ?? ''] ?? '/login')
+    }
+  }
+
   revalidatePath('/', 'layout')
-  redirect(ROLE_REDIRECTS[profile?.role ?? ''] ?? '/login')
+  redirect('/mfa/verify')
 }
 
 export async function forgotPassword(formData: FormData) {
