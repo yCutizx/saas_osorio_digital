@@ -84,7 +84,7 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
       .order('created_at', { ascending: true })
 
     const statusCfg = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.draft
-    const platforms = (post.platform ?? '').split(',').filter(Boolean)
+    const platforms = (post.platforms as string[] | null) ?? []
     const backHref  = `/social/calendar/custom/${calendarId}`
 
     return (

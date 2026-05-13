@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 
 type Client = { id: string; name: string }
 type StaffMember = { id: string; full_name: string | null; email: string; role: string }
-type RawPost = { id: string; title: string; platform: string; status: string; scheduled_at: string | null }
+type RawPost = { id: string; title: string; platforms: string[]; status: string; scheduled_at: string | null }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; chip: string }> = {
   draft:            { label: 'Planejado',         dot: 'bg-[#555555]', chip: 'bg-white/8 text-white/40'               },
@@ -78,7 +78,7 @@ async function fetchCalendarData(clientId: string, month: string) {
 
   const { data: posts } = await supabase
     .from('content_posts')
-    .select('id, title, platform, status, scheduled_at')
+    .select('id, title, platforms, status, scheduled_at')
     .eq('client_id', clientId)
     .gte('scheduled_at', `${start}T00:00:00`)
     .lte('scheduled_at', `${end}T23:59:59`)
@@ -91,7 +91,7 @@ async function fetchCalendarData(clientId: string, month: string) {
     if (!postsByDate[dateKey]) postsByDate[dateKey] = []
     postsByDate[dateKey].push({
       id: post.id, title: post.title,
-      platform: post.platform,
+      platforms: post.platforms,
       status: post.status as CalendarPost['status'],
       scheduled_at: post.scheduled_at,
     })
@@ -230,7 +230,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
   // Distribuição por canal
   const channelCount: Record<string, number> = {}
   for (const post of posts) {
-    const platforms = (post.platform ?? '').split(',').filter(Boolean)
+    const platforms = post.platforms ?? []
     for (const p of platforms) channelCount[p] = (channelCount[p] ?? 0) + 1
   }
   const totalMentions = Object.values(channelCount).reduce((a, b) => a + b, 0) || 1
@@ -351,7 +351,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
                     const dateLabel = dateObj && isValid(dateObj)
                       ? format(dateObj, "d MMM", { locale: ptBR }).toUpperCase()
                       : '—'
-                    const platforms = (post.platform ?? '').split(',').filter(Boolean)
+                    const platforms = post.platforms ?? []
                     return (
                       <Link
                         key={post.id}

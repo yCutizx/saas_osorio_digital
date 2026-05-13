@@ -6,11 +6,8 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { ClientPlan } from '@/lib/client-plan'
+import { type Platform, PLATFORM_LABEL as PLATFORM_LABEL_TYPED } from '@/types'
 
-const PLATFORM_LABEL: Record<string, string> = {
-  instagram: 'Instagram', facebook: 'Facebook',
-  linkedin: 'LinkedIn', tiktok: 'TikTok', twitter: 'Twitter',
-}
 
 const PLAN_CONFIG: Record<string, { label: string; classes: string }> = {
   basico:  { label: 'Básico',  classes: 'bg-white/8 text-white/50 border border-white/10' },
@@ -87,7 +84,7 @@ async function fetchHomeData() {
   const [{ data: pendingPosts }, { count: pendingTotal }] = await Promise.all([
     supabase
       .from('content_posts')
-      .select('id, title, platform, scheduled_at')
+      .select('id, title, platforms, scheduled_at')
       .eq('client_id', clientId)
       .eq('status', 'pending_approval')
       .order('scheduled_at', { ascending: true })
@@ -228,7 +225,7 @@ export default async function ClientHomePage({ searchParams }: PageProps) {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white truncate">{post.title}</p>
                     <p className="text-xs text-white/40 mt-0.5">
-                      {PLATFORM_LABEL[post.platform] ?? post.platform}
+                      {((post as unknown as { platforms: string[] }).platforms ?? []).map(p => PLATFORM_LABEL_TYPED[p as Platform] ?? p).join(', ')}
                       {post.scheduled_at && (
                         ` · ${format(parseISO(post.scheduled_at), "d 'de' MMM", { locale: ptBR })}`
                       )}

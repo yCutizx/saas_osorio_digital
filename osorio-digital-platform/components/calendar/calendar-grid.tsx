@@ -10,13 +10,14 @@ import {
 import { ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PLATFORM_SHORT, type Platform } from '@/types'
 
 // ── Tipos exportados ──────────────────────────────────────────────────────────
 
 export type CalendarPost = {
   id:           string
   title:        string
-  platform:     string
+  platforms:    string[]
   status:       'draft' | 'pending_approval' | 'approved' | 'rejected' | 'published'
   scheduled_at: string
 }
@@ -42,9 +43,6 @@ export const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: s
   published:        { chip: 'bg-blue-500/20 text-blue-400 border border-blue-500/20',          dot: 'bg-[#3B82F6]',   label: 'Publicado'         },
 }
 
-const PLATFORM_SHORT: Record<string, string> = {
-  instagram: 'IG', facebook: 'FB', tiktok: 'TT', linkedin: 'LI', twitter: 'TW',
-}
 
 const DAY_NAMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
@@ -97,7 +95,7 @@ function PostModal({
           <div className="flex items-center gap-3">
             <span className="text-white/40 w-20 shrink-0">Plataforma</span>
             <span className="text-white/80">
-              {post.platform.split(',').map(p => PLATFORM_SHORT[p] ?? p).join(' · ')}
+              {post.platforms.map(p => PLATFORM_SHORT[p as Platform] ?? p).join(' · ')}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -146,7 +144,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
 
   function applyFilters(posts: CalendarPost[]): CalendarPost[] {
     return posts.filter(p =>
-      (!fPlat   || p.platform.split(',').includes(fPlat)) &&
+      (!fPlat   || p.platforms.includes(fPlat)) &&
       (!fStatus || p.status   === fStatus)
     )
   }
@@ -228,7 +226,7 @@ export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = 
               >
                 <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', cfg.dot)} />
                 <span className="font-bold shrink-0 opacity-60 text-[9px]">
-                  {post.platform.split(',').map(p => PLATFORM_SHORT[p] ?? '?').join('/')}
+                  {post.platforms.map(p => PLATFORM_SHORT[p as Platform] ?? '?').join('/')}
                 </span>
                 <span className="truncate">{post.title}</span>
               </button>

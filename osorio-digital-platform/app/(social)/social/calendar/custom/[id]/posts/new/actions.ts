@@ -10,7 +10,8 @@ const Schema = z.object({
   calendar_id:    z.string().uuid(),
   title:          z.string().min(2, 'Título deve ter pelo menos 2 caracteres'),
   caption:        z.string().optional(),
-  platform:       z.string().min(1, 'Selecione ao menos uma plataforma'),
+  platforms:      z.array(z.enum(['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter'] as const))
+                   .min(1, 'Selecione ao menos uma plataforma'),
   media_type:     z.enum(['image', 'video', 'carousel', 'reel', 'story'] as const).optional(),
   media_url:      z.string().url('URL inválida').optional().or(z.literal('')),
   scheduled_at:   z.string().min(1, 'Data de agendamento obrigatória'),
@@ -45,13 +46,13 @@ export async function createCustomPostAction(
     if (!membership) return { message: 'Acesso negado a este calendário.' }
   }
 
-  const platformValues = (formData.getAll('platform') as string[]).filter(Boolean).join(',')
+  const platforms = (formData.getAll('platform') as string[]).filter(Boolean)
 
   const result = Schema.safeParse({
     calendar_id:    calendarId,
     title:          formData.get('title'),
     caption:        formData.get('caption') || undefined,
-    platform:       platformValues,
+    platforms,
     media_type:     formData.get('media_type') || undefined,
     media_url:      formData.get('media_url') || undefined,
     scheduled_at:   formData.get('scheduled_at'),
@@ -74,7 +75,7 @@ export async function createCustomPostAction(
     author_id:      user.id,
     title:          d.title,
     caption:        d.caption ?? null,
-    platform:       d.platform,
+    platforms:      d.platforms,
     media_type:     d.media_type ?? null,
     media_url:      d.media_url || null,
     scheduled_at:   d.scheduled_at,

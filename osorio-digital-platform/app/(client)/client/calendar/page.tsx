@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 import { CalendarGrid, type CalendarPost, type PostsByDate } from '@/components/calendar/calendar-grid'
 import { cn } from '@/lib/utils'
 import { redirect } from 'next/navigation'
+import { type Platform } from '@/types'
 
 const STATUS_ITEMS = [
   { status: 'pending_approval', label: 'Aguardando aprovação', dot: 'bg-[#EACE00]',   icon: Clock },
@@ -60,14 +61,14 @@ async function fetchClientData(month: string) {
   const [{ data: posts }, { data: upcomingRaw }] = await Promise.all([
     supabase
       .from('content_posts')
-      .select('id, title, platform, status, scheduled_at')
+      .select('id, title, platforms, status, scheduled_at')
       .eq('client_id', clientId)
       .gte('scheduled_at', `${start}T00:00:00`)
       .lte('scheduled_at', `${end}T23:59:59`)
       .order('scheduled_at', { ascending: true }),
     supabase
       .from('content_posts')
-      .select('id, title, platform, status, scheduled_at')
+      .select('id, title, platforms, status, scheduled_at')
       .eq('client_id', clientId)
       .gte('scheduled_at', `${todayStr}T00:00:00`)
       .order('scheduled_at', { ascending: true })
@@ -82,7 +83,7 @@ async function fetchClientData(month: string) {
     if (!postsByDate[dateKey]) postsByDate[dateKey] = []
     postsByDate[dateKey].push({
       id: post.id, title: post.title,
-      platform: post.platform,
+      platforms: post.platforms,
       status: post.status as CalendarPost['status'],
       scheduled_at: post.scheduled_at,
     })
@@ -100,7 +101,7 @@ async function fetchClientData(month: string) {
   // Channel distribution
   const channelCounts: Record<string, number> = {}
   for (const post of allMonthPosts) {
-    const platforms = post.platform.split(',').filter(Boolean)
+    const platforms = post.platforms ?? []
     for (const p of platforms) channelCounts[p] = (channelCounts[p] ?? 0) + 1
   }
   const channelEntries = Object.entries(channelCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
@@ -150,7 +151,7 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-white truncate">{post.title}</p>
                     <p className="text-xs text-[#888] mt-0.5">
-                      {PLATFORM_LABEL[post.platform] ?? post.platform}
+                      {(post.platforms as string[] ?? []).map((p: string) => PLATFORM_LABEL[p as Platform] ?? p).join(', ')}
                       {post.scheduled_at && ` · ${new Date(post.scheduled_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'short' })}`}
                     </p>
                   </div>

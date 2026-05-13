@@ -53,7 +53,7 @@ export default async function CustomCalendarPage({ params, searchParams }: PageP
 
   const { data: posts } = await admin
     .from('custom_calendar_posts')
-    .select('id, title, platform, status, scheduled_at')
+    .select('id, title, platforms, status, scheduled_at')
     .eq('calendar_id', calendarId)
     .gte('scheduled_at', `${start}T00:00:00`)
     .lte('scheduled_at', `${end}T23:59:59`)
@@ -67,7 +67,7 @@ export default async function CustomCalendarPage({ params, searchParams }: PageP
     postsByDate[dateKey].push({
       id:           post.id,
       title:        post.title,
-      platform:     post.platform,
+      platforms:    post.platforms as string[],
       status:       post.status as CalendarPost['status'],
       scheduled_at: post.scheduled_at,
     })

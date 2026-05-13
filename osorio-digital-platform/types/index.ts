@@ -1,5 +1,25 @@
 export type UserRole = 'admin' | 'traffic_manager' | 'social_media' | 'client'
 
+export type Platform = 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'twitter'
+
+export const ALL_PLATFORMS: Platform[] = ['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter']
+
+export const PLATFORM_LABEL: Record<Platform, string> = {
+  instagram: 'Instagram',
+  facebook:  'Facebook',
+  linkedin:  'LinkedIn',
+  tiktok:    'TikTok',
+  twitter:   'Twitter',
+}
+
+export const PLATFORM_SHORT: Record<Platform, string> = {
+  instagram: 'IG',
+  facebook:  'FB',
+  linkedin:  'LI',
+  tiktok:    'TT',
+  twitter:   'TW',
+}
+
 export interface Profile {
   id: string
   email: string
@@ -53,7 +73,7 @@ export interface ContentPost {
   title: string
   caption: string | null
   media_url: string | null
-  platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'twitter'
+  platforms: Platform[]
   status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'published'
   scheduled_at: string | null
   published_at: string | null
