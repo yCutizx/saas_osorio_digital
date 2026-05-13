@@ -436,7 +436,12 @@ export function LeadModal({
                 </div>
               )}
 
-              {tab === 'history' && <LeadTimeline events={timeline} />}
+              {tab === 'history' && (
+                <LeadTimeline
+                  events={timeline}
+                  tagsById={Object.fromEntries(tags.map((t) => [t.id, { name: t.name, color: t.color }]))}
+                />
+              )}
             </div>
           </div>
 

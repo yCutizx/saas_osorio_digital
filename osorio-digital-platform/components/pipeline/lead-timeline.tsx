@@ -7,10 +7,11 @@ import {
   RotateCcw, Paperclip, Tag, MinusCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { LeadTimelineEvent, LeadTimelineEventType } from '@/types'
+import { translateFieldList, type LeadTimelineEvent, type LeadTimelineEventType } from '@/types'
 
 interface LeadTimelineProps {
   events: LeadTimelineEvent[]
+  tagsById?: Record<string, { name: string; color: string }>
 }
 
 const ICONS: Record<LeadTimelineEventType, React.ReactNode> = {
@@ -39,7 +40,10 @@ const COLORS: Record<LeadTimelineEventType, string> = {
   tag_removed:      'bg-white/5 text-[#888] border-white/10',
 }
 
-function describe(ev: LeadTimelineEvent): string {
+function describe(
+  ev: LeadTimelineEvent,
+  tagsById?: Record<string, { name: string; color: string }>,
+): string {
   const d = ev.event_data ?? {}
   switch (ev.event_type) {
     case 'created':
@@ -47,8 +51,8 @@ function describe(ev: LeadTimelineEvent): string {
     case 'stage_changed':
       return `moveu de "${String(d.from ?? '')}" para "${String(d.to ?? '')}"`
     case 'field_updated': {
-      const fields = Array.isArray(d.fields) ? d.fields.join(', ') : '—'
-      return `atualizou: ${fields}`
+      const fields = Array.isArray(d.fields) ? (d.fields as string[]) : []
+      return `atualizou: ${translateFieldList(fields)}`
     }
     case 'note_added':
       return 'adicionou uma nota'
@@ -63,16 +67,22 @@ function describe(ev: LeadTimelineEvent): string {
       return `reabriu o lead em "${String(d.to ?? '')}"`
     case 'attachment_added':
       return `anexou: ${String(d.file_name ?? 'arquivo')}`
-    case 'tag_added':
-      return `adicionou tag`
-    case 'tag_removed':
-      return `removeu tag`
+    case 'tag_added': {
+      const tagId = typeof d.tag_id === 'string' ? d.tag_id : null
+      const tag = tagId ? tagsById?.[tagId] : null
+      return tag ? `adicionou tag: ${tag.name}` : 'adicionou tag'
+    }
+    case 'tag_removed': {
+      const tagId = typeof d.tag_id === 'string' ? d.tag_id : null
+      const tag = tagId ? tagsById?.[tagId] : null
+      return tag ? `removeu tag: ${tag.name}` : 'removeu tag'
+    }
     default:
       return ev.event_type
   }
 }
 
-export function LeadTimeline({ events }: LeadTimelineProps) {
+export function LeadTimeline({ events, tagsById }: LeadTimelineProps) {
   if (events.length === 0) {
     return <p className="text-[#555] text-sm text-center py-8">Sem eventos ainda.</p>
   }
@@ -93,7 +103,7 @@ export function LeadTimeline({ events }: LeadTimelineProps) {
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white/80 leading-tight">
                 <span className="font-medium text-white">{author}</span>{' '}
-                <span className="text-[#888]">{describe(ev)}</span>
+                <span className="text-[#888]">{describe(ev, tagsById)}</span>
               </p>
               <p className="text-[10px] text-[#555] mt-0.5">{when}</p>
             </div>

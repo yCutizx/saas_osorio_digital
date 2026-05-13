@@ -181,6 +181,32 @@ export interface PipelineActivity {
   created_at: string
 }
 
+export const LEAD_FIELD_LABELS: Record<string, string> = {
+  name:                'nome',
+  company:             'empresa',
+  role:                'cargo',
+  email:               'email',
+  phone:               'telefone',
+  whatsapp:            'WhatsApp',
+  source:              'origem',
+  estimated_value:     'valor estimado',
+  expected_close_date: 'data prevista de fechamento',
+  probability:         'probabilidade',
+  notes:               'notas',
+  responsible_id:      'responsável',
+  stage:               'etapa',
+  lost_reason:         'motivo de perda',
+  lost_reason_other:   'detalhe do motivo',
+}
+
+/**
+ * Traduz lista de field names internos pra labels PT-BR.
+ * Campos desconhecidos passam direto (fallback).
+ */
+export function translateFieldList(fields: string[]): string {
+  return fields.map((f) => LEAD_FIELD_LABELS[f] ?? f).join(', ')
+}
+
 export const LEAD_LOST_REASONS = [
   'Sem orçamento',
   'Concorrente fechou',

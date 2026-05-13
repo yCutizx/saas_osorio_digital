@@ -45,11 +45,19 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
   return (
     <div
       onClick={onClick}
-      className="relative bg-[#111] border border-[#222] rounded-xl p-3 hover:border-[#333] cursor-pointer transition-all group"
+      className={cn(
+        'relative bg-[#111] rounded-xl p-3 cursor-pointer transition-all group border',
+        isOverdue
+          ? 'border-red-500/50 hover:border-red-500/70 ring-1 ring-red-500/20'
+          : 'border-[#222] hover:border-[#333]',
+      )}
     >
       {isOverdue && (
-        <span className="absolute top-2 right-2" title="Atividade atrasada">
-          <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+        <span
+          className="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center justify-center h-5 w-5 rounded-full bg-red-500 ring-2 ring-[#0A0A0A] shadow-lg"
+          title="Atividade atrasada"
+        >
+          <AlertCircle className="h-3 w-3 text-white" />
         </span>
       )}
 
