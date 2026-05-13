@@ -7,17 +7,20 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList, GitMerge,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList, GitMerge, Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
 
 interface NavItem {
   label: string
   href:  string
   icon:  React.ComponentType<{ className?: string }>
 }
+
+const SETTINGS_ITEM: NavItem = { label: 'Configurações', href: '/settings/profile', icon: Settings }
 
 const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
   admin: [
@@ -31,6 +34,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
     { label: 'Kanban',     href: '/admin/kanban',         icon: LayoutList },
     { label: 'Pipeline',   href: '/admin/pipeline',       icon: GitMerge },
+    SETTINGS_ITEM,
   ],
   traffic_manager: [
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
@@ -38,6 +42,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
     { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
+    SETTINGS_ITEM,
   ],
   social_media: [
     { label: 'Calendário', href: '/social/dashboard',  icon: Calendar },
@@ -46,6 +51,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Pesquisas',  href: '/admin/research',    icon: FileSearch },
     { label: 'Kanban',     href: '/social/kanban',     icon: LayoutList },
     { label: 'Pipeline',   href: '/social/pipeline',   icon: GitMerge },
+    SETTINGS_ITEM,
   ],
 }
 
@@ -57,6 +63,7 @@ const CLIENT_NAV: NavItem[] = [
   { label: 'Calendário', href: '/client/calendar', icon: Calendar },
   { label: 'Insights',   href: '/client/insights', icon: Lightbulb },
   { label: 'Pesquisas',  href: '/client/research', icon: FileSearch },
+  SETTINGS_ITEM,
 ]
 
 const CLIENT_NAV_COUNT: Record<string, number> = {
@@ -67,13 +74,14 @@ const CLIENT_NAV_COUNT: Record<string, number> = {
 
 interface SidebarProps {
   role:        UserRole
+  userId:      string
   userName:    string
   userEmail:   string
   clientPlan?: string | null
   onClose?:    () => void
 }
 
-export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: SidebarProps) {
+export function Sidebar({ role, userId, userName, userEmail, clientPlan, onClose }: SidebarProps) {
   const pathname  = usePathname()
   const router    = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -82,12 +90,9 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
     ? CLIENT_NAV.slice(0, CLIENT_NAV_COUNT[clientPlan ?? 'basico'] ?? 1)
     : (NAV_BY_ROLE[role as Exclude<UserRole, 'client'>] ?? [])
 
-  const initials = userName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
+  const initials = getInitials(userName)
+  const gradient = getAvatarGradient(userId)
+  const textColor = getAvatarTextColor(gradient)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -109,10 +114,10 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
         collapsed ? 'px-3 justify-center' : 'px-4'
       )}>
         {collapsed
-          ? <Image src="/images/logo.png" alt="Osorio Digital" width={160} height={40} className="h-10 w-auto" />
+          ? <Image src="/images/logo.png" alt="Osório Digital" width={160} height={160} className="h-10 w-10 object-contain shrink-0" priority />
           : (
             <>
-              <Image src="/images/logo.png" alt="Osorio Digital" width={160} height={40} className="h-10 w-auto flex-1" />
+              <Image src="/images/logo.png" alt="Osório Digital" width={160} height={160} className="h-10 w-10 object-contain shrink-0" priority />
               {onClose && (
                 <button
                   onClick={onClose}
@@ -157,7 +162,7 @@ export function Sidebar({ role, userName, userEmail, clientPlan, onClose }: Side
       <div className="shrink-0 border-t border-[#1a1a1a] p-3 space-y-1">
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#111] border border-[#222] mb-1">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#f5d800] to-[#EACE00] flex items-center justify-center text-black font-black text-[11px] ring-2 ring-[#EACE00]/25 shrink-0">
+            <div className={`h-7 w-7 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center ${textColor} font-black text-[11px] ring-2 ring-[#EACE00]/25 shrink-0`}>
               {initials}
             </div>
             <div className="min-w-0">

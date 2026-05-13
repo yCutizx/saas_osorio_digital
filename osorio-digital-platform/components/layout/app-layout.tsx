@@ -36,6 +36,7 @@ export async function AppLayout({ children, pageTitle }: AppLayoutProps) {
 
   return (
     <ShellLayout
+      userId={user.id}
       role={profile.role as UserRole}
       userName={profile.full_name ?? profile.email}
       userEmail={profile.email}

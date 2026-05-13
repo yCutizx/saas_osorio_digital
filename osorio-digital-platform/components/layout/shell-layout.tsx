@@ -8,6 +8,7 @@ import { type UserRole }   from '@/types'
 
 interface ShellLayoutProps {
   children:    React.ReactNode
+  userId:      string
   role:        UserRole
   userName:    string
   userEmail:   string
@@ -17,7 +18,7 @@ interface ShellLayoutProps {
 }
 
 export function ShellLayout({
-  children, role, userName, userEmail, avatarUrl, pageTitle, clientPlan,
+  children, userId, role, userName, userEmail, avatarUrl, pageTitle, clientPlan,
 }: ShellLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -26,7 +27,7 @@ export function ShellLayout({
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex shrink-0">
-        <Sidebar role={role} userName={userName} userEmail={userEmail} clientPlan={clientPlan} />
+        <Sidebar role={role} userId={userId} userName={userName} userEmail={userEmail} clientPlan={clientPlan} />
       </div>
 
       {/* Mobile sidebar — overlay */}
@@ -39,6 +40,7 @@ export function ShellLayout({
           <div className="relative z-10 shrink-0">
             <Sidebar
               role={role}
+              userId={userId}
               userName={userName}
               userEmail={userEmail}
               clientPlan={clientPlan}
@@ -50,7 +52,9 @@ export function ShellLayout({
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
+          userId={userId}
           userName={userName}
+          userEmail={userEmail}
           userRole={role}
           avatarUrl={avatarUrl}
           pageTitle={pageTitle}
