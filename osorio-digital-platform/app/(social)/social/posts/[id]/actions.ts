@@ -17,7 +17,8 @@ export async function changeStatusAction(postId: string, status: string) {
     return { error: 'Acesso negado.' }
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('content_posts')
     .update({ status })
     .eq('id', postId)
@@ -26,7 +27,11 @@ export async function changeStatusAction(postId: string, status: string) {
 
   revalidatePath(`/social/posts/${postId}`)
   revalidatePath('/social/dashboard')
+  revalidatePath('/social/calendar')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/calendar')
   revalidatePath('/client/calendar')
+  revalidatePath('/client/home')
   return { ok: true }
 }
 
@@ -55,12 +60,21 @@ export async function addCommentAction(
   // Se for aprovação ou reprovação, atualizar status do post
   if (type === 'approval' || type === 'rejection') {
     const newStatus = type === 'approval' ? 'approved' : 'rejected'
-    await supabase.from('content_posts').update({ status: newStatus }).eq('id', postId)
+    const admin = createAdminClient()
+    const { error: statusErr } = await admin
+      .from('content_posts')
+      .update({ status: newStatus })
+      .eq('id', postId)
+    if (statusErr) return { error: 'Erro ao atualizar status do post.' }
   }
 
   revalidatePath(`/social/posts/${postId}`)
   revalidatePath('/social/dashboard')
+  revalidatePath('/social/calendar')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/calendar')
   revalidatePath('/client/calendar')
+  revalidatePath('/client/home')
   return { ok: true }
 }
 
