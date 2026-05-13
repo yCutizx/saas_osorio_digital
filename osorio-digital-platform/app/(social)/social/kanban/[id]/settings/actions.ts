@@ -5,15 +5,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { createNotification } from '@/lib/notifications'
 
+const ALLOWED = ['admin', 'social_media', 'traffic_manager']
+
 export async function addBoardMemberAction(boardId: string, profileId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'social_media', 'traffic_manager'].includes(profile?.role ?? '')) {
-    return { error: 'Sem permissão' }
-  }
+  if (!ALLOWED.includes(profile?.role ?? '')) return { error: 'Sem permissão' }
 
   const admin = createAdminClient()
   const { error } = await admin
@@ -31,10 +31,10 @@ export async function addBoardMemberAction(boardId: string, profileId: string): 
     type: 'kanban_member_added',
     title: 'Adicionado a um quadro',
     message: `Você foi adicionado ao quadro "${board?.name ?? 'Kanban'}"`,
-    link: `/admin/kanban/${boardId}`,
+    link: `/social/kanban/${boardId}`,
   })
 
-  revalidatePath(`/admin/kanban/${boardId}/settings`)
+  revalidatePath(`/social/kanban/${boardId}/settings`)
   return {}
 }
 
@@ -44,9 +44,7 @@ export async function removeBoardMemberAction(boardId: string, profileId: string
   if (!user) return { error: 'Não autenticado' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'social_media', 'traffic_manager'].includes(profile?.role ?? '')) {
-    return { error: 'Sem permissão' }
-  }
+  if (!ALLOWED.includes(profile?.role ?? '')) return { error: 'Sem permissão' }
 
   const admin = createAdminClient()
   await admin
@@ -55,7 +53,7 @@ export async function removeBoardMemberAction(boardId: string, profileId: string
     .eq('board_id', boardId)
     .eq('profile_id', profileId)
 
-  revalidatePath(`/admin/kanban/${boardId}/settings`)
+  revalidatePath(`/social/kanban/${boardId}/settings`)
   return {}
 }
 
@@ -68,9 +66,7 @@ export async function updateBoardSettingsAction(
   if (!user) return { error: 'Não autenticado' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'social_media', 'traffic_manager'].includes(profile?.role ?? '')) {
-    return { error: 'Sem permissão' }
-  }
+  if (!ALLOWED.includes(profile?.role ?? '')) return { error: 'Sem permissão' }
 
   const boardId   = formData.get('board_id') as string | null
   const name      = (formData.get('name') as string | null)?.trim()
@@ -81,7 +77,6 @@ export async function updateBoardSettingsAction(
 
   const admin = createAdminClient()
 
-  // Update board name and client
   const { error: updateErr } = await admin.from('kanban_boards').update({
     name,
     client_id: clientId,
@@ -89,7 +84,6 @@ export async function updateBoardSettingsAction(
 
   if (updateErr) return { error: updateErr.message }
 
-  // Replace all members: delete existing, insert new
   await admin.from('kanban_board_members').delete().eq('board_id', boardId)
 
   if (memberIds.length > 0) {
@@ -98,8 +92,8 @@ export async function updateBoardSettingsAction(
     )
   }
 
-  revalidatePath(`/admin/kanban/${boardId}/settings`)
-  revalidatePath(`/admin/kanban/${boardId}`)
-  revalidatePath('/admin/kanban')
+  revalidatePath(`/social/kanban/${boardId}/settings`)
+  revalidatePath(`/social/kanban/${boardId}`)
+  revalidatePath('/social/kanban')
   return { success: true }
 }

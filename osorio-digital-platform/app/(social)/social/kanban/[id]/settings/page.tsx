@@ -8,7 +8,7 @@ import { SettingsForm } from './settings-form'
 
 const ALLOWED_ROLES = ['admin', 'social_media', 'traffic_manager']
 
-export default async function BoardSettingsPage({ params }: { params: { id: string } }) {
+export default async function SocialBoardSettingsPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
   const adminSupabase = createAdminClient()
 
@@ -18,7 +18,7 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
   if (!profile?.role || !ALLOWED_ROLES.includes(profile.role)) {
-    redirect('/admin/kanban')
+    redirect('/social/kanban')
   }
 
   const [
@@ -64,7 +64,7 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
   const isMember  = !!membership
 
   if (!isAdmin && !isCreator && !isMember) {
-    redirect('/admin/kanban')
+    redirect('/social/kanban')
   }
 
   const currentMemberIds = (memberships ?? []).map((m) => m.profile_id)
@@ -72,19 +72,17 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
   return (
     <AppLayout pageTitle="Configurações do Quadro">
       <div className="max-w-2xl space-y-10">
-        {/* Breadcrumb */}
         <div>
           <p className="text-xs text-white/30 mb-1">
-            <Link href="/admin/kanban" className="hover:text-white/60 transition-colors">Kanban</Link>
+            <Link href="/social/kanban" className="hover:text-white/60 transition-colors">Kanban</Link>
             <span className="mx-1.5">›</span>
-            <Link href={`/admin/kanban/${board.id}`} className="hover:text-white/60 transition-colors">{board.name}</Link>
+            <Link href={`/social/kanban/${board.id}`} className="hover:text-white/60 transition-colors">{board.name}</Link>
             <span className="mx-1.5">›</span>
             <span className="text-white/50">Configurações</span>
           </p>
           <h1 className="text-xl font-bold text-white">Configurações do Quadro</h1>
         </div>
 
-        {/* Unified settings: name + client + members */}
         <section>
           <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">
             Configurações Gerais
@@ -105,7 +103,6 @@ export default async function BoardSettingsPage({ params }: { params: { id: stri
 
         <div className="border-t border-[#222]" />
 
-        {/* Column / appearance editing */}
         <section>
           <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">
             Aparência e Colunas

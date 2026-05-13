@@ -57,12 +57,14 @@ interface KanbanCard {
 }
 
 interface Member { id: string; full_name: string | null; email: string; role?: string }
+interface BoardMember { id: string; full_name: string | null; email: string }
 interface Client { id: string; name: string }
 
 interface Props {
   board:        Board
   initialCards: KanbanCard[]
   members:      Member[]
+  boardMembers: BoardMember[]
   clients:      Client[]
   currentUserId: string
   userRole:     string
@@ -309,9 +311,9 @@ function AddColumnWidget({ onAdd }: { onAdd: (label: string) => void }) {
 
 const INIT: FormState = {}
 
-function CardModal({ mode, card, defaultColId, boardId, members, clients, isContent, isAdmin, onClose, onDelete }: {
+function CardModal({ mode, card, defaultColId, boardId, boardMembers, clients, isContent, isAdmin, onClose, onDelete }: {
   mode: 'create' | 'edit'; card?: KanbanCard; defaultColId: string; boardId: string
-  members: Member[]; clients: Client[]; isContent: boolean; isAdmin: boolean; onClose: () => void; onDelete?: () => void
+  boardMembers: BoardMember[]; clients: Client[]; isContent: boolean; isAdmin: boolean; onClose: () => void; onDelete?: () => void
 }) {
   const router = useRouter()
   const action = mode === 'create' ? createCardAction : updateCardAction
@@ -397,7 +399,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, isCont
               <select name="assigned_to" defaultValue={card?.assigned_to ?? ''}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
                 <option value="">— Nenhum —</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name ?? m.email}</option>)}
+                {boardMembers.map((m) => <option key={m.id} value={m.id}>{m.full_name ?? m.email}</option>)}
               </select>
             </div>
           </div>
@@ -465,7 +467,7 @@ function DeleteConfirm({ title, onConfirm, onClose }: { title: string; onConfirm
 
 // ─── Main board ───────────────────────────────────────────────────────────────
 
-export function KanbanBoard({ board, initialCards, members, clients, currentUserId, userRole }: Props) {
+export function KanbanBoard({ board, initialCards, members, boardMembers, clients, currentUserId, userRole }: Props) {
   const isAdmin = userRole === 'admin'
   const [cards, setCards]       = useState<KanbanCard[]>(initialCards)
   const [columns, setColumns]   = useState<Column[]>(board.columns)
@@ -625,6 +627,14 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
     setOpenCard(null)
   }
 
+  function handleAssigneeChange(assigneeId: string | null) {
+    if (!openCard) return
+    const assignee = assigneeId ? boardMembers.find((m) => m.id === assigneeId) : null
+    const profiles = assignee ? { full_name: assignee.full_name ?? assignee.email } : null
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, assigned_to: assigneeId, profiles } : c))
+    setOpenCard((prev) => prev ? { ...prev, assigned_to: assigneeId, profiles } : null)
+  }
+
   function handleCardDeleted() {
     if (!openCard && !deleteTarget) return
     const cardToDelete = openCard ?? (deleteTarget?.type === 'card' ? deleteTarget.card : null)
@@ -667,12 +677,10 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
               Limpar
             </button>
           )}
-          {isAdmin && (
-            <Link href={`/admin/kanban/${board.id}/settings`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
-              <Settings className="h-3.5 w-3.5" />Configurar
-            </Link>
-          )}
+          <Link href={`/admin/kanban/${board.id}/settings`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
+            <Settings className="h-3.5 w-3.5" />Configurações
+          </Link>
         </div>
       </div>
 
@@ -729,25 +737,27 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
           card={openCard}
           boardId={board.id}
           boardColumns={columns}
+          boardMembers={boardMembers}
           currentUserId={currentUserId}
           onClose={() => setOpenCard(null)}
           onDelete={() => setDeleteTarget({ type: 'card', card: openCard })}
           onMoved={handleCardMoved}
           onArchived={handleCardArchived}
+          onAssigneeChange={handleAssigneeChange}
         />
       )}
 
       {/* Create modal */}
       {createColId && !openCard && (
         <CardModal mode="create" defaultColId={createColId} boardId={board.id}
-          members={members} clients={clients} isContent={isContent} isAdmin={isAdmin}
+          boardMembers={boardMembers} clients={clients} isContent={isContent} isAdmin={isAdmin}
           onClose={() => setCreateColId(null)} />
       )}
 
       {/* Edit modal */}
       {editCard && (
         <CardModal mode="edit" card={editCard} defaultColId={editCard.column_id} boardId={board.id}
-          members={members} clients={clients} isContent={isContent} isAdmin={isAdmin}
+          boardMembers={boardMembers} clients={clients} isContent={isContent} isAdmin={isAdmin}
           onClose={() => setEditCard(null)}
           onDelete={() => { setDeleteTarget({ type: 'card', card: editCard }); setEditCard(null) }} />
       )}

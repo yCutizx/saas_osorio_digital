@@ -36,8 +36,8 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
 
   const [
     { data: board },
-    { data: members },
     { data: clients },
+    { data: boardMembersRaw },
   ] = await Promise.all([
     adminSupabase
       .from('kanban_boards')
@@ -45,17 +45,20 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
       .eq('id', params.id)
       .single(),
     adminSupabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .in('role', ['admin', 'social_media'])
-      .eq('active', true)
-      .order('full_name'),
-    adminSupabase
       .from('clients')
       .select('id, name')
       .eq('active', true)
       .order('name'),
+    adminSupabase
+      .from('kanban_board_members')
+      .select('profiles:profile_id (id, full_name, email)')
+      .eq('board_id', params.id),
   ])
+
+  const boardMembers = ((boardMembersRaw ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((m: any) => m.profiles)
+    .filter(Boolean) as Array<{ id: string; full_name: string | null; email: string }>)
 
   if (!board) notFound()
 
@@ -77,7 +80,7 @@ export default async function SocialKanbanBoardPage({ params }: { params: { id: 
         board={board as any}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         initialCards={(cards ?? []) as any[]}
-        members={members ?? []}
+        boardMembers={boardMembers}
         clients={clients ?? []}
         currentUserId={user.id}
       />

@@ -312,6 +312,67 @@ export async function archiveCardAction(cardId: string, boardId: string): Promis
   revalidatePath(`/social/kanban/${boardId}`)
 }
 
+export async function assignCardAction(
+  cardId: string,
+  assigneeId: string | null,
+): Promise<{ ok?: true; error?: string }> {
+  const ctx = await getCtx()
+  if (!ctx) return { error: 'Não autenticado' }
+
+  const { data: card } = await ctx.admin
+    .from('kanban_cards')
+    .select('id, board_id')
+    .eq('id', cardId)
+    .single()
+  if (!card) return { error: 'Card não encontrado' }
+
+  if (ctx.role !== 'admin') {
+    const [{ data: member }, { data: board }] = await Promise.all([
+      ctx.admin
+        .from('kanban_board_members')
+        .select('board_id')
+        .eq('board_id', card.board_id)
+        .eq('profile_id', ctx.user.id)
+        .maybeSingle(),
+      ctx.admin
+        .from('kanban_boards')
+        .select('created_by')
+        .eq('id', card.board_id)
+        .single(),
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isCreator = (board as any)?.created_by === ctx.user.id
+    if (!member && !isCreator) return { error: 'Você não tem permissão neste quadro' }
+  }
+
+  if (assigneeId) {
+    const { data: targetMember } = await ctx.admin
+      .from('kanban_board_members')
+      .select('profile_id')
+      .eq('board_id', card.board_id)
+      .eq('profile_id', assigneeId)
+      .maybeSingle()
+    if (!targetMember) {
+      return { error: 'O usuário precisa ser membro do quadro para ser responsável.' }
+    }
+  }
+
+  const { error } = await ctx.admin
+    .from('kanban_cards')
+    .update({ assigned_to: assigneeId })
+    .eq('id', cardId)
+
+  if (error) {
+    console.error('[assignCardAction social] erro:', error.message)
+    return { error: 'Erro ao atribuir responsável.' }
+  }
+
+  revalidatePath(`/admin/kanban/${card.board_id}`)
+  revalidatePath(`/social/kanban/${card.board_id}`)
+  revalidatePath(`/client/kanban/${card.board_id}`)
+  return { ok: true }
+}
+
 // ─── Card detail query ─────────────────────────────────────────────────────────
 
 export async function getCardDetail(cardId: string): Promise<CardDetail | null> {

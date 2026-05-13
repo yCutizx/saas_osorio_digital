@@ -4,14 +4,20 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   X, Archive, Trash2, CheckSquare, Tag, Paperclip,
   MessageSquare, ChevronDown, Plus, Check, Loader2, ExternalLink,
+  User as UserIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   getCardDetail, getBoardLabels, updateCardTitleAction, updateCardDescriptionAction,
   archiveCardAction, addChecklistAction, addChecklistItemAction, toggleChecklistItemAction,
   deleteChecklistAction, createLabelAction, toggleCardLabelAction,
   addCommentAction, deleteCommentAction, uploadAttachmentAction, deleteAttachmentAction,
+  assignCardAction,
   type Checklist, type Label, type KanbanComment, type Attachment,
 } from '../actions'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
+import { cn } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,15 +37,23 @@ interface KanbanCard {
   profiles?: { full_name: string } | null
 }
 
+interface BoardMember {
+  id: string
+  full_name: string | null
+  email: string
+}
+
 interface Props {
   card:          KanbanCard
   boardId:       string
   boardColumns:  Column[]
+  boardMembers:  BoardMember[]
   currentUserId: string
   onClose:       () => void
   onDelete:      () => void
   onMoved:       (newColumnId: string) => void
   onArchived:    () => void
+  onAssigneeChange: (assigneeId: string | null) => void
 }
 
 const LABEL_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#06b6d4']
@@ -142,8 +156,32 @@ function ChecklistSection({ checklist, onDelete, onItemsChange }: {
 // ─── Main drawer ──────────────────────────────────────────────────────────────
 
 export function CardDrawer({
-  card, boardId, boardColumns, currentUserId, onClose, onDelete, onMoved, onArchived,
+  card, boardId, boardColumns, boardMembers, currentUserId,
+  onClose, onDelete, onMoved, onArchived, onAssigneeChange,
 }: Props) {
+  const [assigneeId, setAssigneeId] = useState<string | null>(card.assigned_to ?? null)
+  const [assignPending, setAssignPending] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+
+  async function handleAssign(newId: string | null) {
+    setAssignPending(true)
+    const prev = assigneeId
+    setAssigneeId(newId)
+    onAssigneeChange(newId)
+    const result = await assignCardAction(card.id, newId)
+    if (result.error) {
+      toast.error(result.error)
+      setAssigneeId(prev)
+      onAssigneeChange(prev)
+    } else {
+      toast.success(newId ? 'Responsável atribuído' : 'Responsável removido')
+    }
+    setAssignOpen(false)
+    setAssignPending(false)
+  }
+
+  const currentAssignee = assigneeId ? boardMembers.find((m) => m.id === assigneeId) : null
+
   const [boardLabels, setBoardLabels]     = useState<Label[]>([])
   const [loading, setLoading]             = useState(true)
 
@@ -386,6 +424,96 @@ export function CardDrawer({
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
                 </div>
               </div>
+
+              {/* Responsável */}
+              <Section icon={UserIcon} title="Responsável">
+                <div className="space-y-2">
+                  {currentAssignee ? (
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-[#1a1a1a]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar className="h-7 w-7">
+                          <AvatarFallback className={cn(
+                            'bg-gradient-to-br text-[10px] font-black',
+                            getAvatarGradient(currentAssignee.id),
+                            getAvatarTextColor(getAvatarGradient(currentAssignee.id)),
+                          )}>
+                            {getInitials(currentAssignee.full_name ?? currentAssignee.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="text-sm text-white truncate">
+                          {currentAssignee.full_name ?? currentAssignee.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAssign(null)}
+                        disabled={assignPending}
+                        className="text-xs text-red-400/80 hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ) : assigneeId ? (
+                    <p className="text-xs text-white/40">Usuário não é mais membro do quadro</p>
+                  ) : (
+                    <p className="text-sm text-white/30">Sem responsável</p>
+                  )}
+
+                  {boardMembers.length === 0 ? (
+                    <p className="text-xs text-white/30">
+                      Nenhum membro neste quadro. Adicione em Configurações.
+                    </p>
+                  ) : !assignOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setAssignOpen(true)}
+                      disabled={assignPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/50 border border-[#333] hover:text-[#EACE00] hover:border-[#EACE00]/40 transition-colors disabled:opacity-40"
+                    >
+                      {assignPending
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <><UserIcon className="h-3 w-3" />{currentAssignee ? 'Trocar' : 'Atribuir'}</>
+                      }
+                    </button>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto bg-[#0a0a0a] border border-[#333] rounded-lg p-1">
+                      {boardMembers
+                        .filter((m) => m.id !== assigneeId)
+                        .map((m) => {
+                          const name = m.full_name ?? m.email
+                          const gradient = getAvatarGradient(m.id)
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => handleAssign(m.id)}
+                              disabled={assignPending}
+                              className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-40 text-left"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className={cn(
+                                  'bg-gradient-to-br text-[9px] font-black',
+                                  gradient,
+                                  getAvatarTextColor(gradient),
+                                )}>
+                                  {getInitials(name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <p className="text-xs text-white/80 truncate">{name}</p>
+                            </button>
+                          )
+                        })}
+                      <button
+                        type="button"
+                        onClick={() => setAssignOpen(false)}
+                        className="w-full text-center text-[10px] text-white/30 hover:text-white/60 py-1"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Section>
 
               {/* Labels */}
               <Section icon={Tag} title="Etiquetas">

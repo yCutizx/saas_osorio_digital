@@ -4,19 +4,29 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   X, Archive, Trash2, CheckSquare, Paperclip,
   MessageSquare, ChevronDown, Plus, Check, Loader2,
-  Download, FileText, Image as ImageIcon,
+  Download, FileText, Image as ImageIcon, User as UserIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   getCardDetail, updateCardTitleAction, updateCardDescriptionAction,
   archiveCardAction, addChecklistAction, addChecklistItemAction, toggleChecklistItemAction,
   deleteChecklistAction, addCommentAction, deleteCommentAction,
   uploadAttachmentAction, deleteAttachmentAction,
   updateCardCoverAction, updateCardLabelsAction, updateCardDueDateAction,
+  assignCardAction,
   type Checklist, type KanbanComment, type Attachment,
 } from '../actions'
 import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
 
 interface Column { id: string; label: string; color: string }
+
+interface BoardMember {
+  id: string
+  full_name: string | null
+  email: string
+}
 
 interface KanbanCard {
   id: string
@@ -26,6 +36,7 @@ interface KanbanCard {
   cover_url?: string | null
   labels?: string[] | null
   due_date?: string | null
+  assigned_to?: string | null
   clients?: { name: string } | null
   profiles?: { full_name: string } | null
 }
@@ -34,6 +45,7 @@ interface Props {
   card:             KanbanCard
   boardId:          string
   boardColumns:     Column[]
+  boardMembers:     BoardMember[]
   currentUserId:    string
   onClose:          () => void
   onDelete:         () => void
@@ -42,6 +54,7 @@ interface Props {
   onCoverChange:    (url: string | null) => void
   onLabelsChange:   (labels: string[]) => void
   onDueDateChange:  (date: string | null) => void
+  onAssigneeChange: (assigneeId: string | null) => void
 }
 
 const PRESET_COLORS = [
@@ -134,10 +147,33 @@ function ChecklistSection({ checklist, onDelete, onItemsChange }: {
 }
 
 export function CardDrawer({
-  card, boardId, boardColumns, currentUserId,
+  card, boardId, boardColumns, boardMembers, currentUserId,
   onClose, onDelete, onMoved, onArchived,
-  onCoverChange, onLabelsChange, onDueDateChange,
+  onCoverChange, onLabelsChange, onDueDateChange, onAssigneeChange,
 }: Props) {
+  const [assigneeId, setAssigneeId] = useState<string | null>(card.assigned_to ?? null)
+  const [assignPending, setAssignPending] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+
+  async function handleAssign(newId: string | null) {
+    setAssignPending(true)
+    const prev = assigneeId
+    setAssigneeId(newId)
+    onAssigneeChange(newId)
+    const result = await assignCardAction(card.id, newId)
+    if (result.error) {
+      toast.error(result.error)
+      setAssigneeId(prev)
+      onAssigneeChange(prev)
+    } else {
+      toast.success(newId ? 'Responsável atribuído' : 'Responsável removido')
+    }
+    setAssignOpen(false)
+    setAssignPending(false)
+  }
+
+  const currentAssignee = assigneeId ? boardMembers.find((m) => m.id === assigneeId) : null
+
   const [loading,      setLoading]      = useState(true)
   const [title,        setTitle]        = useState(card.title)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -539,6 +575,97 @@ export function CardDrawer({
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
                 </div>
+              </div>
+
+              {/* Responsável */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Responsável</p>
+                  {currentAssignee && (
+                    <button
+                      type="button"
+                      onClick={() => handleAssign(null)}
+                      disabled={assignPending}
+                      className="text-xs text-red-400/80 hover:text-red-400 transition-colors disabled:opacity-40"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+                {currentAssignee ? (
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[#1a1a1a]">
+                    <Avatar className="h-7 w-7">
+                      <AvatarFallback className={cn(
+                        'bg-gradient-to-br text-[10px] font-black',
+                        getAvatarGradient(currentAssignee.id),
+                        getAvatarTextColor(getAvatarGradient(currentAssignee.id)),
+                      )}>
+                        {getInitials(currentAssignee.full_name ?? currentAssignee.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p className="text-sm text-white truncate">
+                      {currentAssignee.full_name ?? currentAssignee.email}
+                    </p>
+                  </div>
+                ) : assigneeId ? (
+                  <p className="text-xs text-white/40 py-1.5">Usuário não é mais membro do quadro</p>
+                ) : (
+                  <p className="text-xs text-white/30 py-1.5">Sem responsável</p>
+                )}
+
+                {boardMembers.length === 0 ? (
+                  <p className="text-[10px] text-white/30 leading-tight">
+                    Nenhum membro neste quadro. Adicione em Configurações.
+                  </p>
+                ) : !assignOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setAssignOpen(true)}
+                    disabled={assignPending}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/40 border border-[#333] hover:text-[#EACE00] hover:border-[#EACE00]/40 transition-colors disabled:opacity-40"
+                  >
+                    {assignPending
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <><UserIcon className="h-3 w-3" />{currentAssignee ? 'Trocar' : 'Atribuir'}</>
+                    }
+                  </button>
+                ) : (
+                  <div className="space-y-1 max-h-48 overflow-y-auto bg-[#0a0a0a] border border-[#333] rounded-lg p-1">
+                    {boardMembers
+                      .filter((m) => m.id !== assigneeId)
+                      .map((m) => {
+                        const name = m.full_name ?? m.email
+                        const gradient = getAvatarGradient(m.id)
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => handleAssign(m.id)}
+                            disabled={assignPending}
+                            className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-white/5 transition-colors disabled:opacity-40 text-left"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className={cn(
+                                'bg-gradient-to-br text-[9px] font-black',
+                                gradient,
+                                getAvatarTextColor(gradient),
+                              )}>
+                                {getInitials(name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <p className="text-xs text-white/80 truncate">{name}</p>
+                          </button>
+                        )
+                      })}
+                    <button
+                      type="button"
+                      onClick={() => setAssignOpen(false)}
+                      className="w-full text-center text-[10px] text-white/30 hover:text-white/60 py-1"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Etiquetas */}

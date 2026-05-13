@@ -55,13 +55,14 @@ interface KanbanCard {
   profiles?: { full_name: string } | null
 }
 
-interface Member { id: string; full_name: string; email: string }
 interface Client { id: string; name: string }
+
+interface BoardMember { id: string; full_name: string | null; email: string }
 
 interface Props {
   board:         Board
   initialCards:  KanbanCard[]
-  members:       Member[]
+  boardMembers:  BoardMember[]
   clients:       Client[]
   currentUserId: string
 }
@@ -294,9 +295,9 @@ function AddColumnWidget({ onAdd }: { onAdd: (label: string) => void }) {
 
 const INIT: FormState = {}
 
-function CardModal({ mode, card, defaultColId, boardId, members, clients, onClose, onDelete }: {
+function CardModal({ mode, card, defaultColId, boardId, boardMembers, clients, onClose, onDelete }: {
   mode: 'create' | 'edit'; card?: KanbanCard; defaultColId: string; boardId: string
-  members: Member[]; clients: Client[]; onClose: () => void; onDelete?: () => void
+  boardMembers: BoardMember[]; clients: Client[]; onClose: () => void; onDelete?: () => void
 }) {
   const router = useRouter()
   const action = mode === 'create' ? createCardAction : updateCardAction
@@ -379,7 +380,7 @@ function CardModal({ mode, card, defaultColId, boardId, members, clients, onClos
               <select name="assigned_to" defaultValue={card?.assigned_to ?? ''}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EACE00]">
                 <option value="">— Nenhum —</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                {boardMembers.map((m) => <option key={m.id} value={m.id}>{m.full_name ?? m.email}</option>)}
               </select>
             </div>
           </div>
@@ -443,7 +444,7 @@ function DeleteConfirm({ title, onConfirm, onClose }: { title: string; onConfirm
   )
 }
 
-export function KanbanBoard({ board, initialCards, members, clients, currentUserId }: Props) {
+export function KanbanBoard({ board, initialCards, boardMembers, clients, currentUserId }: Props) {
   const [cards, setCards]       = useState<KanbanCard[]>(initialCards)
   const [columns, setColumns]   = useState<Column[]>(board.columns)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -612,6 +613,14 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
     setOpenCard((prev) => prev ? { ...prev, due_date: date } : null)
   }
 
+  function handleAssigneeChange(assigneeId: string | null) {
+    if (!openCard) return
+    const assignee = assigneeId ? boardMembers.find((m) => m.id === assigneeId) : null
+    const profiles = assignee ? { full_name: assignee.full_name ?? assignee.email } : null
+    setCards((prev) => prev.map((c) => c.id === openCard.id ? { ...c, assigned_to: assigneeId, profiles } : c))
+    setOpenCard((prev) => prev ? { ...prev, assigned_to: assigneeId, profiles } : null)
+  }
+
   function handleCardArchived() {
     if (!openCard) return
     setCards((prev) => prev.filter((c) => c.id !== openCard.id))
@@ -661,9 +670,9 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
               Limpar
             </button>
           )}
-          <Link href={`/social/kanban/${board.id}/edit`}
+          <Link href={`/social/kanban/${board.id}/settings`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#333] text-xs text-white/50 hover:text-white hover:border-[#555] transition-colors">
-            <Settings className="h-3.5 w-3.5" />Configurar
+            <Settings className="h-3.5 w-3.5" />Configurações
           </Link>
         </div>
       </div>
@@ -712,6 +721,7 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
 
       {openCard && (
         <CardDrawer card={openCard} boardId={board.id} boardColumns={columns}
+          boardMembers={boardMembers}
           currentUserId={currentUserId}
           onClose={() => setOpenCard(null)}
           onDelete={() => setDeleteTarget(openCard)}
@@ -720,12 +730,13 @@ export function KanbanBoard({ board, initialCards, members, clients, currentUser
           onCoverChange={handleCoverChange}
           onLabelsChange={handleLabelsChange}
           onDueDateChange={handleDueDateChange}
+          onAssigneeChange={handleAssigneeChange}
         />
       )}
 
       {createColId && !openCard && (
         <CardModal mode="create" defaultColId={createColId} boardId={board.id}
-          members={members} clients={clients}
+          boardMembers={boardMembers} clients={clients}
           onClose={() => setCreateColId(null)} />
       )}
 

@@ -38,6 +38,7 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
     { data: board },
     { data: members },
     { data: clients },
+    { data: boardMembersRaw },
   ] = await Promise.all([
     adminSupabase
       .from('kanban_boards')
@@ -55,7 +56,16 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
       .select('id, name')
       .eq('active', true)
       .order('name'),
+    adminSupabase
+      .from('kanban_board_members')
+      .select('profiles:profile_id (id, full_name, email)')
+      .eq('board_id', params.id),
   ])
+
+  const boardMembers = ((boardMembersRaw ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((m: any) => m.profiles)
+    .filter(Boolean) as Array<{ id: string; full_name: string | null; email: string }>)
 
   if (!board) notFound()
 
@@ -81,6 +91,7 @@ export default async function AdminKanbanBoardPage({ params }: { params: { id: s
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         initialCards={(cards ?? []) as any[]}
         members={members ?? []}
+        boardMembers={boardMembers}
         clients={clients ?? []}
         currentUserId={user.id}
         userRole={profile?.role ?? ''}

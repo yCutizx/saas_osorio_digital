@@ -2,11 +2,12 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { format, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, ExternalLink, Hash, User } from 'lucide-react'
+import { ArrowLeft, Hash, User } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { PostMedia } from '@/components/posts/post-media'
 import { CustomCommentBox, CustomStatusChanger } from './interactions'
 import { cn } from '@/lib/utils'
 
@@ -138,31 +139,7 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {post.media_url && (() => {
-                const url = post.media_url as string
-                const isImg = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url)
-                const isVid = /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url)
-                if (isImg) return (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={post.title} className="w-full rounded-xl border border-[#222] object-cover max-h-80" />
-                )
-                if (isVid) return (
-                  <video src={url} controls className="w-full rounded-xl border border-[#222] bg-black max-h-80">
-                    <track kind="captions" />
-                  </video>
-                )
-                return (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-[#EACE00] hover:text-[#EACE00]/80 transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Ver arquivo de mídia
-                  </a>
-                )
-              })()}
+              {post.media_url && <PostMedia url={post.media_url as string} alt={post.title} />}
 
               {post.caption && (
                 <div className="space-y-1.5">
