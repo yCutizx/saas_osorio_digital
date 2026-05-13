@@ -3,23 +3,20 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Plus, GitMerge, LayoutDashboard, FolderOpen } from 'lucide-react'
+import { Plus, GitMerge } from 'lucide-react'
 
 const ALLOWED = ['admin', 'social_media', 'traffic_manager']
 
-export default async function SocialPipelineIndexPage() {
+export default async function TrafficPipelineIndexPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || !ALLOWED.includes(profile.role)) redirect('/social/dashboard')
+  if (!profile || !ALLOWED.includes(profile.role)) redirect('/traffic/dashboard')
 
-  const { data: memberRows } = await admin
-    .from('pipeline_members')
-    .select('pipeline_id')
-    .eq('profile_id', user.id)
+  const { data: memberRows } = await admin.from('pipeline_members').select('pipeline_id').eq('profile_id', user.id)
   const memberIds = (memberRows ?? []).map((m) => m.pipeline_id)
 
   const orFilter = memberIds.length > 0
@@ -43,17 +40,9 @@ export default async function SocialPipelineIndexPage() {
             </h1>
             <p className="text-white/40 text-sm mt-0.5">Organize suas vendas em múltiplos funis personalizados.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/social/pipeline/dashboard" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#333] text-white/50 text-sm hover:text-white hover:border-[#555] transition-colors">
-              <LayoutDashboard className="h-4 w-4" />Dashboard
-            </Link>
-            <Link href="/social/pipeline/projects" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#333] text-white/50 text-sm hover:text-white hover:border-[#555] transition-colors">
-              <FolderOpen className="h-4 w-4" />Projetos
-            </Link>
-            <Link href="/social/pipeline/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors">
-              <Plus className="h-4 w-4" />Novo Pipeline
-            </Link>
-          </div>
+          <Link href="/traffic/pipeline/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors">
+            <Plus className="h-4 w-4" />Novo Pipeline
+          </Link>
         </div>
 
         {(pipelines ?? []).length === 0 ? (
@@ -65,12 +54,12 @@ export default async function SocialPipelineIndexPage() {
               <p className="text-white font-semibold mb-1">Nenhum pipeline ainda</p>
               <p className="text-[#888] text-sm">Crie seu primeiro funil para começar a organizar leads.</p>
             </div>
-            <Link href="/social/pipeline/new" className="text-[#EACE00] text-sm hover:underline">Criar primeiro pipeline</Link>
+            <Link href="/traffic/pipeline/new" className="text-[#EACE00] text-sm hover:underline">Criar primeiro pipeline</Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pipelines!.map((p) => (
-              <Link key={p.id} href={`/social/pipeline/${p.id}`} className="group bg-[#0d0d0d] border border-[#222] rounded-2xl p-5 hover:border-[#333] transition-all">
+              <Link key={p.id} href={`/traffic/pipeline/${p.id}`} className="group bg-[#0d0d0d] border border-[#222] rounded-2xl p-5 hover:border-[#333] transition-all">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${p.color}22` }}>
                     <GitMerge className="h-5 w-5" style={{ color: p.color }} />

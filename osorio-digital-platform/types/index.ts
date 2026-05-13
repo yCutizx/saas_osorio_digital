@@ -90,3 +90,138 @@ export interface Insight {
   created_at: string
   updated_at: string
 }
+
+// ===== Pipeline (Etapa 8) =====
+
+export interface Pipeline {
+  id: string
+  name: string
+  description: string | null
+  color: string
+  webhook_token: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PipelineStage {
+  id: string
+  pipeline_id: string
+  name: string
+  order: number
+  color: string
+}
+
+export interface PipelineTag {
+  id: string
+  pipeline_id: string
+  name: string
+  color: string
+}
+
+export type LeadTemperature = 'frio' | 'morno' | 'quente'
+
+export interface Lead {
+  id: string
+  pipeline_id: string
+  name: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  whatsapp: string | null
+  role: string | null
+  source: string
+  estimated_value: number | null
+  expected_close_date: string | null
+  probability: number | null
+  stage: string
+  position: number
+  notes: string | null
+  lost_reason: string | null
+  lost_reason_other: string | null
+  responsible_id: string | null
+  created_at: string
+  updated_at: string
+  responsible?: { id: string; full_name: string | null; email: string } | null
+  tags?: PipelineTag[]
+}
+
+export interface LeadAttachment {
+  id: string
+  lead_id: string
+  file_name: string
+  file_url: string
+  file_size: number | null
+  uploaded_by: string | null
+  created_at: string
+}
+
+export type LeadTimelineEventType =
+  | 'created' | 'stage_changed' | 'field_updated' | 'note_added'
+  | 'won' | 'lost' | 'reopened' | 'attachment_added' | 'tag_added' | 'tag_removed'
+
+export interface LeadTimelineEvent {
+  id: string
+  lead_id: string
+  user_id: string | null
+  event_type: LeadTimelineEventType
+  event_data: Record<string, unknown>
+  created_at: string
+  user?: { full_name: string | null; email: string } | null
+}
+
+export interface PipelineActivity {
+  id: string
+  lead_id: string
+  user_id: string
+  type: string
+  description: string
+  scheduled_at: string | null
+  done: boolean
+  created_at: string
+}
+
+export const LEAD_LOST_REASONS = [
+  'Sem orçamento',
+  'Concorrente fechou',
+  'Lead frio / sem interesse',
+  'Timing ruim',
+  'Não é o decisor',
+  'Não respondeu',
+  'Fora do perfil',
+  'Outro',
+] as const
+
+export type LeadLostReason = typeof LEAD_LOST_REASONS[number]
+
+export const LEAD_SOURCES = [
+  { value: 'manual',    label: 'Manual' },
+  { value: 'whatsapp',  label: 'WhatsApp' },
+  { value: 'meta_ads',  label: 'Meta Ads' },
+  { value: 'google',    label: 'Google' },
+  { value: 'indicacao', label: 'Indicação' },
+  { value: 'site',      label: 'Site' },
+  { value: 'outro',     label: 'Outro' },
+] as const
+
+/**
+ * 0-33: frio, 34-66: morno, 67-100: quente
+ */
+export function getLeadTemperature(probability: number | null): LeadTemperature | null {
+  if (probability === null || probability === undefined) return null
+  if (probability <= 33) return 'frio'
+  if (probability <= 66) return 'morno'
+  return 'quente'
+}
+
+export const TEMPERATURE_LABEL: Record<LeadTemperature, string> = {
+  frio: 'Frio',
+  morno: 'Morno',
+  quente: 'Quente',
+}
+
+export const TEMPERATURE_COLOR: Record<LeadTemperature, string> = {
+  frio:  'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  morno: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+  quente: 'text-red-400 bg-red-500/10 border-red-500/20',
+}

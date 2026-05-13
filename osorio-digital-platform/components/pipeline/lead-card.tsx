@@ -1,21 +1,10 @@
 'use client'
 
-import { MessageCircle, Megaphone, Search, Users, Globe, Pencil, AlertCircle } from 'lucide-react'
-
-export type Lead = {
-  id: string
-  name: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  source: string
-  estimated_value: number | null
-  stage: string
-  notes: string | null
-  created_at: string
-  updated_at: string
-  responsible: { id: string; full_name: string } | null
-}
+import { MessageCircle, Megaphone, Search, Users, Globe, Pencil, AlertCircle, Calendar, Flame, Snowflake, Thermometer } from 'lucide-react'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
+import { cn } from '@/lib/utils'
+import { getLeadTemperature, TEMPERATURE_COLOR, TEMPERATURE_LABEL, type Lead, type LeadTemperature } from '@/types'
 
 interface LeadCardProps {
   lead: Lead
@@ -30,16 +19,13 @@ const SOURCE_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = 
   indicacao: { icon: <Users className="h-3 w-3" style={{ color: '#F59E0B' }} />, label: 'Indicação' },
   site:      { icon: <Globe className="h-3 w-3" style={{ color: '#14B8A6' }} />, label: 'Site' },
   manual:    { icon: <Pencil className="h-3 w-3" style={{ color: '#6B7280' }} />, label: 'Manual' },
+  outro:     { icon: <Pencil className="h-3 w-3" style={{ color: '#6B7280' }} />, label: 'Outro' },
 }
 
-function getInitials(name: string | null | undefined) {
-  return (name ?? '')
-    .split(' ')
-    .map((n) => n[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?'
+const TEMP_ICON: Record<LeadTemperature, React.ReactNode> = {
+  frio:  <Snowflake className="h-3 w-3" />,
+  morno: <Thermometer className="h-3 w-3" />,
+  quente: <Flame className="h-3 w-3" />,
 }
 
 export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
@@ -47,8 +33,14 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
   const daysSince = Math.floor((Date.now() - new Date(lead.updated_at).getTime()) / 86400000)
-
   const sourceInfo = SOURCE_CONFIG[lead.source] ?? SOURCE_CONFIG.manual
+  const temperature = getLeadTemperature(lead.probability)
+  const responsible = lead.responsible ?? null
+  const tags = lead.tags ?? []
+
+  const expectedClose = lead.expected_close_date
+    ? new Date(lead.expected_close_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    : null
 
   return (
     <div
@@ -56,38 +48,84 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
       className="relative bg-[#111] border border-[#222] rounded-xl p-3 hover:border-[#333] cursor-pointer transition-all group"
     >
       {isOverdue && (
-        <span className="absolute top-2 right-2">
+        <span className="absolute top-2 right-2" title="Atividade atrasada">
           <AlertCircle className="h-3.5 w-3.5 text-red-500" />
         </span>
       )}
 
-      <p className="text-white font-semibold text-sm leading-tight pr-5">{lead.name}</p>
-      {lead.company && (
-        <p className="text-[#888] text-xs mt-0.5">{lead.company}</p>
+      <p className="text-white font-semibold text-sm leading-tight pr-5 truncate">{lead.name}</p>
+      {(lead.company || lead.role) && (
+        <p className="text-[#888] text-xs mt-0.5 truncate">
+          {[lead.role, lead.company].filter(Boolean).join(' · ')}
+        </p>
       )}
 
-      <p className="text-[#EACE00] text-xs font-semibold mt-2">
-        {lead.estimated_value != null ? fmtCurrency(lead.estimated_value) : 'Sem valor'}
-      </p>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {tags.slice(0, 3).map((t) => (
+            <span
+              key={t.id}
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-medium border"
+              style={{ background: `${t.color}1a`, color: t.color, borderColor: `${t.color}40` }}
+            >
+              {t.name}
+            </span>
+          ))}
+          {tags.length > 3 && (
+            <span className="text-[10px] text-[#666]">+{tags.length - 3}</span>
+          )}
+        </div>
+      )}
 
-      <div className="flex items-center gap-1 mt-2">
-        {sourceInfo.icon}
-        <span className="text-[#666] text-xs">{sourceInfo.label}</span>
+      <div className="flex items-center justify-between mt-2 gap-2">
+        <p className="text-[#EACE00] text-xs font-semibold truncate">
+          {lead.estimated_value != null ? fmtCurrency(lead.estimated_value) : 'Sem valor'}
+        </p>
+        {temperature && (
+          <span className={cn(
+            'inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border font-medium shrink-0',
+            TEMPERATURE_COLOR[temperature],
+          )}>
+            {TEMP_ICON[temperature]}
+            {TEMPERATURE_LABEL[temperature]}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 mt-2 text-xs text-[#666]">
+        <span className="flex items-center gap-1">
+          {sourceInfo.icon}
+          <span>{sourceInfo.label}</span>
+        </span>
+        {expectedClose && (
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {expectedClose}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        {lead.responsible ? (
-          <div className="flex items-center gap-1.5">
-            <div className="h-5 w-5 rounded-full bg-[#EACE00] flex items-center justify-center text-black font-bold text-[9px] shrink-0">
-              {getInitials(lead.responsible.full_name)}
-            </div>
-            <span className="text-[#666] text-xs truncate max-w-[80px]">{(lead.responsible.full_name ?? '').split(' ')[0]}</span>
+        {responsible ? (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Avatar className="size-5 shrink-0">
+              <AvatarFallback className={cn(
+                'bg-gradient-to-br text-[9px] font-black',
+                getAvatarGradient(responsible.id),
+                getAvatarTextColor(getAvatarGradient(responsible.id)),
+              )}>
+                {getInitials(responsible.full_name ?? responsible.email)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-[#666] text-xs truncate max-w-[100px]">
+              {(responsible.full_name ?? responsible.email ?? '').split(' ')[0]}
+            </span>
           </div>
         ) : (
           <span className="text-[#555] text-xs">Sem resp.</span>
         )}
         <span className="text-[#555] text-[10px]">
-          {daysSince === 0 ? 'Hoje' : `${daysSince}d no estágio`}
+          {daysSince === 0 ? 'Hoje' : `${daysSince}d`}
         </span>
       </div>
     </div>
