@@ -19,8 +19,9 @@ export default async function ClientInsightsPage() {
   const { data: assignment } = await supabase
     .from('client_assignments')
     .select('client_id')
-    .eq('profile_id', user.id)
-    .single()
+    .eq('user_id', user.id)
+    .eq('role', 'client')
+    .maybeSingle()
 
   const clientId = assignment?.client_id ?? null
 

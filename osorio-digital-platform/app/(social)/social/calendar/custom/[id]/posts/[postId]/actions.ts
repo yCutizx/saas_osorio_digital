@@ -39,6 +39,7 @@ export async function changeCustomStatusAction(postId: string, newStatus: string
   if (error) return { error: error.message }
 
   revalidatePath(`/social/calendar/custom/${post.calendar_id}/posts/${postId}`)
+  revalidatePath(`/social/calendar/custom/${post.calendar_id}`)
   return {}
 }
 
@@ -52,5 +53,6 @@ export async function addCustomCommentAction(postId: string, content: string, ty
   if (error) return { error: error.message }
 
   revalidatePath(`/social/calendar/custom/${post.calendar_id}/posts/${postId}`)
+  revalidatePath(`/social/calendar/custom/${post.calendar_id}`)
   return {}
 }

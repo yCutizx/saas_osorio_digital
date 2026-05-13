@@ -45,8 +45,12 @@ export default async function AdminInsightsPage({ searchParams }: PageProps) {
     .select('id, title, content, type, client_id, cover_url, file_url, tags, published, published_at, created_at, clients(name)')
     .order('created_at', { ascending: false })
 
-  if (searchParams.type)   query = query.eq('type', searchParams.type)
-  if (searchParams.client) query = query.eq('client_id', searchParams.client)
+  if (searchParams.type) query = query.eq('type', searchParams.type)
+  if (searchParams.client === 'null') {
+    query = query.is('client_id', null)
+  } else if (searchParams.client) {
+    query = query.eq('client_id', searchParams.client)
+  }
 
   const { data: insights } = await query
 
