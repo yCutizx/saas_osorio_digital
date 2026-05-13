@@ -47,9 +47,11 @@ export default async function AdminInsightsPage({ searchParams }: PageProps) {
 
   if (searchParams.type) query = query.eq('type', searchParams.type)
   if (searchParams.client === 'null') {
+    // Filtro "Gerais": só insights sem client_id
     query = query.is('client_id', null)
   } else if (searchParams.client) {
-    query = query.eq('client_id', searchParams.client)
+    // Filtro por cliente específico: insights gerais + insights desse cliente
+    query = query.or(`client_id.is.null,client_id.eq.${searchParams.client}`)
   }
 
   const { data: insights } = await query
