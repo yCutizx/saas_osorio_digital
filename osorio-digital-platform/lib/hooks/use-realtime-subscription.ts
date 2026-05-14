@@ -25,8 +25,9 @@ export type SubscriptionOptions = {
  * Assina mudanças em uma tabela do Postgres via Supabase Realtime.
  * Passe `null` para desativar dinamicamente (ex: enquanto não há lead aberto).
  *
- * Telemetria via `console.warn` (não `log`) porque alguns pipelines de build
- * removem `console.log` em produção. `warn` quase nunca é stripped.
+ * Nota: o Realtime do projeto Supabase está com problema fora do nosso código.
+ * O hook segue montado para o dia em que voltar a funcionar; sincronia atual
+ * vem via polling (lib/hooks/use-polling.ts).
  */
 export function useRealtimeSubscription(opts: SubscriptionOptions | null) {
   const onEventRef = useRef(opts?.onEvent)
@@ -42,8 +43,6 @@ export function useRealtimeSubscription(opts: SubscriptionOptions | null) {
   useEffect(() => {
     if (!channel || !table) return
 
-    console.warn(`[Realtime] mounting subscription: ${channel} → ${table}${filter ? ` (${filter})` : ''}`)
-
     const supabase = createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ch: any = supabase.channel(channel)
@@ -58,25 +57,21 @@ export function useRealtimeSubscription(opts: SubscriptionOptions | null) {
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (payload: any) => {
-        console.warn(`[Realtime] ${channel} ${table} event:`, payload?.eventType, payload)
         if (currentUserId) {
           const newRow = payload?.new as Record<string, unknown> | null | undefined
           if (newRow && newRow[userColumn] === currentUserId) {
-            console.warn(`[Realtime] ${channel} ignorando evento do próprio user`)
             return
           }
         }
         onEventRef.current?.(payload)
       },
-    ).subscribe((status: string, err?: Error) => {
-      console.warn(`[Realtime] ${channel} status:`, status, err ?? '')
+    ).subscribe((_status: string, err?: Error) => {
       if (err) {
         console.error(`[Realtime] ${channel} error:`, err)
       }
     })
 
     return () => {
-      console.warn(`[Realtime] ${channel} unsubscribed`)
       supabase.removeChannel(ch)
     }
   }, [channel, table, filter, event, currentUserId, userColumn])

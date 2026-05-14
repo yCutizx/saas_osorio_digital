@@ -41,9 +41,15 @@ export function NotificationBell({ userId }: { userId: string | null }) {
   const ref                           = useRef<HTMLDivElement>(null)
   const router                        = useRouter()
 
-  // Carga inicial
+  // Carga inicial + polling do count (Realtime do projeto indisponível)
   useEffect(() => {
     getUnreadCount().then(setCount)
+    const id = setInterval(() => {
+      if (!document.hidden) {
+        getUnreadCount().then(setCount)
+      }
+    }, 30000)
+    return () => clearInterval(id)
   }, [])
 
   // Realtime: novos INSERTs em notifications onde user_id = currentUser

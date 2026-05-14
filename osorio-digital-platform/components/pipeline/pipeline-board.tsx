@@ -17,6 +17,7 @@ import { LeadCard } from './lead-card'
 import { LeadModal } from './lead-modal'
 import { LostReasonModal } from './lost-reason-modal'
 import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
+import { usePolling } from '@/lib/hooks/use-polling'
 import type {
   Lead, PipelineActivity, PipelineStage, PipelineTag, LeadTimelineEvent, LeadAttachment,
 } from '@/types'
@@ -192,8 +193,6 @@ export function PipelineBoard({
 }: PipelineBoardProps) {
   const router = useRouter()
 
-  console.warn('[PipelineBoard] mounted', { pipelineId, currentUserId, leadsCount: leads.length })
-
   // Realtime: assina timeline (canal único — todo evento relevante passa por aqui).
   // user_id é o autor da mudança → ignorar próprios eventos via hook.
   useRealtimeSubscription({
@@ -204,6 +203,9 @@ export function PipelineBoard({
     userColumn: 'user_id',
     onEvent: () => router.refresh(),
   })
+
+  // Polling fallback enquanto Realtime do projeto está indisponível
+  usePolling({ interval: 20000 })
   const [, startTransition] = useTransition()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)

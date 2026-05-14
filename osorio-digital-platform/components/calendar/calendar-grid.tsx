@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PLATFORM_SHORT, type Platform } from '@/types'
 import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
+import { usePolling } from '@/lib/hooks/use-polling'
 
 // ── Tipos exportados ──────────────────────────────────────────────────────────
 
@@ -154,6 +155,9 @@ export function CalendarGrid({
     userColumn: 'author_id',
     onEvent: () => router.refresh(),
   } : null)
+
+  // Polling fallback enquanto Realtime do projeto está indisponível
+  usePolling({ interval: 30000 })
 
   const [view,      setView]      = useState<'month' | 'week'>('month')
   const [fPlat,     setFPlat]     = useState('')

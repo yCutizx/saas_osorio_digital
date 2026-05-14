@@ -18,6 +18,7 @@ import {
 } from '../actions'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import { CardDrawer } from './card-drawer'
+import { usePolling } from '@/lib/hooks/use-polling'
 import {
   Plus, X, GripVertical, Trash2, Calendar, Tag,
   User, Building2, Film, Globe, ChevronLeft, Settings, MoreHorizontal,
@@ -468,6 +469,9 @@ function DeleteConfirm({ title, onConfirm, onClose }: { title: string; onConfirm
 // ─── Main board ───────────────────────────────────────────────────────────────
 
 export function KanbanBoard({ board, initialCards, members, boardMembers, clients, currentUserId, userRole }: Props) {
+  // Polling fallback enquanto Realtime do projeto está indisponível
+  usePolling({ interval: 20000 })
+
   const isAdmin = userRole === 'admin'
   const [cards, setCards]       = useState<KanbanCard[]>(initialCards)
   const [columns, setColumns]   = useState<Column[]>(board.columns)
@@ -502,8 +506,8 @@ export function KanbanBoard({ board, initialCards, members, boardMembers, client
         { event: '*', schema: 'public', table: 'kanban_cards', filter: `board_id=eq.${boardId}` },
         () => router.refresh(),
       )
-      .subscribe((status: string, err?: Error) => {
-        console.warn(`[Realtime] admin-board-${boardId} status:`, status, err ?? '')
+      .subscribe((_status: string, err?: Error) => {
+        if (err) console.error(`[Realtime] admin-board-${boardId} error:`, err)
       })
     return () => { supabase.removeChannel(channel) }
   }, [boardId, router])
