@@ -477,9 +477,7 @@ export function KanbanBoard({ board, initialCards, boardMembers, clients, curren
         () => router.refresh(),
       )
       .subscribe((status: string, err?: Error) => {
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[Realtime] social-board-${boardId} status:`, status, err ?? '')
-        }
+        console.warn(`[Realtime] social-board-${boardId} status:`, status, err ?? '')
       })
     return () => { supabase.removeChannel(channel) }
   }, [boardId, router])

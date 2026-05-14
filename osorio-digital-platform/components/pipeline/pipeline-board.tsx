@@ -192,6 +192,8 @@ export function PipelineBoard({
 }: PipelineBoardProps) {
   const router = useRouter()
 
+  console.warn('[PipelineBoard] mounted', { pipelineId, currentUserId, leadsCount: leads.length })
+
   // Realtime: assina timeline (canal único — todo evento relevante passa por aqui).
   // user_id é o autor da mudança → ignorar próprios eventos via hook.
   useRealtimeSubscription({
