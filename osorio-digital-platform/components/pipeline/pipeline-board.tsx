@@ -196,7 +196,6 @@ export function PipelineBoard({
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createDefaultStage, setCreateDefaultStage] = useState(stages[0]?.name ?? '')
-  const [localLeads, setLocalLeads] = useState<Lead[]>(leads)
   const [overId, setOverId] = useState<string | null>(null)
   const [lostReasonLeadId, setLostReasonLeadId] = useState<string | null>(null)
 
@@ -211,13 +210,13 @@ export function PipelineBoard({
 
   const visibleLeads = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return localLeads.filter((l) => {
+    return leads.filter((l) => {
       if (term && !`${l.name} ${l.company ?? ''} ${l.email ?? ''}`.toLowerCase().includes(term)) return false
       if (filterResp && l.responsible_id !== filterResp) return false
       if (filterTag && !(l.tags ?? []).some((t) => t.id === filterTag)) return false
       return true
     })
-  }, [localLeads, search, filterResp, filterTag])
+  }, [leads, search, filterResp, filterTag])
 
   function leadsForStage(stageName: string) {
     return visibleLeads
@@ -227,7 +226,7 @@ export function PipelineBoard({
 
   function handleDragStart(event: DragStartEvent) {
     stop()
-    const lead = localLeads.find((l) => l.id === event.active.id)
+    const lead = leads.find((l) => l.id === event.active.id)
     setActiveLead(lead ?? null)
   }
 
@@ -251,16 +250,14 @@ export function PipelineBoard({
     }
 
     if (!targetStage) return
-    const lead = localLeads.find((l) => l.id === leadId)
+    const lead = leads.find((l) => l.id === leadId)
     if (!lead || lead.stage === targetStage) return
 
     const newPosition = leadsForStage(targetStage).length
-    setLocalLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, stage: targetStage!, position: newPosition } : l))
 
     startTransition(async () => {
       const result = await moveLeadAction(leadId, targetStage!, newPosition)
       if (result.error) {
-        setLocalLeads(leads)
         toast.error(result.error)
         return
       }
