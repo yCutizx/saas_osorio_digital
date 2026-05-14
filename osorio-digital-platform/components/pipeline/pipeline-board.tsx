@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
-  DndContext, DragOverlay, PointerSensor, closestCorners, useDroppable, useSensor, useSensors,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, closestCenter, useDroppable, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, GitMerge, Settings as SettingsIcon, Search, ChevronLeft, AlertCircle, Loader2 } from 'lucide-react'
+import { Plus, GitMerge, GripVertical, Settings as SettingsIcon, Search, ChevronLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { moveLeadAction, createLeadAction } from '@/app/actions/pipeline'
 import { LeadCard } from './lead-card'
@@ -66,8 +66,19 @@ function SortableLeadCard({ lead, isOverdue, onClick }: { lead: Lead; isOverdue:
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       {...attributes}
-      {...listeners}
+      className="group relative"
     >
+      {/* Drag handle — só essa parte é arrastável */}
+      <button
+        type="button"
+        {...listeners}
+        className="absolute top-2 right-2 z-10 h-7 w-7 rounded-md flex items-center justify-center text-[#666] hover:text-[#EACE00] hover:bg-[#1a1a1a] cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        aria-label="Arrastar card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
       <LeadCard lead={lead} isOverdue={isOverdue} onClick={onClick} />
     </div>
   )
@@ -193,7 +204,11 @@ export function PipelineBoard({
   })
   const [, startTransition] = useTransition()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const selectedLead = useMemo(
+    () => selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null,
+    [leads, selectedLeadId],
+  )
   const [showCreate, setShowCreate] = useState(false)
   const [createDefaultStage, setCreateDefaultStage] = useState(stages[0]?.name ?? '')
   const [overId, setOverId] = useState<string | null>(null)
@@ -204,7 +219,10 @@ export function PipelineBoard({
   const [filterResp, setFilterResp] = useState('')
   const [filterTag, setFilterTag]   = useState('')
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 5 } }),
+  )
   const overdueSet = useMemo(() => new Set(overdueLeadIds), [overdueLeadIds])
   const { containerRef, grabbing, stop, scrollHandlers } = useDragToScroll()
 
@@ -270,8 +288,8 @@ export function PipelineBoard({
   }
 
   function handleLeadUpdate() {
-    setSelectedLead(null)
     router.refresh()
+    // modal continua aberto; selectedLead deriva de leads via id
   }
 
   return (
@@ -347,7 +365,7 @@ export function PipelineBoard({
       >
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragOver={(e) => setOverId((e.over?.id as string) ?? null)}
           onDragEnd={handleDragEnd}
@@ -379,7 +397,7 @@ export function PipelineBoard({
                           key={lead.id}
                           lead={lead}
                           isOverdue={overdueSet.has(lead.id)}
-                          onClick={() => setSelectedLead(lead)}
+                          onClick={() => setSelectedLeadId(lead.id)}
                         />
                       ))}
                       {stageLeads.length === 0 && (
@@ -411,7 +429,7 @@ export function PipelineBoard({
           activities={activitiesByLead[selectedLead.id] ?? []}
           timeline={timelineByLead[selectedLead.id] ?? []}
           attachments={attachmentsByLead[selectedLead.id] ?? []}
-          onClose={() => setSelectedLead(null)}
+          onClose={() => setSelectedLeadId(null)}
           onUpdate={handleLeadUpdate}
           onRequestLostReason={() => setLostReasonLeadId(selectedLead.id)}
         />

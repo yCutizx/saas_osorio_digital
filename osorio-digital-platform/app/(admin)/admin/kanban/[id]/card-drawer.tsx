@@ -250,6 +250,14 @@ export function CardDrawer({
     })
   }, [card.id, boardId])
 
+  // Ressincroniza states locais quando o card muda (realtime / refresh)
+  useEffect(() => {
+    setTitle(card.title)
+    setDesc(card.description ?? '')
+    setMoveColId(card.column_id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id, card.title, card.description, card.column_id])
+
   function saveTitle() {
     setEditingTitle(false)
     if (title.trim() && title !== card.title) {

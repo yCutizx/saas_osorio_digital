@@ -21,6 +21,8 @@ export type SubscriptionOptions = {
   onEvent: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
 }
 
+const DEBUG = process.env.NODE_ENV !== 'production'
+
 /**
  * Assina mudanças em uma tabela do Postgres via Supabase Realtime.
  * Passe `null` para desativar dinamicamente (ex: enquanto não há lead aberto).
@@ -53,17 +55,29 @@ export function useRealtimeSubscription(opts: SubscriptionOptions | null) {
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (payload: any) => {
+        if (DEBUG) {
+          console.log(`[Realtime] ${channel} ${table} event:`, payload?.eventType, payload)
+        }
         if (currentUserId) {
           const newRow = payload?.new as Record<string, unknown> | null | undefined
           if (newRow && newRow[userColumn] === currentUserId) {
+            if (DEBUG) console.log(`[Realtime] ${channel} ignorando evento do próprio user`)
             return
           }
         }
         onEventRef.current?.(payload)
       },
-    ).subscribe()
+    ).subscribe((status: string, err?: Error) => {
+      if (DEBUG) {
+        console.log(`[Realtime] ${channel} status:`, status, err ?? '')
+      }
+      if (err) {
+        console.error(`[Realtime] ${channel} error:`, err)
+      }
+    })
 
     return () => {
+      if (DEBUG) console.log(`[Realtime] ${channel} unsubscribed`)
       supabase.removeChannel(ch)
     }
   }, [channel, table, filter, event, currentUserId, userColumn])

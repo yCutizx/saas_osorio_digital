@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -463,31 +463,9 @@ export function KanbanBoard({ board, initialCards, boardMembers, clients, curren
   useEffect(() => { setCards(initialCards) }, [initialCards])
   useEffect(() => { setColumns(board.columns) }, [board.columns])
 
-  // Realtime: sync card changes from other users
+  // Realtime: qualquer evento dispara router.refresh; props frescas
+  // re-hidratam setCards/setColumns via useEffect acima.
   const boardId = board.id
-  const handleRealtimeCard = useCallback((payload: { eventType: string; old: { id?: string }; new: { id?: string; column_id?: string; position?: number; archived?: boolean } }) => {
-    if (payload.eventType === 'DELETE') {
-      setCards((prev) => prev.filter((c) => c.id !== payload.old.id))
-    } else if (payload.eventType === 'UPDATE') {
-      const updated = payload.new
-      if (updated.archived) {
-        setCards((prev) => prev.filter((c) => c.id !== updated.id))
-      } else if (updated.column_id !== undefined) {
-        setCards((prev) =>
-          prev.map((c) =>
-            c.id === updated.id
-              ? { ...c, column_id: updated.column_id!, position: updated.position ?? c.position }
-              : c,
-          ),
-        )
-      } else {
-        // Field updated we don't have locally — refresh full data
-        router.refresh()
-      }
-    } else if (payload.eventType === 'INSERT') {
-      router.refresh()
-    }
-  }, [router])
 
   useEffect(() => {
     const supabase = createBrowserClient()
@@ -496,12 +474,15 @@ export function KanbanBoard({ board, initialCards, boardMembers, clients, curren
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'kanban_cards', filter: `board_id=eq.${boardId}` },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (payload: any) => handleRealtimeCard(payload),
+        () => router.refresh(),
       )
-      .subscribe()
+      .subscribe((status: string, err?: Error) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[Realtime] social-board-${boardId} status:`, status, err ?? '')
+        }
+      })
     return () => { supabase.removeChannel(channel) }
-  }, [boardId, handleRealtimeCard])
+  }, [boardId, router])
 
   const sensors    = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const activeCard = cards.find((c) => c.id === activeId) ?? null

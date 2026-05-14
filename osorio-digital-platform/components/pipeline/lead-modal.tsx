@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import {
   X, Phone, Mail, MessageCircle, Video, FileText, Check, Plus,
   Trash2, CheckCircle2, XCircle, AlertCircle, Loader2, Paperclip,
@@ -81,6 +81,26 @@ export function LeadModal({
 
   // Anexos
   const [uploadPending, setUploadPending] = useState(false)
+
+  // Ressincroniza states locais quando o lead muda de identidade ou versão.
+  // Após router.refresh(), updated_at avança e props frescas chegam.
+  useEffect(() => {
+    setName(lead.name)
+    setCompany(lead.company ?? '')
+    setRole(lead.role ?? '')
+    setEmail(lead.email ?? '')
+    setPhone(lead.phone ?? '')
+    setWhatsapp(lead.whatsapp ?? '')
+    setSource(lead.source)
+    setValue(lead.estimated_value?.toString() ?? '')
+    setExpectedClose(lead.expected_close_date ?? '')
+    setProb(lead.probability ?? '')
+    setNotes(lead.notes ?? '')
+    setRespId(lead.responsible_id ?? '')
+    setStage(lead.stage)
+    setLeadTags((lead.tags ?? []).map((t) => t.id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id, lead.updated_at])
 
   const temperature = getLeadTemperature(typeof prob === 'number' ? prob : null)
   const inputCls = 'w-full bg-[#0A0A0A] border border-[#222] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EACE00]/50 placeholder-[#555] [color-scheme:dark]'
