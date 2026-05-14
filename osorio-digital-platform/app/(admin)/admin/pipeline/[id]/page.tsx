@@ -193,6 +193,7 @@ export default async function AdminPipelineBoardPage({ params }: PageProps) {
         timelineByLead={timelineByLead}
         attachmentsByLead={attachmentsByLead}
         canManageSettings={canManageSettings}
+        currentUserId={user.id}
       />
     </AppLayout>
   )

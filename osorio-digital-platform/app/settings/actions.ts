@@ -50,6 +50,7 @@ export async function updateProfile(input: { full_name: string; bio: string }) {
   }
 
   revalidatePath('/settings/profile')
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 

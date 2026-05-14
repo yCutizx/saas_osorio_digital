@@ -16,6 +16,7 @@ import { moveLeadAction, createLeadAction } from '@/app/actions/pipeline'
 import { LeadCard } from './lead-card'
 import { LeadModal } from './lead-modal'
 import { LostReasonModal } from './lost-reason-modal'
+import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
 import type {
   Lead, PipelineActivity, PipelineStage, PipelineTag, LeadTimelineEvent, LeadAttachment,
 } from '@/types'
@@ -26,7 +27,7 @@ type Member = { id: string; full_name: string | null; email: string }
 interface PipelineBoardProps {
   pipelineId:           string
   pipelineName:         string
-  basePath:             string  // '/admin/pipeline' | '/social/pipeline' | '/traffic/pipeline'
+  basePath:             string
   stages:               PipelineStage[]
   leads:                Lead[]
   members:              Member[]
@@ -36,6 +37,7 @@ interface PipelineBoardProps {
   timelineByLead:       Record<string, LeadTimelineEvent[]>
   attachmentsByLead:    Record<string, LeadAttachment[]>
   canManageSettings:    boolean
+  currentUserId:        string | null
 }
 
 function DroppableColumn({ stageName, children, isOver }: {
@@ -175,9 +177,20 @@ export function PipelineBoard({
   pipelineId, pipelineName, basePath,
   stages, leads, members, tags,
   overdueLeadIds, activitiesByLead, timelineByLead, attachmentsByLead,
-  canManageSettings,
+  canManageSettings, currentUserId,
 }: PipelineBoardProps) {
   const router = useRouter()
+
+  // Realtime: assina timeline (canal único — todo evento relevante passa por aqui).
+  // user_id é o autor da mudança → ignorar próprios eventos via hook.
+  useRealtimeSubscription({
+    channel: `pipeline-${pipelineId}`,
+    table: 'pipeline_lead_timeline',
+    event: 'INSERT',
+    currentUserId,
+    userColumn: 'user_id',
+    onEvent: () => router.refresh(),
+  })
   const [, startTransition] = useTransition()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)

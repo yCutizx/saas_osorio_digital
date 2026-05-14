@@ -46,6 +46,7 @@ async function fetchClientData(month: string) {
   if (!assignment) return {
     clientName: '', postsByDate: {} as PostsByDate,
     pending: [], upcoming: [], statusCounts: {}, channelEntries: [], maxChannel: 1,
+    userId: user.id,
   }
 
   const clientId   = assignment.client_id
@@ -107,7 +108,7 @@ async function fetchClientData(month: string) {
   const channelEntries = Object.entries(channelCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
   const maxChannel = channelEntries[0]?.[1] ?? 1
 
-  return { clientName, postsByDate, pending, upcoming: upcomingRaw ?? [], statusCounts, channelEntries, maxChannel }
+  return { clientName, postsByDate, pending, upcoming: upcomingRaw ?? [], statusCounts, channelEntries, maxChannel, userId: user.id }
 }
 
 interface PageProps {
@@ -117,7 +118,7 @@ interface PageProps {
 export default async function ClientCalendarPage({ searchParams }: PageProps) {
   await requireMinPlan('pro')
   const currentMonth = searchParams.month ?? format(new Date(), 'yyyy-MM')
-  const { clientName, postsByDate, pending, upcoming, statusCounts, channelEntries, maxChannel } =
+  const { clientName, postsByDate, pending, upcoming, statusCounts, channelEntries, maxChannel, userId } =
     await fetchClientData(currentMonth)
 
   const monthLabel = format(new Date(`${currentMonth}-01T12:00:00`), 'MMMM yyyy', { locale: ptBR })
@@ -195,6 +196,8 @@ export default async function ClientCalendarPage({ searchParams }: PageProps) {
                     currentMonth={currentMonth}
                     postsByDate={postsByDate}
                     baseHref="/client"
+                    currentUserId={userId}
+                    realtimeTable="content_posts"
                   />
                 </Suspense>
               </CardContent>

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidateKanbanBoardPaths } from '@/lib/revalidate-helpers'
 
 export type FormState = {
   errors?: Partial<Record<string, string[]>>
@@ -60,8 +61,10 @@ export async function updateBoardAction(
 
   if (error) return { message: error.message }
 
-  revalidatePath(`/admin/kanban/${result.data.board_id}`)
+  revalidateKanbanBoardPaths(result.data.board_id)
   revalidatePath('/admin/kanban')
+  revalidatePath('/social/kanban')
+  revalidatePath('/client/kanban')
   return { success: true }
 }
 
@@ -70,5 +73,7 @@ export async function deleteBoardAction(boardId: string): Promise<void> {
   if (!ctx) return
   await ctx.admin.from('kanban_boards').delete().eq('id', boardId)
   revalidatePath('/admin/kanban')
+  revalidatePath('/social/kanban')
+  revalidatePath('/client/kanban')
   redirect('/admin/kanban')
 }

@@ -17,4 +17,7 @@ export async function deleteResearchAction(formData: FormData): Promise<void> {
   const id = formData.get('id') as string
   await supabase.from('market_research').delete().eq('id', id)
   revalidatePath('/admin/research')
+  revalidatePath('/client/research')
+  revalidatePath('/social/research')
+  revalidatePath('/traffic/research')
 }

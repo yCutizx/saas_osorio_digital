@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidateCalendarPaths } from '@/lib/revalidate-helpers'
+import { createNotification, createNotificationForMany } from '@/lib/notifications'
 
 export async function changeStatusAction(postId: string, status: string) {
   const supabase = await createClient()
@@ -25,13 +27,33 @@ export async function changeStatusAction(postId: string, status: string) {
 
   if (error) return { error: error.message }
 
+  // Notificar cliente quando post entra em aprovação
+  if (status === 'pending_approval') {
+    const { data: post } = await admin
+      .from('content_posts')
+      .select('title, client_id')
+      .eq('id', postId)
+      .maybeSingle()
+    if (post?.client_id) {
+      const { data: clientUsers } = await admin
+        .from('client_assignments')
+        .select('user_id')
+        .eq('client_id', post.client_id)
+        .eq('role', 'client')
+      const userIds = (clientUsers ?? []).map((c) => c.user_id).filter((id: string) => id !== user.id)
+      if (userIds.length > 0) {
+        await createNotificationForMany(userIds, {
+          type:    'post_approval_pending',
+          title:   'Novo post para aprovar',
+          message: post.title,
+          link:    '/client/calendar',
+        })
+      }
+    }
+  }
+
   revalidatePath(`/social/posts/${postId}`)
-  revalidatePath('/social/dashboard')
-  revalidatePath('/social/calendar')
-  revalidatePath('/admin/dashboard')
-  revalidatePath('/admin/calendar')
-  revalidatePath('/client/calendar')
-  revalidatePath('/client/home')
+  revalidateCalendarPaths()
   return { ok: true }
 }
 
@@ -66,15 +88,38 @@ export async function addCommentAction(
       .update({ status: newStatus })
       .eq('id', postId)
     if (statusErr) return { error: 'Erro ao atualizar status do post.' }
+
+    // Notificar staff (autor + responsável + admins)
+    const { data: post } = await admin
+      .from('content_posts')
+      .select('title, author_id, assigned_to')
+      .eq('id', postId)
+      .maybeSingle()
+    if (post) {
+      const { data: admins } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .eq('active', true)
+      const targets = new Set<string>()
+      if (post.author_id)  targets.add(post.author_id)
+      if (post.assigned_to) targets.add(post.assigned_to)
+      for (const a of admins ?? []) targets.add(a.id)
+      targets.delete(user.id)
+      const verbo = type === 'approval' ? 'aprovou' : 'reprovou'
+      if (targets.size > 0) {
+        await createNotificationForMany(Array.from(targets), {
+          type:    'post_review',
+          title:   `Cliente ${verbo} post`,
+          message: post.title,
+          link:    `/social/posts/${postId}`,
+        })
+      }
+    }
   }
 
   revalidatePath(`/social/posts/${postId}`)
-  revalidatePath('/social/dashboard')
-  revalidatePath('/social/calendar')
-  revalidatePath('/admin/dashboard')
-  revalidatePath('/admin/calendar')
-  revalidatePath('/client/calendar')
-  revalidatePath('/client/home')
+  revalidateCalendarPaths()
   return { ok: true }
 }
 
@@ -94,6 +139,9 @@ export async function deletePostAction(postId: string): Promise<{ error?: string
   const { error } = await admin.from('content_posts').delete().eq('id', postId)
   if (error) return { error: error.message }
 
-  revalidatePath('/social/dashboard')
+  revalidateCalendarPaths()
   return { clientId: post.client_id }
 }
+
+// silence unused warnings if helper isn't used downstream
+void createNotification

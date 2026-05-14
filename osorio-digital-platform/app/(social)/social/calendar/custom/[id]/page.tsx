@@ -142,6 +142,8 @@ export default async function CustomCalendarPage({ params, searchParams }: PageP
               baseHref={baseHref}
               navBase={baseHref}
               canCreate
+              currentUserId={user.id}
+              realtimeTable="custom_calendar_posts"
             />
           </Suspense>
         </div>

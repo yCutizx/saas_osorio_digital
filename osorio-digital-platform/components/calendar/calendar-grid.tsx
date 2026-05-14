@@ -11,6 +11,7 @@ import { ptBR } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PLATFORM_SHORT, type Platform } from '@/types'
+import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
 
 // ── Tipos exportados ──────────────────────────────────────────────────────────
 
@@ -31,6 +32,10 @@ interface Props {
   canCreate?:   boolean
   navBase?:     string
   clientId?:    string
+  /** Quando setado, ativa Realtime e ignora eventos do próprio user. */
+  currentUserId?: string | null
+  /** 'content_posts' (default) ou 'custom_calendar_posts' */
+  realtimeTable?: 'content_posts' | 'custom_calendar_posts'
 }
 
 // ── Configurações de status ───────────────────────────────────────────────────
@@ -124,9 +129,31 @@ function PostModal({
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export function CalendarGrid({ currentMonth, postsByDate, baseHref, canCreate = false, navBase, clientId }: Props) {
+export function CalendarGrid({
+  currentMonth, postsByDate, baseHref, canCreate = false, navBase, clientId,
+  currentUserId, realtimeTable = 'content_posts',
+}: Props) {
   const router = useRouter()
   const params = useSearchParams()
+
+  // Realtime: posts e comments do calendário ativo
+  useRealtimeSubscription(currentUserId ? {
+    channel: `calendar-${realtimeTable}`,
+    table: realtimeTable,
+    event: '*',
+    currentUserId,
+    userColumn: 'author_id',
+    onEvent: () => router.refresh(),
+  } : null)
+
+  useRealtimeSubscription(currentUserId ? {
+    channel: 'calendar-post-comments',
+    table: 'post_comments',
+    event: 'INSERT',
+    currentUserId,
+    userColumn: 'author_id',
+    onEvent: () => router.refresh(),
+  } : null)
 
   const [view,      setView]      = useState<'month' | 'week'>('month')
   const [fPlat,     setFPlat]     = useState('')

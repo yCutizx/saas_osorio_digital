@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PostMedia } from '@/components/posts/post-media'
+import { PostRealtimeWrapper } from '@/components/posts/post-realtime-wrapper'
 const STATUS_CONFIG: Record<string, { chip: string; dot: string; label: string }> = {
   draft:            { chip: 'bg-white/8 text-white/40',                                       dot: 'bg-[#555555]',   label: 'Planejado'         },
   pending_approval: { chip: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20',   dot: 'bg-[#EACE00]',   label: 'Aguard. aprovação' },
@@ -121,6 +122,7 @@ export default async function PostDetailPage({ params }: PageProps) {
 
     return (
       <AppLayout>
+        <PostRealtimeWrapper postId={post.id} currentUserId={user.id} table="content_posts" />
         <div className="max-w-2xl mx-auto space-y-6">
 
           <div className="flex items-center justify-between">

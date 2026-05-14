@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
   DndContext,
@@ -170,6 +171,7 @@ function AddDeliverableForm({ projectId, defaultStatus, onClose, onCreated }: Ad
 }
 
 export function ProjectBoard({ deliverables, projectId, readOnly = false }: ProjectBoardProps) {
+  const router = useRouter()
   const [, startTransition] = useTransition()
   const [activeDeliverable, setActiveDeliverable] = useState<Deliverable | null>(null)
   const [localDeliverables, setLocalDeliverables] = useState<Deliverable[]>(deliverables)
@@ -285,7 +287,7 @@ export function ProjectBoard({ deliverables, projectId, readOnly = false }: Proj
                       projectId={projectId}
                       defaultStatus={col.key}
                       onClose={() => setAddingToColumn(null)}
-                      onCreated={() => window.location.reload()}
+                      onCreated={() => router.refresh()}
                     />
                   )}
                 </div>

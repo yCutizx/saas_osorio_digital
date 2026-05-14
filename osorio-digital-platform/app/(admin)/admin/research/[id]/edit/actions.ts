@@ -95,5 +95,8 @@ export async function updateResearchAction(
   if (error) return { message: error.message }
 
   revalidatePath('/admin/research')
+  revalidatePath('/client/research')
+  revalidatePath('/social/research')
+  revalidatePath('/traffic/research')
   redirect('/admin/research')
 }

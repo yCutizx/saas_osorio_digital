@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, X, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,6 +40,7 @@ const STAGE_COLORS: Record<string, string> = {
 }
 
 export function ProjectsClient({ projects, clients, members, projectStages, projectsPageHref }: ProjectsClientProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showForm, setShowForm] = useState(false)
 
@@ -75,7 +77,7 @@ export function ProjectsClient({ projects, clients, members, projectStages, proj
         setStartDate('')
         setEndDate('')
         setValue('')
-        window.location.reload()
+        router.refresh()
       } catch {
         toast.error('Erro ao criar projeto')
       }

@@ -1,6 +1,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidateKanbanBoardPaths } from '@/lib/revalidate-helpers'
 import { redirect, notFound } from 'next/navigation'
 import { ClientKanbanBoard } from './kanban-board'
 
@@ -57,6 +58,7 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
       .select('id, content, created_at, user_id')
       .single()
     if (error) return null
+    revalidateKanbanBoardPaths(params.id)
     return { ...data, profiles: { full_name: p.full_name as string } }
   }
 
@@ -69,6 +71,7 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     if (p?.role !== 'client') return
     const admin = createAdminClient()
     await admin.from('kanban_comments').delete().eq('id', commentId).eq('user_id', u.id)
+    revalidateKanbanBoardPaths(params.id)
   }
 
   async function getComments(cardId: string) {
@@ -101,6 +104,7 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
       position:    Date.now(),
     }).select('id, column_id, title, description, priority, tags, format, platform, due_date').single()
     if (error) return null
+    revalidateKanbanBoardPaths(params.id)
     return data
   }
 
@@ -124,6 +128,7 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
       description: description.trim() || null,
       priority:    priority || 'media',
     }).eq('id', cardId).eq('board_id', params.id)
+    if (!error) revalidateKanbanBoardPaths(params.id)
     return !error
   }
 

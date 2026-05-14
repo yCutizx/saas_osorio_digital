@@ -106,7 +106,7 @@ async function fetchCalendarData(clientId: string, month: string) {
     rejected:  all.filter((p) => p.status === 'rejected').length,
   }
 
-  return { client: clientRow, postsByDate, posts: all, stats, role: profile?.role ?? '' }
+  return { client: clientRow, postsByDate, posts: all, stats, role: profile?.role ?? '', userId: user.id }
 }
 
 // ── fetch custom calendars ────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
   const data = await fetchCalendarData(clientId, currentMonth)
   if (!data) return null
 
-  const { client, postsByDate, posts, stats, role } = data
+  const { client, postsByDate, posts, stats, role, userId } = data
   const canEdit    = ['admin', 'social_media'].includes(role)
   const monthLabel = format(new Date(`${currentMonth}-01T12:00:00`), 'MMMM yyyy', { locale: ptBR })
 
@@ -313,6 +313,8 @@ export default async function SocialDashboardPage({ searchParams }: PageProps) {
                 baseHref="/social"
                 clientId={client.id}
                 canCreate={canEdit}
+                currentUserId={userId}
+                realtimeTable="content_posts"
               />
             </Suspense>
           </div>

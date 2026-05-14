@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PostMedia } from '@/components/posts/post-media'
+import { PostRealtimeWrapper } from '@/components/posts/post-realtime-wrapper'
 import { CustomCommentBox, CustomStatusChanger } from './interactions'
 import { cn } from '@/lib/utils'
 
@@ -90,6 +91,7 @@ export default async function CustomPostDetailPage({ params }: PageProps) {
 
     return (
       <AppLayout>
+        <PostRealtimeWrapper postId={post.id} currentUserId={user.id} table="custom_calendar_posts" />
         <div className="max-w-2xl mx-auto space-y-6">
 
           <div className="flex items-center justify-between">

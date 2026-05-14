@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { revalidateKanbanBoardPaths } from '@/lib/revalidate-helpers'
 import { createNotification } from '@/lib/notifications'
 
 export async function addBoardMemberAction(boardId: string, profileId: string): Promise<{ error?: string }> {
@@ -35,6 +36,7 @@ export async function addBoardMemberAction(boardId: string, profileId: string): 
   })
 
   revalidatePath(`/admin/kanban/${boardId}/settings`)
+  revalidateKanbanBoardPaths(boardId)
   return {}
 }
 
@@ -56,6 +58,7 @@ export async function removeBoardMemberAction(boardId: string, profileId: string
     .eq('profile_id', profileId)
 
   revalidatePath(`/admin/kanban/${boardId}/settings`)
+  revalidateKanbanBoardPaths(boardId)
   return {}
 }
 
@@ -99,7 +102,9 @@ export async function updateBoardSettingsAction(
   }
 
   revalidatePath(`/admin/kanban/${boardId}/settings`)
-  revalidatePath(`/admin/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
   revalidatePath('/admin/kanban')
+  revalidatePath('/social/kanban')
+  revalidatePath('/client/kanban')
   return { success: true }
 }

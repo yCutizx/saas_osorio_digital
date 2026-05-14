@@ -17,6 +17,8 @@ import {
   type Checklist, type KanbanComment, type Attachment,
 } from '../actions'
 import { cn } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
+import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
 
@@ -151,6 +153,27 @@ export function CardDrawer({
   onClose, onDelete, onMoved, onArchived,
   onCoverChange, onLabelsChange, onDueDateChange, onAssigneeChange,
 }: Props) {
+  const router = useRouter()
+
+  useRealtimeSubscription({
+    channel:  `card-comments-${card.id}`,
+    table:    'kanban_comments',
+    filter:   `card_id=eq.${card.id}`,
+    event:    '*',
+    currentUserId,
+    userColumn: 'user_id',
+    onEvent:  () => router.refresh(),
+  })
+  useRealtimeSubscription({
+    channel:  `card-attachments-${card.id}`,
+    table:    'kanban_attachments',
+    filter:   `card_id=eq.${card.id}`,
+    event:    '*',
+    currentUserId,
+    userColumn: 'uploaded_by',
+    onEvent:  () => router.refresh(),
+  })
+
   const [assigneeId, setAssigneeId] = useState<string | null>(card.assigned_to ?? null)
   const [assignPending, setAssignPending] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)

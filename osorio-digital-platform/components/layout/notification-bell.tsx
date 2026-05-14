@@ -7,6 +7,7 @@ import {
   getUnreadCount, getNotifications, markAsRead, markAllAsRead,
   type Notification,
 } from '@/app/actions/notifications'
+import { useRealtimeSubscription } from '@/lib/hooks/use-realtime-subscription'
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -31,7 +32,7 @@ function NotifIcon({ type }: { type: string }) {
   return                                 <Bell       className={`${cls} text-white/40`} />
 }
 
-export function NotificationBell() {
+export function NotificationBell({ userId }: { userId: string | null }) {
   const [count, setCount]             = useState(0)
   const [open, setOpen]               = useState(false)
   const [notifications, setNotifs]    = useState<Notification[]>([])
@@ -40,12 +41,23 @@ export function NotificationBell() {
   const ref                           = useRef<HTMLDivElement>(null)
   const router                        = useRouter()
 
-  // Poll unread count every 60s
+  // Carga inicial
   useEffect(() => {
     getUnreadCount().then(setCount)
-    const interval = setInterval(() => getUnreadCount().then(setCount), 60_000)
-    return () => clearInterval(interval)
   }, [])
+
+  // Realtime: novos INSERTs em notifications onde user_id = currentUser
+  useRealtimeSubscription(userId ? {
+    channel:  `notifications-${userId}`,
+    table:    'notifications',
+    filter:   `user_id=eq.${userId}`,
+    event:    'INSERT',
+    onEvent: (payload) => {
+      const newNotif = payload.new as unknown as Notification
+      setCount((c) => c + 1)
+      setNotifs((prev) => [newNotif, ...prev])
+    },
+  } : null)
 
   // Close on outside click
   useEffect(() => {

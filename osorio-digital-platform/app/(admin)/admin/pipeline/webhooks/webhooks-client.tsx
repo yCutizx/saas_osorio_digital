@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, X, Copy, Check, Webhook } from 'lucide-react'
 import { toast } from 'sonner'
 import { createWebhookAction, toggleWebhookAction, deleteWebhookAction } from '@/app/actions/pipeline'
@@ -63,6 +64,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function WebhooksClient({ webhooks, logs }: WebhooksClientProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -86,7 +88,7 @@ export function WebhooksClient({ webhooks, logs }: WebhooksClientProps) {
         setName('')
         setUrl('')
         setSelectedEvents([])
-        window.location.reload()
+        router.refresh()
       } catch {
         toast.error('Erro ao criar webhook')
       }
@@ -98,7 +100,7 @@ export function WebhooksClient({ webhooks, logs }: WebhooksClientProps) {
       try {
         await toggleWebhookAction(id, active)
         toast.success(active ? 'Webhook ativado!' : 'Webhook desativado!')
-        window.location.reload()
+        router.refresh()
       } catch {
         toast.error('Erro ao atualizar webhook')
       }
@@ -111,7 +113,7 @@ export function WebhooksClient({ webhooks, logs }: WebhooksClientProps) {
       try {
         await deleteWebhookAction(id)
         toast.success('Webhook deletado!')
-        window.location.reload()
+        router.refresh()
       } catch {
         toast.error('Erro ao deletar webhook')
       }

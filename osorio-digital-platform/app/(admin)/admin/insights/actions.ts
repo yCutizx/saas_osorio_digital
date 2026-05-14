@@ -28,6 +28,9 @@ export async function togglePublishAction(formData: FormData): Promise<void> {
     .eq('id', id)
 
   revalidatePath('/admin/insights')
+  revalidatePath('/client/insights')
+  revalidatePath('/social/insights')
+  revalidatePath('/traffic/insights')
 }
 
 export async function deleteInsightAction(formData: FormData): Promise<void> {
@@ -37,4 +40,7 @@ export async function deleteInsightAction(formData: FormData): Promise<void> {
   const id = formData.get('id') as string
   await ctx.supabase.from('insights').delete().eq('id', id)
   revalidatePath('/admin/insights')
+  revalidatePath('/client/insights')
+  revalidatePath('/social/insights')
+  revalidatePath('/traffic/insights')
 }

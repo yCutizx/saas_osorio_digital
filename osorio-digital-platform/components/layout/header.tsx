@@ -62,7 +62,7 @@ export function Header({ userId, userName, userEmail, userRole, avatarUrl, pageT
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
-        <NotificationBell />
+        <NotificationBell userId={userId} />
 
         <div className="w-px h-5 bg-[#1a1a1a]" />
 

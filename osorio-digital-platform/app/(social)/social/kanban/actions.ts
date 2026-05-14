@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidateKanbanBoardPaths } from '@/lib/revalidate-helpers'
+import { createNotification } from '@/lib/notifications'
 import { Resend } from 'resend'
 
 export type FormState = {
@@ -102,7 +104,7 @@ export async function updateBoardColumnsAction(boardId: string, columns: unknown
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_boards').update({ columns }).eq('id', boardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 // ─── Card base actions ─────────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ export async function createCardAction(
 
   if (error) return { message: error.message }
 
-  revalidatePath(`/social/kanban/${d.board_id}`)
+  revalidateKanbanBoardPaths(d.board_id)
   return { success: true }
 }
 
@@ -216,7 +218,7 @@ export async function updateCardAction(
 
   if (error) return { message: error.message }
 
-  revalidatePath(`/social/kanban/${d.board_id}`)
+  revalidateKanbanBoardPaths(d.board_id)
   return { success: true }
 }
 
@@ -224,7 +226,7 @@ export async function deleteCard(cardId: string, boardId: string): Promise<void>
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').delete().eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function moveCard(cardId: string, newColumnId: string): Promise<void> {
@@ -268,14 +270,14 @@ export async function updateCardTitleAction(cardId: string, boardId: string, tit
   const ctx = await getCtx()
   if (!ctx || !title.trim()) return
   await ctx.admin.from('kanban_cards').update({ title: title.trim() }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function updateCardDescriptionAction(cardId: string, boardId: string, description: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').update({ description: description || null }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function updateCardCoverAction(
@@ -284,7 +286,7 @@ export async function updateCardCoverAction(
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').update({ cover_url: coverUrl }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function updateCardLabelsAction(
@@ -293,7 +295,7 @@ export async function updateCardLabelsAction(
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').update({ labels }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function updateCardDueDateAction(
@@ -302,14 +304,14 @@ export async function updateCardDueDateAction(
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').update({ due_date: dueDate || null }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function archiveCardAction(cardId: string, boardId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_cards').update({ archived: true }).eq('id', cardId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 export async function assignCardAction(
@@ -367,9 +369,23 @@ export async function assignCardAction(
     return { error: 'Erro ao atribuir responsável.' }
   }
 
-  revalidatePath(`/admin/kanban/${card.board_id}`)
-  revalidatePath(`/social/kanban/${card.board_id}`)
-  revalidatePath(`/client/kanban/${card.board_id}`)
+  // Notificar responsável (se não for o próprio user)
+  if (assigneeId && assigneeId !== ctx.user.id) {
+    const { data: fullCard } = await ctx.admin
+      .from('kanban_cards')
+      .select('title')
+      .eq('id', cardId)
+      .single()
+    await createNotification({
+      userId: assigneeId,
+      type: 'card_assigned',
+      title: 'Você foi atribuído a um card',
+      message: fullCard?.title ?? 'Card sem título',
+      link: `/social/kanban/${card.board_id}`,
+    })
+  }
+
+  revalidateKanbanBoardPaths(card.board_id)
   return { ok: true }
 }
 
@@ -440,7 +456,7 @@ export async function addChecklistAction(
     .select('id, title')
     .single()
   if (error) return null
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
   return { id: data.id, title: data.title, items: [] }
 }
 
@@ -454,6 +470,16 @@ export async function addChecklistItemAction(
     .select('id, text, checked, position')
     .single()
   if (error) return null
+
+  const { data: cl } = await ctx.admin
+    .from('kanban_checklists')
+    .select('card_id, kanban_cards(board_id)')
+    .eq('id', checklistId)
+    .single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const boardId = (cl as any)?.kanban_cards?.board_id as string | undefined
+  if (boardId) revalidateKanbanBoardPaths(boardId)
+
   return data as ChecklistItem
 }
 
@@ -461,13 +487,22 @@ export async function toggleChecklistItemAction(itemId: string, checked: boolean
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_checklist_items').update({ checked }).eq('id', itemId)
+
+  const { data: item } = await ctx.admin
+    .from('kanban_checklist_items')
+    .select('kanban_checklists(card_id, kanban_cards(board_id))')
+    .eq('id', itemId)
+    .single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const boardId = (item as any)?.kanban_checklists?.kanban_cards?.board_id as string | undefined
+  if (boardId) revalidateKanbanBoardPaths(boardId)
 }
 
 export async function deleteChecklistAction(checklistId: string, boardId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
   await ctx.admin.from('kanban_checklists').delete().eq('id', checklistId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }
 
 // ─── Label actions ─────────────────────────────────────────────────────────────
@@ -480,6 +515,7 @@ export async function createLabelAction(boardId: string, name: string, color: st
     .select('id, name, color')
     .single()
   if (error) return null
+  revalidateKanbanBoardPaths(boardId)
   return data as Label
 }
 
@@ -498,6 +534,8 @@ export async function toggleCardLabelAction(
       .eq('card_id', cardId)
       .eq('label_id', labelId)
   }
+  const { data: card } = await ctx.admin.from('kanban_cards').select('board_id').eq('id', cardId).single()
+  if (card?.board_id) revalidateKanbanBoardPaths(card.board_id)
 }
 
 // ─── Comment actions ───────────────────────────────────────────────────────────
@@ -512,13 +550,25 @@ export async function addCommentAction(
     .select('id, content, created_at, user_id')
     .single()
   if (error) return null
+
+  const { data: card } = await ctx.admin.from('kanban_cards').select('board_id').eq('id', cardId).single()
+  if (card?.board_id) revalidateKanbanBoardPaths(card.board_id)
+
   return { ...data, profiles: { full_name: ctx.name } } as KanbanComment
 }
 
 export async function deleteCommentAction(commentId: string): Promise<void> {
   const ctx = await getCtx()
   if (!ctx) return
+  const { data: comment } = await ctx.admin
+    .from('kanban_comments')
+    .select('card_id, kanban_cards(board_id)')
+    .eq('id', commentId)
+    .single()
   await ctx.admin.from('kanban_comments').delete().eq('id', commentId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const boardId = (comment as any)?.kanban_cards?.board_id as string | undefined
+  if (boardId) revalidateKanbanBoardPaths(boardId)
 }
 
 // ─── Attachment actions ────────────────────────────────────────────────────────
@@ -556,7 +606,7 @@ export async function uploadAttachmentAction(
     .single()
 
   if (error) return null
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
   return data as Attachment
 }
 
@@ -570,5 +620,5 @@ export async function deleteAttachmentAction(
     await ctx.admin.storage.from('kanban-attachments').remove([match[1]])
   }
   await ctx.admin.from('kanban_attachments').delete().eq('id', attachmentId)
-  revalidatePath(`/social/kanban/${boardId}`)
+  revalidateKanbanBoardPaths(boardId)
 }

@@ -98,5 +98,8 @@ export async function createInsightAction(
   if (error) return { message: error.message }
 
   revalidatePath('/admin/insights')
+  revalidatePath('/client/insights')
+  revalidatePath('/social/insights')
+  revalidatePath('/traffic/insights')
   redirect('/admin/insights')
 }

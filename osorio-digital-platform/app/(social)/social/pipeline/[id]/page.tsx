@@ -136,6 +136,7 @@ export default async function SocialPipelineBoardPage({ params }: PageProps) {
         timelineByLead={timelineByLead}
         attachmentsByLead={attachmentsByLead}
         canManageSettings={canManageSettings}
+        currentUserId={user.id}
       />
     </AppLayout>
   )

@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePipelinePaths } from '@/lib/revalidate-helpers'
+import { createNotification } from '@/lib/notifications'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -57,11 +59,7 @@ async function checkPipelineAccess(
   return { ok: true }
 }
 
-function revalidatePipelinePaths(pipelineId: string) {
-  revalidatePath(`/admin/pipeline/${pipelineId}`)
-  revalidatePath(`/social/pipeline/${pipelineId}`)
-  revalidatePath(`/traffic/pipeline/${pipelineId}`)
-}
+// revalidatePipelinePaths importado de '@/lib/revalidate-helpers'
 
 async function logTimeline(
   admin: AdminClient,
@@ -175,9 +173,10 @@ export async function updatePipelineAction(formData: FormData) {
     { onConflict: 'pipeline_id,profile_id', ignoreDuplicates: true },
   )
 
-  revalidatePath(`/admin/pipeline/${id}/settings`)
-  revalidatePath(`/admin/pipeline/${id}`)
+  revalidatePipelinePaths(id)
   revalidatePath('/admin/pipeline')
+  revalidatePath('/social/pipeline')
+  revalidatePath('/traffic/pipeline')
   return { ok: true as const }
 }
 
@@ -210,7 +209,7 @@ export async function regeneratePipelineTokenAction(pipelineId: string) {
 
   if (error) return { error: 'Erro ao gerar token' }
 
-  revalidatePath(`/admin/pipeline/${pipelineId}/settings`)
+  revalidatePipelinePaths(pipelineId)
   return { ok: true as const, token: newToken }
 }
 
@@ -420,6 +419,17 @@ export async function createLeadAction(formData: FormData) {
     source: parsed.data.source,
   })
 
+  // Notificar responsável (se setado e diferente do criador)
+  if (parsed.data.responsible_id && parsed.data.responsible_id !== ctx.user.id) {
+    await createNotification({
+      userId:  parsed.data.responsible_id,
+      type:    'lead_assigned',
+      title:   'Você foi atribuído a um lead',
+      message: parsed.data.name,
+      link:    `/admin/pipeline/${parsed.data.pipeline_id}`,
+    })
+  }
+
   revalidatePipelinePaths(parsed.data.pipeline_id)
   return { ok: true as const, id: lead.id }
 }
@@ -446,7 +456,7 @@ export async function updateLeadAction(
 
   const { data: lead } = await ctx.admin
     .from('pipeline_leads')
-    .select('pipeline_id')
+    .select('pipeline_id, name, responsible_id')
     .eq('id', leadId)
     .single()
   if (!lead) return { error: 'Lead não encontrado' }
@@ -462,6 +472,22 @@ export async function updateLeadAction(
   if (error) return { error: 'Erro ao atualizar' }
 
   await logTimeline(ctx.admin, leadId, ctx.user.id, 'field_updated', { fields: Object.keys(patch) })
+
+  // Notificar novo responsável se mudou (e não é o próprio user)
+  if (
+    'responsible_id' in patch &&
+    patch.responsible_id &&
+    patch.responsible_id !== lead.responsible_id &&
+    patch.responsible_id !== ctx.user.id
+  ) {
+    await createNotification({
+      userId:  patch.responsible_id,
+      type:    'lead_assigned',
+      title:   'Você foi atribuído a um lead',
+      message: lead.name,
+      link:    `/admin/pipeline/${lead.pipeline_id}`,
+    })
+  }
 
   revalidatePipelinePaths(lead.pipeline_id)
   return { ok: true as const }
@@ -598,7 +624,7 @@ export async function toggleActivityAction(activityId: string) {
 
   const { data: activity } = await ctx.admin
     .from('pipeline_activities')
-    .select('done, lead_id')
+    .select('done, lead_id, pipeline_leads(pipeline_id)')
     .eq('id', activityId)
     .single()
   if (!activity) return { error: 'Atividade não encontrada' }
@@ -608,13 +634,29 @@ export async function toggleActivityAction(activityId: string) {
     .update({ done: !activity.done })
     .eq('id', activityId)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pipelineId = (activity as any)?.pipeline_leads?.pipeline_id as string | undefined
+  if (pipelineId) revalidatePipelinePaths(pipelineId)
+
   return { ok: true as const }
 }
 
 export async function deleteActivityAction(activityId: string) {
   const ctx = await getCtx()
   if ('error' in ctx) return { error: ctx.error }
+
+  const { data: activity } = await ctx.admin
+    .from('pipeline_activities')
+    .select('pipeline_leads(pipeline_id)')
+    .eq('id', activityId)
+    .single()
+
   await ctx.admin.from('pipeline_activities').delete().eq('id', activityId)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pipelineId = (activity as any)?.pipeline_leads?.pipeline_id as string | undefined
+  if (pipelineId) revalidatePipelinePaths(pipelineId)
+
   return { ok: true as const }
 }
 
