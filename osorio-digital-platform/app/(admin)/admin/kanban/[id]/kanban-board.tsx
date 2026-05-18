@@ -19,6 +19,7 @@ import {
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import { CardDrawer } from './card-drawer'
 import { usePolling } from '@/lib/hooks/use-polling'
+import { SubmitButton } from '@/components/ui/submit-button'
 import {
   Plus, X, GripVertical, Trash2, Calendar, Tag,
   User, Building2, Film, Globe, ChevronLeft, Settings, MoreHorizontal,
@@ -439,10 +440,13 @@ function CardModal({ mode, card, defaultColId, boardId, boardMembers, clients, i
               className="flex-1 py-2 rounded-lg border border-[#333] text-sm text-white/50 hover:text-white transition-colors">
               Cancelar
             </button>
-            <button type="submit"
-              className="flex-1 py-2 rounded-lg bg-[#EACE00] text-black text-sm font-semibold hover:bg-[#f5d800] transition-colors">
+            <SubmitButton
+              variant="primary"
+              loadingText={mode === 'create' ? 'Criando...' : 'Salvando...'}
+              className="flex-1 py-2 text-sm"
+            >
               {mode === 'create' ? 'Criar' : 'Salvar'}
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </div>

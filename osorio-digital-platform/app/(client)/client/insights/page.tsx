@@ -1,11 +1,10 @@
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { Lightbulb } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireMinPlan } from '@/lib/client-plan'
-import { InsightCard } from './insight-card'
+import { ClientInsightsGrid } from './insights-grid'
+import type { Insight } from '@/types'
 
 export default async function ClientInsightsPage() {
   await requireMinPlan('pro')
@@ -15,7 +14,6 @@ export default async function ClientInsightsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Get the client this user is assigned to
   const { data: assignment } = await supabase
     .from('client_assignments')
     .select('client_id')
@@ -25,10 +23,9 @@ export default async function ClientInsightsPage() {
 
   const clientId = assignment?.client_id ?? null
 
-  // Show insights specific to this client OR general (no client)
   let query = supabase
     .from('insights')
-    .select('id, title, content, type, cover_url, file_url, tags, published_at')
+    .select('id, title, content, type, client_id, cover_url, file_url, tags, published, published_at, author_id, created_at, updated_at')
     .eq('published', true)
     .order('published_at', { ascending: false })
 
@@ -57,22 +54,7 @@ export default async function ClientInsightsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {insights.map((insight) => (
-              <InsightCard
-                key={insight.id}
-                title={insight.title}
-                content={insight.content}
-                type={(insight.type as string | null) ?? null}
-                coverUrl={insight.cover_url}
-                fileUrl={(insight as { file_url?: string | null }).file_url ?? null}
-                tags={(insight.tags as string[] | null) ?? []}
-                publishedAt={insight.published_at
-                  ? format(parseISO(insight.published_at), "d 'de' MMMM yyyy", { locale: ptBR })
-                  : null}
-              />
-            ))}
-          </div>
+          <ClientInsightsGrid insights={(insights ?? []) as Insight[]} />
         )}
 
       </div>

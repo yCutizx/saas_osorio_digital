@@ -81,14 +81,42 @@ export interface ContentPost {
   updated_at: string
 }
 
+export type InsightType =
+  | 'mercado'
+  | 'tendencia'
+  | 'benchmark'
+  | 'performance'
+  | 'oportunidade'
+  | 'alerta'
+  | 'dica'
+
+export const INSIGHT_TYPE_LABELS: Record<InsightType, string> = {
+  mercado:      'Análise de Mercado',
+  tendencia:    'Tendência',
+  benchmark:    'Benchmark',
+  performance:  'Relatório de Performance',
+  oportunidade: 'Oportunidade',
+  alerta:       'Alerta',
+  dica:         'Dica Estratégica',
+}
+
 export interface Insight {
   id: string
   title: string
   content: string
+  type: InsightType | string | null
+  client_id: string | null
   cover_url: string | null
+  file_url: string | null
+  tags: string[] | null
   published: boolean
+  published_at: string | null
+  author_id: string | null
   created_at: string
   updated_at: string
+  // joins opcionais
+  client?: { id: string; name: string } | null
+  author?: { id: string; full_name: string | null } | null
 }
 
 // ===== Pipeline (Etapa 8) =====

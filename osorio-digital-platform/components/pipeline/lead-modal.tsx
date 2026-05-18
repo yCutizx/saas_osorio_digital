@@ -22,6 +22,7 @@ import {
 import { LeadTimeline } from './lead-timeline'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials, getAvatarGradient, getAvatarTextColor } from '@/lib/avatar-utils'
+import { localDatetimeToISO } from '@/lib/datetime-utils'
 
 type Member = { id: string; full_name: string | null; email: string }
 
@@ -81,6 +82,10 @@ export function LeadModal({
 
   // Anexos
   const [uploadPending, setUploadPending] = useState(false)
+
+  // Atividades — state local com optimistic update (UI atualiza imediato no toggle/delete)
+  const [localActivities, setLocalActivities] = useState<PipelineActivity[]>(activities)
+  useEffect(() => { setLocalActivities(activities) }, [activities])
 
   // Ressincroniza states locais quando o lead muda de identidade ou versão.
   // Após router.refresh(), updated_at avança e props frescas chegam.
@@ -161,28 +166,61 @@ export function LeadModal({
 
   function handleAddActivity() {
     if (!activityDesc.trim()) return
+    const scheduledIso = localDatetimeToISO(activityDate)
+    // Optimistic add com id temporário
+    const tempId = `temp-${Date.now()}`
+    const optimistic: PipelineActivity = {
+      id:           tempId,
+      lead_id:      lead.id,
+      user_id:      '',
+      type:         activityType,
+      description:  activityDesc.trim(),
+      scheduled_at: scheduledIso,
+      done:         false,
+      created_at:   new Date().toISOString(),
+    }
+    setLocalActivities((prev) => [optimistic, ...prev])
+    const descClean = activityDesc.trim()
+    setActivityDesc(''); setActivityDate(''); setShowActivityForm(false)
     startTransition(async () => {
-      const result = await createActivityAction(lead.id, activityType, activityDesc.trim(), activityDate || null)
-      if (result.error) { toast.error(result.error); return }
+      const result = await createActivityAction(lead.id, activityType, descClean, scheduledIso)
+      if (result.error) {
+        setLocalActivities((prev) => prev.filter((a) => a.id !== tempId))
+        toast.error(result.error)
+        return
+      }
       toast.success('Atividade adicionada')
-      setActivityDesc(''); setActivityDate(''); setShowActivityForm(false)
       onUpdate()
     })
   }
 
   function handleToggleActivity(id: string) {
+    // Optimistic flip
+    setLocalActivities((prev) => prev.map((a) => a.id === id ? { ...a, done: !a.done } : a))
     startTransition(async () => {
       const result = await toggleActivityAction(id)
-      if (result.error) toast.error(result.error)
-      else onUpdate()
+      if (result.error) {
+        // Reverte
+        setLocalActivities((prev) => prev.map((a) => a.id === id ? { ...a, done: !a.done } : a))
+        toast.error(result.error)
+      } else {
+        onUpdate()
+      }
     })
   }
 
   function handleDeleteActivity(id: string) {
+    // Optimistic remove
+    const snapshot = localActivities
+    setLocalActivities((prev) => prev.filter((a) => a.id !== id))
     startTransition(async () => {
       const result = await deleteActivityAction(id)
-      if (result.error) toast.error(result.error)
-      else onUpdate()
+      if (result.error) {
+        setLocalActivities(snapshot)
+        toast.error(result.error)
+      } else {
+        onUpdate()
+      }
     })
   }
 
@@ -392,11 +430,11 @@ export function LeadModal({
                     </div>
                   )}
 
-                  {activities.length === 0 && !showActivityForm && (
+                  {localActivities.length === 0 && !showActivityForm && (
                     <p className="text-[#555] text-sm text-center py-6">Nenhuma atividade ainda.</p>
                   )}
 
-                  {activities.map((act) => {
+                  {localActivities.map((act) => {
                     const meta = ACTIVITY_TYPES.find((t) => t.value === act.type)
                     return (
                       <div key={act.id} className={cn('flex gap-2 p-3 rounded-lg border', act.done ? 'border-[#1a1a1a] opacity-60' : 'border-[#222]')}>

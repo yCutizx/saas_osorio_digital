@@ -44,3 +44,37 @@ export async function deleteInsightAction(formData: FormData): Promise<void> {
   revalidatePath('/social/insights')
   revalidatePath('/traffic/insights')
 }
+
+// Wrappers usados pelo InsightDrawer (retornam {error?} pra feedback inline)
+
+export async function togglePublishById(id: string, published: boolean): Promise<{ error?: string }> {
+  const ctx = await getAllowedRole()
+  if (!ctx) return { error: 'Sem permissão' }
+
+  const { error } = await ctx.supabase
+    .from('insights')
+    .update({ published, published_at: published ? new Date().toISOString() : null })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/insights')
+  revalidatePath('/client/insights')
+  revalidatePath('/social/insights')
+  revalidatePath('/traffic/insights')
+  return {}
+}
+
+export async function deleteInsightById(id: string): Promise<{ error?: string }> {
+  const ctx = await getAllowedRole()
+  if (!ctx) return { error: 'Sem permissão' }
+
+  const { error } = await ctx.supabase.from('insights').delete().eq('id', id)
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/insights')
+  revalidatePath('/client/insights')
+  revalidatePath('/social/insights')
+  revalidatePath('/traffic/insights')
+  return {}
+}

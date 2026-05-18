@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { AlertCircle, Send, FileEdit, Eye, X, Image } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaUploadField } from '@/components/posts/media-upload-field'
+import { localDatetimeToISO } from '@/lib/datetime-utils'
+import { SubmitButton } from '@/components/ui/submit-button'
 
 type StaffMember = { id: string; full_name: string | null; email: string }
 
@@ -57,6 +59,7 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
     .map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ')
 
   const defaultDatetime = defaultDate ? `${defaultDate}T09:00` : ''
+  const [scheduledLocal, setScheduledLocal] = useState<string>(defaultDatetime)
 
   function togglePlatform(value: string) {
     setPlatforms(prev => {
@@ -210,12 +213,14 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
             Data e Hora de Publicação <span className="text-red-400">*</span>
           </Label>
           <Input
-            id="scheduled_at" name="scheduled_at"
+            id="scheduled_at_local"
             type="datetime-local"
             required
-            defaultValue={defaultDatetime}
+            value={scheduledLocal}
+            onChange={(e) => setScheduledLocal(e.target.value)}
             className="bg-[#1a1a1a] border-[#333] text-[#ccc] focus:border-[#EACE00]/60 h-10 [color-scheme:dark]"
           />
+          <input type="hidden" name="scheduled_at" value={localDatetimeToISO(scheduledLocal) ?? ''} />
           <FieldError messages={state.errors?.scheduled_at} />
         </div>
 
@@ -231,30 +236,32 @@ export function NewCustomPostForm({ calendarId, staff, defaultDate }: Props) {
           </button>
           <div className="flex gap-3">
             <input type="hidden" name="status" value="draft" />
-            <button
-              type="submit"
+            <SubmitButton
+              variant="secondary"
+              loadingText="Salvando..."
+              className="flex-1 h-11"
               onClick={(e) => {
                 const form = e.currentTarget.form
                 const input = form?.querySelector<HTMLInputElement>('input[name="status"]')
                 if (input) input.value = 'draft'
               }}
-              className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 text-white/70 hover:bg-white/5 hover:text-white text-sm font-medium transition-colors"
             >
               <FileEdit className="h-4 w-4" />
               Salvar Rascunho
-            </button>
-            <button
-              type="submit"
+            </SubmitButton>
+            <SubmitButton
+              variant="primary"
+              loadingText="Enviando..."
+              className="flex-1 h-11"
               onClick={(e) => {
                 const form = e.currentTarget.closest('form')
                 const input = form?.querySelector<HTMLInputElement>('input[name="status"]')
                 if (input) input.value = 'pending_approval'
               }}
-              className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-lg bg-[#EACE00] text-black font-semibold hover:bg-[#EACE00]/90 text-sm transition-colors"
             >
               <Send className="h-4 w-4" />
               Enviar para Revisão
-            </button>
+            </SubmitButton>
           </div>
         </div>
       </form>

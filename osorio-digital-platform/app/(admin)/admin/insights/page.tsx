@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { Plus, Eye, EyeOff, Trash2, Lightbulb, Pencil, FileText, Hash } from 'lucide-react'
+import { Plus, Lightbulb } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { togglePublishAction, deleteInsightAction } from './actions'
+import { InsightsGrid } from './insights-grid'
+import type { Insight } from '@/types'
 
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
@@ -144,114 +145,7 @@ export default async function AdminInsightsPage({ searchParams }: PageProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {insights.map((insight) => {
-              const typeCfg = insight.type ? TYPE_CONFIG[insight.type] : null
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const clientName = (insight.clients as any)?.name as string | null
-
-              return (
-                <div key={insight.id}
-                  className="flex flex-col bg-[#0d0d0d] border border-[#222] rounded-2xl overflow-hidden hover:border-[#EACE00]/25 transition-colors group">
-
-                  {/* Capa */}
-                  {insight.cover_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={insight.cover_url} alt={insight.title} className="w-full h-40 object-cover" />
-                  ) : (
-                    <div className="w-full h-24 bg-[#111] flex items-center justify-center">
-                      <Lightbulb className="h-8 w-8 text-[#EACE00]/20" />
-                    </div>
-                  )}
-
-                  <div className="flex-1 p-4 space-y-3">
-                    {/* Badges */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {typeCfg && (
-                        <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-medium border', typeCfg.cls)}>
-                          {typeCfg.label}
-                        </span>
-                      )}
-                      <span className={cn(
-                        'text-[10px] px-2 py-0.5 rounded-full font-medium border',
-                        insight.published
-                          ? 'bg-green-500/15 text-green-400 border-green-500/30'
-                          : 'bg-white/8 text-[#888] border-white/10'
-                      )}>
-                        {insight.published ? 'Publicado' : 'Rascunho'}
-                      </span>
-                      {insight.file_url && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full border bg-white/5 text-white/40 border-white/10 inline-flex items-center gap-1">
-                          <FileText className="h-2.5 w-2.5" />PDF
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Título */}
-                    <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2 group-hover:text-[#EACE00] transition-colors">
-                      {insight.title}
-                    </h3>
-
-                    {/* Cliente + Data */}
-                    <div className="flex items-center justify-between text-[10px] text-white/30">
-                      <span>{clientName ?? 'Geral'}</span>
-                      <span>
-                        {new Date(insight.created_at).toLocaleDateString('pt-BR', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-
-                    {/* Tags */}
-                    {insight.tags && (insight.tags as string[]).length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {(insight.tags as string[]).slice(0, 3).map((tag) => (
-                          <span key={tag} className="inline-flex items-center gap-0.5 text-[10px] text-[#EACE00]/60 bg-[#EACE00]/8 border border-[#EACE00]/15 px-1.5 py-0.5 rounded-full">
-                            <Hash className="h-2 w-2" />{tag}
-                          </span>
-                        ))}
-                        {(insight.tags as string[]).length > 3 && (
-                          <span className="text-[10px] text-white/30">+{(insight.tags as string[]).length - 3}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Ações */}
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <Link href={`/admin/insights/${insight.id}/edit`}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium hover:bg-white/10 hover:text-white transition-colors">
-                        <Pencil className="h-3 w-3" />Editar
-                      </Link>
-
-                      <form action={togglePublishAction}>
-                        <input type="hidden" name="id" value={insight.id} />
-                        <input type="hidden" name="published" value={(!insight.published).toString()} />
-                        <button type="submit" title={insight.published ? 'Despublicar' : 'Publicar'}
-                          className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                            insight.published
-                              ? 'bg-white/8 text-[#888] border border-white/10 hover:text-white'
-                              : 'bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25'
-                          )}>
-                          {insight.published
-                            ? <><EyeOff className="h-3 w-3" /></>
-                            : <><Eye className="h-3 w-3" /></>}
-                        </button>
-                      </form>
-
-                      <form action={deleteInsightAction}>
-                        <input type="hidden" name="id" value={insight.id} />
-                        <button type="submit" title="Excluir"
-                          className="p-1.5 rounded-lg text-[#888] hover:bg-red-500/10 hover:text-red-400 transition-colors">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <InsightsGrid insights={insights as unknown as Array<Insight & { clients?: { name: string } | null }>} />
         )}
 
       </div>
