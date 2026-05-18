@@ -367,6 +367,14 @@ export function ClientKanbanBoard({ boardName, columns, cards: initialCards, cur
                       <p className="text-xs text-white/15">vazio</p>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setCreateColId(col.id)}
+                    className="w-full mt-1 px-3 py-2 text-sm text-[#888] hover:text-[#F5F5F0] hover:bg-[#1a1a1a] rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar um cartão
+                  </button>
                 </div>
               </div>
             )
