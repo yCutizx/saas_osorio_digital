@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
+import { MetaIntegrationSection } from '@/components/clients/meta-integration-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -26,7 +27,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
   ] = await Promise.all([
     adminSupabase
       .from('clients')
-      .select('id, name, industry, contact_email, contact_phone, plan, active, contract_status, monthly_value, renewal_date, notes')
+      .select('id, name, industry, contact_email, contact_phone, plan, active, contract_status, monthly_value, renewal_date, notes, meta_ad_account_id, meta_business_id, meta_connected_at, meta_last_sync_at, meta_last_sync_status, meta_last_sync_error')
       .eq('id', params.id)
       .single(),
     supabase
@@ -78,6 +79,18 @@ export default async function EditClientPage({ params }: { params: { id: string 
             />
           </CardContent>
         </Card>
+
+        <MetaIntegrationSection
+          clientId={clientRow.id}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          initialAdAccountId={(clientRow as any).meta_ad_account_id ?? null}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          lastSyncAt={(clientRow as any).meta_last_sync_at ?? null}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          lastSyncStatus={(clientRow as any).meta_last_sync_status ?? null}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          lastSyncError={(clientRow as any).meta_last_sync_error ?? null}
+        />
       </div>
     </AppLayout>
   )

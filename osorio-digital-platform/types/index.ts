@@ -38,6 +38,18 @@ export interface Client {
   contact_email: string | null
   contact_phone: string | null
   active: boolean
+  notes: string | null
+  plan: 'basico' | 'pro' | 'premium' | null
+  contract_status: 'ativo' | 'pausado' | 'encerrado' | null
+  monthly_value: number | null
+  renewal_date: string | null
+  // Meta Ads integration
+  meta_ad_account_id: string | null
+  meta_business_id: string | null
+  meta_connected_at: string | null
+  meta_last_sync_at: string | null
+  meta_last_sync_status: 'success' | 'error' | 'pending' | null
+  meta_last_sync_error: string | null
   created_at: string
   updated_at: string
 }
@@ -48,7 +60,10 @@ export interface Campaign {
   name: string
   platform: 'meta' | 'google' | 'tiktok' | 'linkedin' | 'other'
   status: 'active' | 'paused' | 'finished'
+  objective: string | null
   budget_monthly: number | null
+  start_date: string | null
+  end_date: string | null
   created_at: string
   updated_at: string
 }
@@ -64,7 +79,32 @@ export interface TrafficReport {
   conversions: number
   spend: number
   revenue: number | null
+  cpm: number | null
+  cpc: number | null
+  ctr: number | null
+  roas: number | null
+  reach: number | null
+  result_type: string | null
   created_at: string
+}
+
+/** Resposta crua de uma linha de /insights da Meta Marketing API (uso interno). */
+export interface MetaInsightRow {
+  campaign_id: string
+  campaign_name: string
+  objective?: string
+  date_start: string
+  date_stop: string
+  spend: string
+  impressions: string
+  reach?: string
+  clicks?: string
+  ctr?: string
+  cpc?: string
+  cpm?: string
+  frequency?: string
+  actions?: Array<{ action_type: string; value: string }>
+  action_values?: Array<{ action_type: string; value: string }>
 }
 
 export interface ContentPost {
