@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, Megaphone, LayoutList, GitMerge, Settings,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, LayoutList, GitMerge, Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -28,7 +28,6 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Clientes',   href: '/admin/clients',        icon: Users },
     { label: 'Equipe',     href: '/admin/team',           icon: Users2 },
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
-    { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
     { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
@@ -38,7 +37,6 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
   ],
   traffic_manager: [
     { label: 'Tráfego',    href: '/traffic/dashboard',    icon: TrendingUp },
-    { label: 'Campanhas',  href: '/traffic/campaigns',    icon: Megaphone },
     { label: 'Calendário', href: '/social/dashboard',     icon: Calendar },
     { label: 'Insights',   href: '/admin/insights',       icon: Lightbulb },
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },

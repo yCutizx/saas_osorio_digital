@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams }                                      from 'next/navigation'
-import { useState }                                             from 'react'
+import { useState, useTransition }                              from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2,
          ArrowRight, Mail, Lock as LockIcon }                   from 'lucide-react'
 import { login, forgotPassword }                               from './actions'
@@ -85,8 +85,8 @@ export default function LoginForm() {
 
   const [showPassword,  setShowPassword]  = useState(false)
   const [showForgot,    setShowForgot]    = useState(false)
-  const [loginPending,  setLoginPending]  = useState(false)
-  const [forgotPending, setForgotPending] = useState(false)
+  const [isLoginPending,  startLoginTransition]  = useTransition()
+  const [isForgotPending, startForgotTransition] = useTransition()
 
   return (
     <div className="space-y-5">
@@ -110,10 +110,10 @@ export default function LoginForm() {
       {!showForgot ? (
         /* ── Formulário de login ─────────────────────────────────── */
         <form
-          action={async (formData) => {
-            setLoginPending(true)
-            await login(formData)
-            setLoginPending(false)
+          action={(formData) => {
+            startLoginTransition(async () => {
+              await login(formData)
+            })
           }}
           className="space-y-4"
         >
@@ -170,7 +170,7 @@ export default function LoginForm() {
           {/* Botão Entrar com shimmer */}
           <button
             type="submit"
-            disabled={loginPending}
+            disabled={isLoginPending}
             className="relative w-full h-12 rounded-xl bg-[#EACE00] text-black font-bold text-sm overflow-hidden group transition-all duration-300 hover:-translate-y-px active:translate-y-0 disabled:opacity-55 disabled:pointer-events-none mt-1"
             style={{ animation: 'loginButtonGlow 2.5s ease-in-out infinite alternate' }}
           >
@@ -178,7 +178,7 @@ export default function LoginForm() {
             <span className="absolute inset-0 -skew-x-12 translate-x-[-150%] group-hover:translate-x-[200%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none" />
             {/* Conteúdo */}
             <span className="relative flex items-center justify-center gap-2">
-              {loginPending ? (
+              {isLoginPending ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />Entrando...</>
               ) : (
                 <>Entrar <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" /></>
@@ -189,10 +189,10 @@ export default function LoginForm() {
       ) : (
         /* ── Formulário de recuperação de senha ─────────────────── */
         <form
-          action={async (formData) => {
-            setForgotPending(true)
-            await forgotPassword(formData)
-            setForgotPending(false)
+          action={(formData) => {
+            startForgotTransition(async () => {
+              await forgotPassword(formData)
+            })
           }}
           className="space-y-5"
         >
@@ -219,12 +219,12 @@ export default function LoginForm() {
             </button>
             <button
               type="submit"
-              disabled={forgotPending}
+              disabled={isForgotPending}
               className="relative flex-1 h-12 rounded-xl bg-[#EACE00] text-black font-bold text-sm overflow-hidden group shadow-[0_0_20px_rgba(234,206,0,0.2)] hover:-translate-y-px transition-all disabled:opacity-55 disabled:pointer-events-none"
             >
               <span className="absolute inset-0 -skew-x-12 translate-x-[-150%] group-hover:translate-x-[200%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/35 to-transparent pointer-events-none" />
               <span className="relative flex items-center justify-center gap-2">
-                {forgotPending ? (
+                {isForgotPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Enviando...</>
                 ) : (
                   'Enviar link'

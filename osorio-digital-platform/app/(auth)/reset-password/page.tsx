@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import Image from 'next/image'
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Lock } from 'lucide-react'
 import { createClient }      from '@/lib/supabase/client'
@@ -14,7 +14,7 @@ export default function ResetPasswordPage() {
   const [confirm,  setConfirm]  = useState('')
   const [showPw,   setShowPw]   = useState(false)
   const [showCf,   setShowCf]   = useState(false)
-  const [loading,  setLoading]  = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [error,    setError]    = useState('')
   const [success,  setSuccess]  = useState(false)
   const [ready,    setReady]    = useState(false)
@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
 
@@ -41,17 +41,17 @@ export default function ResetPasswordPage() {
       return
     }
 
-    setLoading(true)
-    const supabase = createClient()
-    const { error: err } = await supabase.auth.updateUser({ password })
+    startTransition(async () => {
+      const supabase = createClient()
+      const { error: err } = await supabase.auth.updateUser({ password })
 
-    if (err) {
-      setError('Erro ao atualizar senha. O link pode ter expirado.')
-    } else {
-      setSuccess(true)
-      setTimeout(() => router.push('/login'), 3000)
-    }
-    setLoading(false)
+      if (err) {
+        setError('Erro ao atualizar senha. O link pode ter expirado.')
+      } else {
+        setSuccess(true)
+        setTimeout(() => router.push('/login'), 3000)
+      }
+    })
   }
 
   return (
@@ -136,10 +136,10 @@ export default function ResetPasswordPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full h-12 rounded-xl bg-[#EACE00] text-black font-bold text-sm disabled:opacity-55 disabled:pointer-events-none hover:-translate-y-px active:translate-y-0 transition-all"
             >
-              {loading
+              {isPending
                 ? <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                 : 'Atualizar senha'}
             </button>
