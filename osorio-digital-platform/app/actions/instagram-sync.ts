@@ -49,49 +49,38 @@ export async function listAvailableIGAccountsAction() {
 }
 
 /**
- * Conecta uma conta IG a um cliente. Faz 1 chamada extra pra validar
- * account_type aqui (movido do discovery — evita N+1 calls no listing).
- * Rejeita Personal.
+ * Conecta uma conta IG a um cliente.
+ *
+ * Validação de Business/Creator é IMPLÍCITA pelo vínculo Page→IG:
+ * - Pages do Facebook só aceitam IG Business/Creator vinculado (Personal não vincula)
+ * - O field `account_type` foi removido da Graph API v22+ (não dá mais pra checar)
+ *
+ * Salvamos `account_kind='business'` por convenção — é metadata interna nossa.
  */
 export async function connectIGAccountAction(opts: {
-  clientId:    string
-  igUserId:    string
-  igUsername:  string
-  pageId:      string
-  pageName:    string
+  clientId:   string
+  igUserId:   string
+  igUsername: string
+  pageId:     string
+  pageName:   string
 }) {
   const ctx = await getAdminCtx()
   if ('error' in ctx) return { error: ctx.error }
 
-  let accountKind: 'business' | 'creator' | null = null
-  try {
-    const info = await fetchIGAccountInfo(opts.igUserId)
-    if      (info?.account_type === 'BUSINESS')      accountKind = 'business'
-    else if (info?.account_type === 'MEDIA_CREATOR') accountKind = 'creator'
-  } catch (e) {
-    console.warn('[connectIGAccountAction] erro buscando account_type:', e)
-  }
-
-  if (!accountKind) {
-    return {
-      error: 'Conta IG precisa ser Business ou Creator (não Personal). Verifique nas configurações do Instagram.',
-    }
-  }
-
   const { error } = await ctx.admin
     .from('instagram_accounts')
     .upsert({
-      client_id:         opts.clientId,
-      ig_user_id:        opts.igUserId,
-      ig_username:       opts.igUsername,
-      account_kind:      accountKind,
-      page_id:           opts.pageId,
-      page_name:         opts.pageName,
-      connected_at:      new Date().toISOString(),
-      last_sync_status:  null,
-      last_sync_error:   null,
-      is_primary:        true,
-      updated_at:        new Date().toISOString(),
+      client_id:        opts.clientId,
+      ig_user_id:       opts.igUserId,
+      ig_username:      opts.igUsername,
+      account_kind:     'business',
+      page_id:          opts.pageId,
+      page_name:        opts.pageName,
+      connected_at:     new Date().toISOString(),
+      last_sync_status: null,
+      last_sync_error:  null,
+      is_primary:       true,
+      updated_at:       new Date().toISOString(),
     }, { onConflict: 'client_id,ig_user_id' })
 
   if (error) return { error: 'Erro ao salvar conexão' }

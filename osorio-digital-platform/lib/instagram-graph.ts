@@ -251,14 +251,19 @@ export async function fetchIGProfileInsights(opts: {
 export interface IGAccountInfo {
   username:        string
   followers_count: number
-  account_type:    string
 }
 
-/** Snapshot atual: followers e account_type. Meta IG não expõe histórico de followers. */
+/**
+ * Snapshot atual: followers e username. Meta IG não expõe histórico de followers.
+ *
+ * NOTA: campo `account_type` foi removido do endpoint `/{ig-user-id}` na API v22+
+ * (retorna `Error 100: nonexisting field`). A validação de Business/Creator é
+ * implícita pelo vínculo Page→IG — Personal não consegue vincular a Page.
+ */
 export async function fetchIGAccountInfo(igUserId: string): Promise<IGAccountInfo | null> {
   try {
     const data = await fetchIGApi<IGAccountInfo>(`/${igUserId}`, {
-      fields: 'username,followers_count,account_type',
+      fields: 'username,followers_count',
     })
     return data[0] ?? null
   } catch (e) {
