@@ -53,6 +53,9 @@ export const RESULT_TYPE_LABELS: Record<string, string> = {
   'mobile_app_install':                                          'instalações',
   // Perfil (limitado — Meta API quase não expõe)
   'onsite_conversion.flow_complete':                             'visitas no perfil',
+  // Etapa 13 — PROFILE_VISITS via cruzamento com Instagram Graph
+  'profile_views':                                               'visitas no perfil',
+  'profile_visits_pending':                                      'visitas no perfil (conecte o Instagram)',
 }
 
 // ── action_type → categoria (cor/ícone) ────────────────────────────────────────
@@ -82,6 +85,8 @@ export const RESULT_TYPE_CATEGORY: Record<string, ResultCategory> = {
   'submit_application':                                          'lead',
   'mobile_app_install':                                          'venda',
   'onsite_conversion.flow_complete':                             'trafego',
+  'profile_views':                                               'trafego',
+  'profile_visits_pending':                                      'outro',
 }
 
 // ── Cores brand por categoria ──────────────────────────────────────────────────

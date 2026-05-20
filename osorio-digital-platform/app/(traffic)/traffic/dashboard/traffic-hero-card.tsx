@@ -22,11 +22,14 @@ export interface HeroStats {
 }
 
 interface Props {
-  from:          string
-  to:            string
-  stats:         HeroStats
-  campaignCount: number
-  results:       ResultSummaryItem[]
+  from:               string
+  to:                 string
+  stats:              HeroStats
+  campaignCount:      number
+  results:            ResultSummaryItem[]
+  /** Período do último sync — usado em tooltip explicativo do alcance único. */
+  reachPeriodSince?:  string | null
+  reachPeriodUntil?:  string | null
 }
 
 function fmtN(n: number) {
@@ -43,7 +46,10 @@ function fmtPct(n: number) {
   return n > 0 ? `${n.toFixed(2).replace('.', ',')}%` : '—'
 }
 
-export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Props) {
+export function TrafficHeroCard({
+  from, to, stats, campaignCount, results,
+  reachPeriodSince, reachPeriodUntil,
+}: Props) {
   const fromDate = parseISO(from)
   const toDate   = parseISO(to)
   const days     = differenceInDays(toDate, fromDate) + 1
@@ -193,14 +199,23 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
           </div>
 
           {/* Amarelo: ALCANCE */}
-          <div className="bg-[#1a1500] p-5 flex flex-col gap-1.5">
-            <p className="text-[10px] text-[#EACE00]/45 uppercase tracking-widest font-medium">Alcance</p>
+          <div
+            className="bg-[#1a1500] p-5 flex flex-col gap-1.5"
+            title={
+              reachPeriodSince && reachPeriodUntil
+                ? `Alcance único calculado no último sync: ${format(parseISO(reachPeriodSince), 'dd/MM', { locale: ptBR })} → ${format(parseISO(reachPeriodUntil), 'dd/MM', { locale: ptBR })}`
+                : 'Alcance único do último sync'
+            }
+          >
+            <p className="text-[10px] text-[#EACE00]/45 uppercase tracking-widest font-medium">
+              Alcance ⓘ
+            </p>
             <p className="text-xl font-black text-[#EACE00] tabular-nums leading-tight">
               {stats.reach > 0 ? fmtLarge(stats.reach) : '—'}
             </p>
             <p className="text-[11px] text-[#EACE00]/30 mt-auto">
               {freq > 0
-                ? `Frequência: ${freq.toFixed(1).replace('.', ',')}x`
+                ? `Frequência: ${freq.toFixed(2).replace('.', ',')}x`
                 : 'Frequência: —'}
             </p>
           </div>

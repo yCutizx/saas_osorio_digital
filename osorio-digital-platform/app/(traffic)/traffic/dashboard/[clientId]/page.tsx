@@ -7,7 +7,7 @@ import { ptBR } from 'date-fns/locale'
 import {
   Users, Trophy, MousePointerClick, Layers,
   PlusCircle, BarChart2, AlertTriangle, CheckCircle2,
-  XCircle, Zap, Upload, ArrowLeft,
+  XCircle, Zap, Upload, ArrowLeft, AtSign,
 } from 'lucide-react'
 import { AppLayout }         from '@/components/layout/app-layout'
 import { createClient }      from '@/lib/supabase/server'
@@ -23,6 +23,7 @@ import {
   buildResultSummaryFromDaily,
   buildCampaignRows,
   buildDailyData,
+  mergeProfileVisitsIntoResults,
   type TrafficReportWithCampaign,
   type DailyRowWithResultType,
 } from '@/lib/traffic-builders'
@@ -121,8 +122,21 @@ async function fetchData(clientId: string, from: string, to: string, isMax: bool
   }
 
   const { data: clientData } = await admin
-    .from('clients').select('id, name').eq('id', clientId).single()
+    .from('clients')
+    .select('id, name, meta_last_period_reach, meta_last_period_frequency, meta_last_period_since, meta_last_period_until')
+    .eq('id', clientId)
+    .single()
   if (!clientData) return null
+
+  // IG daily pra merge de PROFILE_VISITS (Etapa 13 — campanhas com goal
+  // PROFILE_VISITS gravam result_type='profile_visits_pending', dashboard cruza
+  // com profile_views do IG quando há conexão).
+  const { data: igDaily } = await admin
+    .from('instagram_daily')
+    .select('date, profile_views')
+    .eq('client_id', clientId)
+    .gte('date', isMax ? '1900-01-01' : from)
+    .lte('date', isMax ? '2999-12-31' : to)
 
   // Reports query — skip date filter when max
   let reportsQuery = supabase
@@ -182,6 +196,7 @@ async function fetchData(clientId: string, from: string, to: string, isMax: bool
     profile,
     reports:      (reports ?? []) as unknown as TrafficReportWithCampaign[],
     dailyRecords: records as DailyRowWithResultType[],
+    igDaily:      igDaily ?? [],
     actualFrom,
     actualTo,
     prevCpm,
@@ -238,21 +253,26 @@ export default async function ClientTrafficDashboardPage({ params, searchParams 
   const data = await fetchData(clientId, from, to, isMax)
   if (!data) { redirect('/traffic/dashboard') }
 
-  const { client, profile, reports, dailyRecords, actualFrom, actualTo, prevCpm = 0 } = data
+  const { client, profile, reports, dailyRecords, igDaily, actualFrom, actualTo, prevCpm = 0 } = data
   const canEdit  = profile?.role === 'admin' || profile?.role === 'traffic_manager'
 
-  // Stats híbrido: granularidade dia-a-dia (respeita filtro exato) + reach/revenue
-  // de reports (que não vivem em traffic_daily).
-  const dailyStats               = computeStatsFromDaily(dailyRecords)
-  const { reach, revenue }       = computeReachAndRevenue(reports)
+  // Stats híbrido: granularidade dia-a-dia (respeita filtro exato) +
+  // reach único do último sync (Etapa 13 fix — chamada API extra sem
+  // time_increment guardada em clients.meta_last_period_reach).
+  const dailyStats         = computeStatsFromDaily(dailyRecords)
+  const { revenue }        = computeReachAndRevenue(reports)
+  const reach              = client.meta_last_period_reach ?? 0
   const ctr  = dailyStats.impressions > 0 ? (dailyStats.clicks / dailyStats.impressions) * 100 : 0
   const cpc  = dailyStats.clicks > 0 ? dailyStats.spend / dailyStats.clicks : 0
   const cpa  = dailyStats.conversions > 0 ? dailyStats.spend / dailyStats.conversions : 0
   const roas = dailyStats.spend > 0 ? revenue / dailyStats.spend : 0
   const stats: StatsDerived = { ...dailyStats, reach, revenue, ctr, cpc, cpa, roas }
 
-  const results   = buildResultSummaryFromDaily(dailyRecords)
-  const hasVendas = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
+  // Etapa 13 — substitui profile_visits_pending (campanhas PROFILE_VISITS) pelo
+  // total de profile_views do IG no período. Sem IG conectado, remove pending.
+  const rawResults = buildResultSummaryFromDaily(dailyRecords)
+  const results    = mergeProfileVisitsIntoResults(rawResults, igDaily, from, to)
+  const hasVendas  = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
 
   // Mapeia DailyRow → DailyPoint (chart shape: PT keys + data formatada + zero-fill)
   const libDaily = buildDailyData(dailyRecords)
@@ -336,24 +356,33 @@ export default async function ClientTrafficDashboardPage({ params, searchParams 
                 basePath={basePath}
               />
             </Suspense>
-            {canEdit && (
-              <div className="flex gap-2 shrink-0">
-                <Link
-                  href="/traffic/reports/import"
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-white/15 text-white/60 font-medium rounded-lg hover:text-white hover:border-white/30 transition-colors text-sm"
-                >
-                  <Upload className="h-4 w-4" />
-                  Importar CSV
-                </Link>
-                <Link
-                  href="/traffic/reports/new"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Novo Relatório
-                </Link>
-              </div>
-            )}
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              <Link
+                href={`/traffic/dashboard/${clientId}/instagram`}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-white/15 text-white/60 font-medium rounded-lg hover:text-white hover:border-[#EACE00]/40 transition-colors text-sm"
+              >
+                <AtSign className="h-4 w-4" />
+                Ver Instagram
+              </Link>
+              {canEdit && (
+                <>
+                  <Link
+                    href="/traffic/reports/import"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-white/15 text-white/60 font-medium rounded-lg hover:text-white hover:border-white/30 transition-colors text-sm"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Importar CSV
+                  </Link>
+                  <Link
+                    href="/traffic/reports/new"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#EACE00] text-black font-bold rounded-lg hover:bg-[#f5d800] transition-colors text-sm"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Novo Relatório
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -386,6 +415,8 @@ export default async function ClientTrafficDashboardPage({ params, searchParams 
               stats={stats}
               campaignCount={campaignRows.length}
               results={results}
+              reachPeriodSince={client.meta_last_period_since}
+              reachPeriodUntil={client.meta_last_period_until}
             />
 
             {/* KPI Cards */}

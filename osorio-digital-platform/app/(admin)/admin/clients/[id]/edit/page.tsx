@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
 import { MetaIntegrationSection } from '@/components/clients/meta-integration-section'
+import { InstagramIntegrationSection } from '@/components/clients/instagram-integration-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -24,6 +25,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
     { data: assignments },
     { data: trafficManagers },
     { data: socialMediaTeam },
+    { data: igAccount },
   ] = await Promise.all([
     adminSupabase
       .from('clients')
@@ -45,6 +47,12 @@ export default async function EditClientPage({ params }: { params: { id: string 
       .select('id, full_name, email')
       .eq('role', 'social_media')
       .order('full_name'),
+    adminSupabase
+      .from('instagram_accounts')
+      .select('ig_user_id, ig_username, account_kind, page_name, last_sync_at, last_sync_status, last_sync_error')
+      .eq('client_id', params.id)
+      .eq('is_primary', true)
+      .maybeSingle(),
   ])
 
   if (!clientRow) notFound()
@@ -90,6 +98,11 @@ export default async function EditClientPage({ params }: { params: { id: string 
           lastSyncStatus={(clientRow as any).meta_last_sync_status ?? null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           lastSyncError={(clientRow as any).meta_last_sync_error ?? null}
+        />
+
+        <InstagramIntegrationSection
+          clientId={clientRow.id}
+          connection={igAccount ?? null}
         />
       </div>
     </AppLayout>

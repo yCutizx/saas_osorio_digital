@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, LayoutList, GitMerge, Settings,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, LayoutList, GitMerge, Settings, AtSign,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -54,20 +54,21 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
 }
 
 const CLIENT_NAV: NavItem[] = [
-  { label: 'Meu Painel', href: '/client/home',     icon: LayoutDashboard },
-  { label: 'Quadros',    href: '/client/kanban',   icon: LayoutList },
-  { label: 'Projetos',   href: '/client/pipeline', icon: GitMerge },
-  { label: 'Anúncios',   href: '/client/ads',      icon: BarChart2 },
-  { label: 'Calendário', href: '/client/calendar', icon: Calendar },
-  { label: 'Insights',   href: '/client/insights', icon: Lightbulb },
-  { label: 'Pesquisas',  href: '/client/research', icon: FileSearch },
+  { label: 'Meu Painel', href: '/client/home',      icon: LayoutDashboard },
+  { label: 'Quadros',    href: '/client/kanban',    icon: LayoutList },
+  { label: 'Projetos',   href: '/client/pipeline',  icon: GitMerge },
+  { label: 'Anúncios',   href: '/client/ads',       icon: BarChart2 },
+  { label: 'Instagram',  href: '/client/instagram', icon: AtSign },
+  { label: 'Calendário', href: '/client/calendar',  icon: Calendar },
+  { label: 'Insights',   href: '/client/insights',  icon: Lightbulb },
+  { label: 'Pesquisas',  href: '/client/research',  icon: FileSearch },
   SETTINGS_ITEM,
 ]
 
 const CLIENT_NAV_COUNT: Record<string, number> = {
   basico:  3,
-  pro:     6,
-  premium: 6,
+  pro:     7,
+  premium: 7,
 }
 
 interface SidebarProps {

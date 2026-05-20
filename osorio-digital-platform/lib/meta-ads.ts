@@ -127,9 +127,71 @@ export async function fetchAccountInsights(opts: {
     time_range: JSON.stringify({ since: opts.since, until: opts.until }),
     fields,
     limit: '500',
+    // Alinha com o que o Ads Manager UI mostra por padrão (default da conta).
+    // Fix Etapa 13 — drift de 3-4% em impressions/clicks vs UI.
+    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_engaged_view']),
+    use_unified_attribution_setting: 'true',
   }
 
   return fetchMetaApi<MetaInsightRow>(`/${id}/insights`, params)
+}
+
+/**
+ * Reach único, frequência e impressões do período inteiro (sem time_increment).
+ * Usado pra corrigir o `Math.max(reach)` quebrado do agregador antigo.
+ * Retorna null se conta não tiver gasto no período (Meta retorna `data: []`).
+ */
+export async function fetchAccountReachForPeriod(opts: {
+  adAccountId: string
+  since: string
+  until: string
+}): Promise<{ reach: number; frequency: number; impressions: number } | null> {
+  const id = opts.adAccountId.startsWith('act_') ? opts.adAccountId : `act_${opts.adAccountId}`
+  const params: Record<string, string> = {
+    level: 'account',
+    time_range: JSON.stringify({ since: opts.since, until: opts.until }),
+    fields: 'reach,frequency,impressions',
+    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_engaged_view']),
+    use_unified_attribution_setting: 'true',
+    // SEM time_increment — Meta devolve 1 linha agregada do período inteiro
+  }
+
+  try {
+    const rows = await fetchMetaApi<{ reach?: string; frequency?: string; impressions?: string }>(
+      `/${id}/insights`,
+      params,
+    )
+    if (rows.length === 0) return null
+    return {
+      reach:       parseMetaNumber(rows[0].reach),
+      frequency:   parseMetaNumber(rows[0].frequency),
+      impressions: parseMetaNumber(rows[0].impressions),
+    }
+  } catch (e) {
+    console.error('[fetchAccountReachForPeriod]', e)
+    return null
+  }
+}
+
+/**
+ * Timezone da Ad Account (ex: 'America/Sao_Paulo'). Usada pra calcular
+ * since/until alinhado com a data calendário da conta — evita drift quando
+ * server (UTC) atravessa meia-noite mas o cliente ainda está no dia anterior.
+ */
+export async function fetchAdAccountTimezone(adAccountId: string): Promise<string | null> {
+  try {
+    const id = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`
+    // /act_XXX retorna objeto único — request direto sem fetchMetaApi
+    const url = new URL(`${getBaseUrl()}/${id}`)
+    url.searchParams.set('access_token', getAccessToken())
+    url.searchParams.set('fields', 'timezone_name')
+    const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' })
+    if (!res.ok) return null
+    const body = (await res.json()) as { timezone_name?: string }
+    return body.timezone_name ?? null
+  } catch {
+    return null
+  }
 }
 
 /** Status atual de cada campanha (ACTIVE/PAUSED/...) + optimization_goal quando disponível. */
@@ -201,6 +263,17 @@ export function extractConversionsAndRevenue(
   const effectiveGoal =
     optimizationGoal ??
     (objective ? OBJECTIVE_FALLBACK_GOAL[objective] ?? null : null)
+
+  // PROFILE_VISITS não tem action_type confiável no Marketing API — vem do
+  // Instagram Graph (cruzamento via mergeProfileVisitsIntoResults). Marca como
+  // pending pra o dashboard fazer o merge.
+  if (effectiveGoal === 'PROFILE_VISITS') {
+    let revenuePV = 0
+    for (const av of row.action_values ?? []) {
+      if (av.action_type.includes('purchase')) revenuePV += parseMetaNumber(av.value)
+    }
+    return { conversions: 0, revenue: revenuePV, result_type: 'profile_visits_pending' }
+  }
 
   // Totais por action_type
   const actionTotals: Record<string, number> = {}

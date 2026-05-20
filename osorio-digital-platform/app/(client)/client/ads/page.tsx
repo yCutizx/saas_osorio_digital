@@ -20,6 +20,7 @@ import {
   buildResultSummaryFromDaily,
   buildCampaignRows,
   buildDailyData,
+  mergeProfileVisitsIntoResults,
   type TrafficReportWithCampaign,
   type DailyRowWithResultType,
 } from '@/lib/traffic-builders'
@@ -111,21 +112,37 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
     .lte('date', endDate)
     .order('date', { ascending: true })
 
+  // Period reach + IG profile_views (Etapa 13)
+  const { data: clientRow } = await admin
+    .from('clients')
+    .select('meta_last_period_reach, meta_last_period_frequency, meta_last_period_since, meta_last_period_until')
+    .eq('id', clientId)
+    .single()
+
+  const { data: igDaily } = await admin
+    .from('instagram_daily')
+    .select('date, profile_views')
+    .eq('client_id', clientId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+
   const reports      = (rawReports ?? []) as unknown as TrafficReportWithCampaign[]
   const dailyRecords = (rawDaily   ?? []) as DailyRowWithResultType[]
 
-  // Stats híbrido: granularidade dia-a-dia (respeita filtro exato) + reach/revenue
-  // de reports (que não vivem em traffic_daily).
-  const dailyStats         = computeStatsFromDaily(dailyRecords)
-  const { reach, revenue } = computeReachAndRevenue(reports)
+  // Stats híbrido: spend/clicks/imp/conv do daily; reach do último sync.
+  const dailyStats   = computeStatsFromDaily(dailyRecords)
+  const { revenue }  = computeReachAndRevenue(reports)
+  const reach        = clientRow?.meta_last_period_reach ?? 0
   const ctr  = dailyStats.impressions > 0 ? (dailyStats.clicks / dailyStats.impressions) * 100 : 0
   const cpc  = dailyStats.clicks > 0 ? dailyStats.spend / dailyStats.clicks : 0
   const cpa  = dailyStats.conversions > 0 ? dailyStats.spend / dailyStats.conversions : 0
   const roas = dailyStats.spend > 0 ? revenue / dailyStats.spend : 0
   const stats = { ...dailyStats, reach, revenue, ctr, cpc, cpa, roas }
 
-  const results   = buildResultSummaryFromDaily(dailyRecords)
-  const hasVendas = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
+  // Etapa 13 — merge PROFILE_VISITS com IG profile_views
+  const rawResults = buildResultSummaryFromDaily(dailyRecords)
+  const results    = mergeProfileVisitsIntoResults(rawResults, igDaily ?? [], startDate, endDate)
+  const hasVendas  = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
 
   // Mapeia DailyRow → DailyPoint (chart shape: PT keys + data formatada + zero-fill)
   const libDaily = buildDailyData(dailyRecords)
@@ -227,6 +244,8 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
               to={endDate}
               stats={stats}
               campaignCount={campaignRows.length}
+              reachPeriodSince={clientRow?.meta_last_period_since ?? null}
+              reachPeriodUntil={clientRow?.meta_last_period_until ?? null}
               results={results}
             />
 

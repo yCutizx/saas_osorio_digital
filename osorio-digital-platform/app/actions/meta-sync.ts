@@ -7,9 +7,23 @@ import {
   testAdAccountAccess,
   fetchAccountInsights,
   fetchCampaignStatus,
+  fetchAccountReachForPeriod,
+  fetchAdAccountTimezone,
   parseMetaNumber,
   extractConversionsAndRevenue,
 } from '@/lib/meta-ads'
+
+/**
+ * YYYY-MM-DD na timezone especificada (ex: 'America/Sao_Paulo'). Fallback pra
+ * ISO UTC se a TZ for inválida ou Intl não estiver disponível.
+ */
+function formatDateInTZ(date: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(date)
+  } catch {
+    return date.toISOString().slice(0, 10)
+  }
+}
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -53,10 +67,14 @@ export async function connectMetaAccountAction(clientId: string, adAccountId: st
     ? adAccountId.trim()
     : `act_${adAccountId.trim()}`
 
+  // Busca timezone da conta (best-effort — usada no sync pra alinhar since/until)
+  const accountTimezone = await fetchAdAccountTimezone(normalized)
+
   const { error } = await ctx.admin
     .from('clients')
     .update({
       meta_ad_account_id: normalized,
+      meta_account_timezone: accountTimezone,
       meta_connected_at: new Date().toISOString(),
       meta_last_sync_status: null,
       meta_last_sync_error: null,
@@ -117,7 +135,7 @@ export async function syncClientFromMeta(
 ): Promise<{ ok: true; campaigns: number; rows: number } | { error: string }> {
   const { data: client, error: clientErr } = await admin
     .from('clients')
-    .select('id, name, meta_ad_account_id')
+    .select('id, name, meta_ad_account_id, meta_account_timezone')
     .eq('id', clientId)
     .single()
 
@@ -130,11 +148,14 @@ export async function syncClientFromMeta(
     .eq('id', clientId)
 
   try {
+    // Calcula since/until na TZ da Ad Account (fallback BRT) — evita pular um
+    // dia quando o cron/manual roda em UTC e o cliente está em BRT.
+    const accountTz = client.meta_account_timezone ?? 'America/Sao_Paulo'
     const until = new Date()
     const since = new Date()
     since.setDate(since.getDate() - daysBack)
-    const sinceStr = since.toISOString().slice(0, 10)
-    const untilStr = until.toISOString().slice(0, 10)
+    const sinceStr = formatDateInTZ(since, accountTz)
+    const untilStr = formatDateInTZ(until, accountTz)
 
     const [campaignsStatus, insights] = await Promise.all([
       fetchCampaignStatus(client.meta_ad_account_id),
@@ -316,13 +337,30 @@ export async function syncClientFromMeta(
       }
     }
 
+    // Reach único do período inteiro (sem time_increment) — Etapa 13 fix.
+    // Best-effort: se falhar, sync continua sem desestabilizar.
+    const periodReach = await fetchAccountReachForPeriod({
+      adAccountId: client.meta_ad_account_id,
+      since: sinceStr,
+      until: untilStr,
+    })
+
+    const finalPayload: Record<string, unknown> = {
+      meta_last_sync_at: new Date().toISOString(),
+      meta_last_sync_status: 'success',
+      meta_last_sync_error: null,
+    }
+    if (periodReach) {
+      finalPayload.meta_last_period_reach       = Math.round(periodReach.reach)
+      finalPayload.meta_last_period_frequency   = periodReach.frequency
+      finalPayload.meta_last_period_impressions = Math.round(periodReach.impressions)
+      finalPayload.meta_last_period_since       = sinceStr
+      finalPayload.meta_last_period_until       = untilStr
+    }
+
     await admin
       .from('clients')
-      .update({
-        meta_last_sync_at: new Date().toISOString(),
-        meta_last_sync_status: 'success',
-        meta_last_sync_error: null,
-      })
+      .update(finalPayload)
       .eq('id', clientId)
 
     revalidatePath(`/admin/clients/${clientId}/edit`)

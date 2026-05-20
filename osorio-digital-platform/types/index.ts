@@ -50,8 +50,52 @@ export interface Client {
   meta_last_sync_at: string | null
   meta_last_sync_status: 'success' | 'error' | 'pending' | null
   meta_last_sync_error: string | null
+  // Meta Ads — período sincronizado (Etapa 13 — reach único + TZ da conta)
+  meta_account_timezone: string | null
+  meta_last_period_reach: number | null
+  meta_last_period_frequency: number | null
+  meta_last_period_impressions: number | null
+  meta_last_period_since: string | null
+  meta_last_period_until: string | null
   created_at: string
   updated_at: string
+}
+
+// Etapa 13 — Instagram Graph API
+export interface InstagramAccount {
+  id: string
+  client_id: string
+  ig_user_id: string
+  ig_username: string | null
+  account_kind: 'business' | 'creator' | null
+  page_id: string | null
+  page_name: string | null
+  connected_at: string | null
+  last_sync_at: string | null
+  last_sync_status: 'success' | 'error' | 'pending' | null
+  last_sync_error: string | null
+  is_primary: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface InstagramDailyRow {
+  id: string
+  client_id: string
+  ig_user_id: string
+  date: string
+  impressions: number
+  views: number
+  reach: number
+  profile_views: number
+  profile_links_taps: number
+  website_clicks: number
+  follower_count: number
+  email_contacts: number
+  phone_call_clicks: number
+  text_message_clicks: number
+  get_directions_clicks: number
+  created_at: string
 }
 
 export interface Campaign {

@@ -148,6 +148,41 @@ export function computeReachAndRevenue(reports: TrafficReportWithCampaign[]): {
 }
 
 /**
+ * Etapa 13 — cruzamento de PROFILE_VISITS Meta com Instagram Graph.
+ *
+ * Quando há campanhas com optimization_goal=PROFILE_VISITS, o extractor grava
+ * `result_type='profile_visits_pending'` (porque a Meta Marketing API não tem
+ * action_type confiável pra esse goal — o dado real vem do IG Graph).
+ *
+ * Esta função substitui o placeholder pelo total de `profile_views` do IG
+ * no período. Se o IG não está conectado (igDaily vazio), remove o pending.
+ */
+export interface IGProfileDataForMerge {
+  date:          string
+  profile_views: number | null
+}
+
+export function mergeProfileVisitsIntoResults(
+  results: ResultSummaryItem[],
+  igDaily: IGProfileDataForMerge[],
+  from: string,
+  to:   string,
+): ResultSummaryItem[] {
+  const hasPending = results.some((r) => r.result_type === 'profile_visits_pending')
+  if (!hasPending) return results
+
+  const total = igDaily
+    .filter((r) => r.date >= from && r.date <= to)
+    .reduce((s, r) => s + (r.profile_views ?? 0), 0)
+
+  const withoutPending = results.filter((r) => r.result_type !== 'profile_visits_pending')
+  if (total === 0) return withoutPending
+
+  return [...withoutPending, { result_type: 'profile_views', count: total }]
+    .sort((a, b) => b.count - a.count)
+}
+
+/**
  * Breakdown por result_type usando traffic_daily — respeita filtro exato.
  */
 export function buildResultSummaryFromDaily(daily: DailyRowWithResultType[]): ResultSummaryItem[] {
