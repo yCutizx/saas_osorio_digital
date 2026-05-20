@@ -147,7 +147,7 @@ export async function syncIGFromGraph(
     const until = new Date()
     const since = new Date()
     // API IG limita janela em ~30 dias pra metrics period=day
-    since.setDate(since.getDate() - Math.min(daysBack, 30))
+    since.setDate(since.getDate() - Math.min(daysBack, 29))
 
     const sinceStr = since.toISOString().slice(0, 10)
     const untilStr = until.toISOString().slice(0, 10)
