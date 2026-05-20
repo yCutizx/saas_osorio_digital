@@ -161,6 +161,17 @@ export async function syncIGFromGraph(
       until:    untilStr,
     })
 
+    // Sanity check: alcance único NUNCA pode ser maior que impressões (regra
+    // física: cada pessoa alcançada gera 1+ impressão). Se acontecer, é bug
+    // ou inconsistência da API — log warn pra investigar.
+    if (aggregated.reach_unique > aggregated.views && aggregated.views > 0) {
+      console.warn('[IG sanity check] reach_unique > views (impossível):', {
+        clientId,
+        reach_unique: aggregated.reach_unique,
+        views:        aggregated.views,
+      })
+    }
+
     // Snapshot de followers (a Meta não expõe histórico per-day fora de contas
     // muito grandes; gravamos o número atual em todas as linhas do sync).
     const accountInfo  = await fetchIGAccountInfo(account.ig_user_id)
@@ -199,6 +210,7 @@ export async function syncIGFromGraph(
         ig_username:                     accountInfo?.username ?? account.ig_username,
         last_period_since:               sinceStr,
         last_period_until:               untilStr,
+        last_period_reach_unique:        aggregated.reach_unique,
         last_period_views:               aggregated.views,
         last_period_profile_views:       aggregated.profile_views,
         last_period_website_clicks:      aggregated.website_clicks,

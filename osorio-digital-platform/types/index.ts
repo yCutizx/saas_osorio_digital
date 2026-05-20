@@ -78,6 +78,7 @@ export interface InstagramAccount {
   // v25 — agregadas do período (snapshot do último sync)
   last_period_since: string | null
   last_period_until: string | null
+  last_period_reach_unique: number | null
   last_period_views: number | null
   last_period_profile_views: number | null
   last_period_website_clicks: number | null

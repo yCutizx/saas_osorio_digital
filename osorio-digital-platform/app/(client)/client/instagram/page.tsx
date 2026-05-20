@@ -41,7 +41,7 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
   const admin = createAdminClient()
   const { data: igAccount } = await admin
     .from('instagram_accounts')
-    .select('ig_user_id, ig_username, account_kind, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
+    .select('ig_user_id, ig_username, account_kind, last_period_reach_unique, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
     .eq('client_id', clientId)
     .eq('is_primary', true)
     .maybeSingle()
@@ -59,9 +59,10 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
 
   const rows = daily ?? []
 
+  // Reach é ÚNICO do período (snapshot v25), não somar daily.
   const stats: IGHeroStats = {
     followers:          rows.length > 0 ? rows[rows.length - 1].follower_count ?? 0 : 0,
-    reach:              rows.reduce((s, r) => s + (r.reach ?? 0), 0),
+    reach:              igAccount?.last_period_reach_unique       ?? 0,
     views:              igAccount?.last_period_views              ?? 0,
     profile_views:      igAccount?.last_period_profile_views      ?? 0,
     website_clicks:     igAccount?.last_period_website_clicks     ?? 0,

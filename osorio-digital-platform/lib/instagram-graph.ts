@@ -145,6 +145,7 @@ export interface IGInsightDailyRow {
 }
 
 export interface IGPeriodAggregated {
+  reach_unique:       number  // alcance ÚNICO do período (não somar daily)
   views:              number  // impressões (renomeado de impressions)
   profile_views:      number
   website_clicks:     number
@@ -215,7 +216,9 @@ export async function fetchIGProfileInsights(opts: {
   }
 
   // ── Grupo B: agregadas do período ──────────────────────────────────────────
+  // Inclui `reach` na lista pra pegar alcance ÚNICO (não somar daily).
   const aggregated: IGPeriodAggregated = {
+    reach_unique:       0,
     views:              0,
     profile_views:      0,
     website_clicks:     0,
@@ -233,7 +236,7 @@ export async function fetchIGProfileInsights(opts: {
       name:         string
       total_value?: { value: number }
     }>(`/${opts.igUserId}/insights`, {
-      metric:      'views,profile_views,website_clicks,profile_links_taps,total_interactions,likes,comments,shares,saves,accounts_engaged',
+      metric:      'reach,views,profile_views,website_clicks,profile_links_taps,total_interactions,likes,comments,shares,saves,accounts_engaged',
       period:      'day',
       metric_type: 'total_value',
       since:       String(sinceTs),
@@ -242,13 +245,36 @@ export async function fetchIGProfileInsights(opts: {
 
     for (const m of totalResults) {
       const value = m.total_value?.value ?? 0
-      if (m.name in aggregated) {
+      if (m.name === 'reach') {
+        aggregated.reach_unique = value
+      } else if (m.name in aggregated) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (aggregated as any)[m.name] = value
       }
     }
   } catch (e) {
     console.error('[IG aggregated metrics] erro:', e)
+  }
+
+  // Fallback: se reach unique não veio no batch (alguns deploys da v25 rejeitam
+  // reach em metric_type=total_value combinado), pede separado.
+  if (aggregated.reach_unique === 0) {
+    try {
+      const reachOnly = await fetchIGApi<{
+        name:         string
+        total_value?: { value: number }
+      }>(`/${opts.igUserId}/insights`, {
+        metric:      'reach',
+        period:      'day',
+        metric_type: 'total_value',
+        since:       String(sinceTs),
+        until:       String(untilTs),
+      })
+      const r = reachOnly.find((m) => m.name === 'reach')
+      if (r?.total_value?.value) aggregated.reach_unique = r.total_value.value
+    } catch (e) {
+      console.warn('[IG reach unique fallback] falhou:', e)
+    }
   }
 
   const daily = Object.entries(dailyByDate)

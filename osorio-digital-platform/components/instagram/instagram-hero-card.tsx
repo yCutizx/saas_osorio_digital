@@ -53,10 +53,10 @@ export function InstagramHeroCard({ from, to, username, stats }: Props) {
     ? format(fromDate, "d 'de' MMM. yyyy", { locale: ptBR })
     : `${format(fromDate, "d 'de' MMM.", { locale: ptBR })} — ${format(toDate, "d 'de' MMM. yyyy", { locale: ptBR })} · ${days} dia${days !== 1 ? 's' : ''}`
 
-  const primaryCards: Card[] = [
+  const primaryCards: Array<Card & { tooltip?: string }> = [
     { label: 'Seguidores',        value: fmtN(stats.followers),         icon: Users,     color: 'text-[#EACE00]',  bg: 'bg-[#EACE00]/10' },
-    { label: 'Impressões',        value: fmtLarge(stats.views),         icon: Eye,       color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    { label: 'Alcance',           value: fmtLarge(stats.reach),         icon: Target,    color: 'text-green-400',  bg: 'bg-green-400/10' },
+    { label: 'Impressões',        value: fmtLarge(stats.views),         icon: Eye,       color: 'text-purple-400', bg: 'bg-purple-400/10', tooltip: 'Total de impressões no período (cada visualização conta).' },
+    { label: 'Alcance',           value: fmtLarge(stats.reach),         icon: Target,    color: 'text-green-400',  bg: 'bg-green-400/10',  tooltip: 'Pessoas distintas que viram seu conteúdo no período (cada pessoa conta 1x).' },
     { label: 'Visitas no perfil', value: fmtN(stats.profile_views),     icon: UserCheck, color: 'text-blue-400',   bg: 'bg-blue-400/10' },
     { label: 'Cliques no link',   value: fmtN(stats.website_clicks),    icon: Link2,     color: 'text-pink-400',   bg: 'bg-pink-400/10' },
   ]
@@ -85,9 +85,15 @@ export function InstagramHeroCard({ from, to, username, stats }: Props) {
       {/* Primary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {primaryCards.map((c) => (
-          <div key={c.label} className="rounded-xl bg-[#111] border border-white/5 p-4">
+          <div
+            key={c.label}
+            title={c.tooltip}
+            className="rounded-xl bg-[#111] border border-white/5 p-4"
+          >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-white/40 uppercase tracking-wider">{c.label}</span>
+              <span className="text-xs text-white/40 uppercase tracking-wider">
+                {c.label}{c.tooltip ? ' ⓘ' : ''}
+              </span>
               <div className={`p-1.5 rounded-lg ${c.bg}`}>
                 <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
               </div>

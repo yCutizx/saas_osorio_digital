@@ -45,7 +45,7 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
   // Conta IG conectada (com snapshot agregado do último sync)
   const { data: igAccount } = await admin
     .from('instagram_accounts')
-    .select('ig_user_id, ig_username, account_kind, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
+    .select('ig_user_id, ig_username, account_kind, last_period_reach_unique, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
     .eq('client_id', clientId)
     .eq('is_primary', true)
     .maybeSingle()
@@ -65,12 +65,13 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
   const rows = daily ?? []
 
   // Stats híbrido (v25):
-  //   - reach diário somado do daily (granular ao filtro)
   //   - followers do último ponto do daily (snapshot do último sync)
+  //   - reach é ÚNICO do período (account.last_period_reach_unique) — NÃO somar
+  //     daily, isso duplicaria pessoas que viram em dias diferentes
   //   - views/profile_views/CTAs/engajamento vêm agregados do account
   const stats: IGHeroStats = {
     followers:          rows.length > 0 ? rows[rows.length - 1].follower_count ?? 0 : 0,
-    reach:              rows.reduce((s, r) => s + (r.reach ?? 0), 0),
+    reach:              igAccount?.last_period_reach_unique       ?? 0,
     views:              igAccount?.last_period_views              ?? 0,
     profile_views:      igAccount?.last_period_profile_views      ?? 0,
     website_clicks:     igAccount?.last_period_website_clicks     ?? 0,
