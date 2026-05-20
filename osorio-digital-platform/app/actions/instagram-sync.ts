@@ -161,16 +161,9 @@ export async function syncIGFromGraph(
       until:    untilStr,
     })
 
-    // Sanity check: alcance único NUNCA pode ser maior que impressões (regra
-    // física: cada pessoa alcançada gera 1+ impressão). Se acontecer, é bug
-    // ou inconsistência da API — log warn pra investigar.
-    if (aggregated.reach_unique > aggregated.views && aggregated.views > 0) {
-      console.warn('[IG sanity check] reach_unique > views (impossível):', {
-        clientId,
-        reach_unique: aggregated.reach_unique,
-        views:        aggregated.views,
-      })
-    }
+    // Nota: reach > views NÃO é impossível na v25. Reach inclui anúncios pagos
+    // (orgânico + media); views é só conteúdo orgânico (posts/reels/stories).
+    // Quando há campanhas Meta Ads rodando, reach naturalmente excede views.
 
     // Snapshot de followers (a Meta não expõe histórico per-day fora de contas
     // muito grandes; gravamos o número atual em todas as linhas do sync).
