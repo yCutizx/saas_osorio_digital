@@ -76,6 +76,7 @@ export interface InstagramAccount {
   last_sync_error: string | null
   is_primary: boolean
   // v25 — agregadas do período (snapshot do último sync)
+  followers_count_snapshot: number | null
   last_period_since: string | null
   last_period_until: string | null
   last_period_reach_unique: number | null

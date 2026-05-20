@@ -170,8 +170,10 @@ export async function syncIGFromGraph(
     const accountInfo  = await fetchIGAccountInfo(account.ig_user_id)
     const followersNow = accountInfo?.followers_count ?? 0
 
-    // Diário — reach + follower_count por dia. Colunas legacy ficam 0 (não são
-    // mais populadas pela v25, deixadas no schema pra não quebrar histórico).
+    // Diário — reach + follower_count (DELTA da API: novos seguidores no dia).
+    // Saldo histórico é calculado pelos dashboards revertendo deltas a partir
+    // do snapshot atual em instagram_accounts.followers_count_snapshot.
+    // Colunas legacy ficam 0 (v25 não popula, mantidas pra não quebrar schema).
     for (const row of daily) {
       await admin
         .from('instagram_daily')
@@ -180,7 +182,7 @@ export async function syncIGFromGraph(
           ig_user_id:            account.ig_user_id,
           date:                  row.date,
           reach:                 row.reach,
-          follower_count:        followersNow,
+          follower_count:        row.follower_count,
           impressions:           0,
           views:                 0,
           profile_views:         0,
@@ -201,6 +203,7 @@ export async function syncIGFromGraph(
         last_sync_status:                'success',
         last_sync_error:                 null,
         ig_username:                     accountInfo?.username ?? account.ig_username,
+        followers_count_snapshot:        followersNow,
         last_period_since:               sinceStr,
         last_period_until:               untilStr,
         last_period_reach_unique:        aggregated.reach_unique,

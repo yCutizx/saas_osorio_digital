@@ -45,7 +45,7 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
   // Conta IG conectada (com snapshot agregado do último sync)
   const { data: igAccount } = await admin
     .from('instagram_accounts')
-    .select('ig_user_id, ig_username, account_kind, last_period_reach_unique, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
+    .select('ig_user_id, ig_username, account_kind, followers_count_snapshot, last_period_reach_unique, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
     .eq('client_id', clientId)
     .eq('is_primary', true)
     .maybeSingle()
@@ -70,7 +70,7 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
   //     daily, isso duplicaria pessoas que viram em dias diferentes
   //   - views/profile_views/CTAs/engajamento vêm agregados do account
   const stats: IGHeroStats = {
-    followers:          rows.length > 0 ? rows[rows.length - 1].follower_count ?? 0 : 0,
+    followers:          igAccount?.followers_count_snapshot       ?? 0,
     reach:              igAccount?.last_period_reach_unique       ?? 0,
     views:              igAccount?.last_period_views              ?? 0,
     profile_views:      igAccount?.last_period_profile_views      ?? 0,
@@ -83,20 +83,44 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
     accounts_engaged:   igAccount?.last_period_accounts_engaged   ?? 0,
   }
 
-  // Daily com zero-fill pra line chart (reach + followers)
+  // Daily com zero-fill — reach por dia + saldo histórico de seguidores.
+  // Algoritmo do saldo: API retorna follower_count diário como DELTA. Partindo
+  // do snapshot atual e voltando no tempo, subtrai os deltas pra reconstruir
+  // o saldo de cada dia anterior.
   const byDate = new Map(rows.map((r) => [r.date.slice(0, 10), r]))
-  const dailyData: IGDailyPoint[] = eachDayOfInterval({ start: parseISO(from), end: parseISO(to) }).map((day) => {
+  const days   = eachDayOfInterval({ start: parseISO(from), end: parseISO(to) })
+
+  // 1ª passada: cronológica direta com delta de cada dia
+  const points = days.map((day) => {
     const key = format(day, 'yyyy-MM-dd')
     const r   = byDate.get(key)
     return {
-      date:           format(day, 'dd/MM', { locale: ptBR }),
-      impressoes:     0,
-      alcance:        r?.reach ?? 0,
-      visitas_perfil: 0,
-      cliques_link:   0,
-      seguidores:     r?.follower_count ?? 0,
+      date:             format(day, 'dd/MM', { locale: ptBR }),
+      date_iso:         key,
+      alcance:          r?.reach ?? 0,
+      delta:            r?.follower_count ?? 0,
     }
   })
+
+  // 2ª passada: do mais recente pro mais antigo, calcula saldo subtraindo delta
+  const snapshot = igAccount?.followers_count_snapshot ?? 0
+  const saldoMap: Record<string, number> = {}
+  let runningTotal = snapshot
+  for (let i = points.length - 1; i >= 0; i--) {
+    saldoMap[points[i].date_iso] = runningTotal
+    runningTotal -= points[i].delta
+  }
+
+  const dailyData: IGDailyPoint[] = points.map((p) => ({
+    date:              p.date,
+    date_iso:          p.date_iso,
+    impressoes:        0,
+    alcance:           p.alcance,
+    visitas_perfil:    0,
+    cliques_link:      0,
+    seguidores:        saldoMap[p.date_iso] ?? 0,
+    seguidores_delta:  p.delta,
+  }))
 
   // CTAs não vêm mais na v25 sem upgrade pra business_discovery — placeholder zerado
   const ctaBreakdown: IGCTABreakdown = { email: 0, telefone: 0, whatsapp: 0, localizacao: 0 }

@@ -7,13 +7,18 @@ import {
 } from 'recharts'
 import { cn } from '@/lib/utils'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TooltipProps = any
+
 export type IGDailyPoint = {
-  date:           string  // dd/MM formatado
-  impressoes:     number  // legacy — não plotada (API v25 não devolve daily)
-  alcance:        number
-  visitas_perfil: number  // legacy — não plotada
-  cliques_link:   number  // legacy — não plotada
-  seguidores:     number
+  date:              string  // dd/MM formatado
+  date_iso:          string  // YYYY-MM-DD pra tooltip
+  impressoes:        number  // legacy — não plotada (API v25 não devolve daily)
+  alcance:           number
+  visitas_perfil:    number  // legacy — não plotada
+  cliques_link:      number  // legacy — não plotada
+  seguidores:        number  // saldo total no dia
+  seguidores_delta:  number  // novos seguidores no dia (positivo) / perdidos (negativo)
 }
 
 export type IGCTABreakdown = {
@@ -100,8 +105,35 @@ export function InstagramCharts({ dailyData, ctaBreakdown }: Props) {
                 tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
                 tickLine={false} axisLine={false}
                 tickFormatter={tab.fmt} width={56}
+                // No tab de seguidores, zoom no range relevante (linha quase plana)
+                domain={activeTab === 'seguidores' ? ['dataMin - 5', 'dataMax + 5'] : undefined}
               />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [tab.fmt(Number(v)), tab.label]} />
+              {activeTab === 'seguidores' ? (
+                <Tooltip
+                  content={(props: TooltipProps) => {
+                    const p = props?.payload?.[0]?.payload as IGDailyPoint | undefined
+                    if (!p) return null
+                    const delta = p.seguidores_delta
+                    const deltaColor =
+                      delta > 0 ? 'text-green-400' :
+                      delta < 0 ? 'text-red-400'   :
+                      'text-white/40'
+                    return (
+                      <div className="bg-[#1a1a1a] border border-white/10 rounded-lg p-2.5 text-xs">
+                        <div className="text-white/50 mb-0.5">{p.date}</div>
+                        <div className="text-white font-semibold">
+                          {p.seguidores.toLocaleString('pt-BR')} seguidores
+                        </div>
+                        <div className={`${deltaColor} mt-0.5`}>
+                          {delta > 0 ? '+' : ''}{delta} no dia
+                        </div>
+                      </div>
+                    )
+                  }}
+                />
+              ) : (
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [tab.fmt(Number(v)), tab.label]} />
+              )}
               <Line
                 type="monotone"
                 dataKey={activeTab}

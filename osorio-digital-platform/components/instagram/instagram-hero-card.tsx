@@ -103,10 +103,17 @@ export function InstagramHeroCard({ from, to, username, stats }: Props) {
         ))}
       </div>
 
-      <p className="text-xs text-white/40 px-1 -mt-1">
-        💡 Alcance pode ser maior que impressões quando há campanhas pagas rodando —
-        alcance inclui pessoas vistas por anúncios, impressões cobrem só conteúdo orgânico.
-      </p>
+      <div className="space-y-1 px-1 -mt-1">
+        <p className="text-xs text-white/40">
+          💡 Alcance pode ser maior que impressões quando há campanhas pagas rodando —
+          alcance inclui pessoas vistas por anúncios, impressões cobrem só conteúdo orgânico.
+        </p>
+        <p className="text-xs text-white/40">
+          🔎 Cards mostram <strong className="text-white/60">total do último sync</strong> (não filtráveis por data).
+          Filtros de período afetam apenas os gráficos de <strong className="text-white/60">Alcance</strong> e <strong className="text-white/60">Seguidores</strong> —
+          limitação da API Meta v25.
+        </p>
+      </div>
 
       {/* Engajamento */}
       <div>
