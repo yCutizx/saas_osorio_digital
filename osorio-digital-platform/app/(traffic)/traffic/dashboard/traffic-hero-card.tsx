@@ -2,42 +2,12 @@ import { format, parseISO, differenceInDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CalendarDays } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-
-export type CampaignType = 'mensagem' | 'trafego' | 'vendas' | 'lead' | 'cadastro' | 'outro'
-
-export interface ResultItem {
-  type:  CampaignType
-  label: string
-  count: number
-}
-
-export const RESULT_TO_TYPE: Record<string, CampaignType> = {
-  'actions:onsite_conversion.messaging_conversation_started_7d': 'mensagem',
-  'actions:onsite_conversion.messaging_conversation_started':    'mensagem',
-  'actions:contact':               'mensagem',
-  'actions:link_click':            'trafego',
-  'actions:view_content':          'trafego',
-  'actions:purchase':              'vendas',
-  'actions:add_to_cart':           'vendas',
-  'actions:initiate_checkout':     'vendas',
-  'actions:lead':                  'lead',
-  'actions:subscribe':             'lead',
-  'actions:complete_registration': 'cadastro',
-}
-
-export const RESULT_TYPE_LABELS: Record<string, string> = {
-  'actions:onsite_conversion.messaging_conversation_started_7d': 'conversas no WhatsApp',
-  'actions:onsite_conversion.messaging_conversation_started':    'conversas iniciadas',
-  'actions:link_click':             'cliques no link',
-  'actions:lead':                   'leads gerados',
-  'actions:purchase':               'compras realizadas',
-  'actions:complete_registration':  'cadastros completos',
-  'actions:view_content':           'visualizações de conteúdo',
-  'actions:add_to_cart':            'adições ao carrinho',
-  'actions:initiate_checkout':      'checkouts iniciados',
-  'actions:contact':                'contatos gerados',
-  'actions:subscribe':              'inscrições realizadas',
-}
+import {
+  CATEGORY_COLORS,
+  resolveResultLabel,
+  resolveResultCategory,
+} from '@/lib/meta-result-types'
+import type { ResultSummaryItem } from '@/lib/traffic-builders'
 
 export interface HeroStats {
   spend:       number
@@ -56,7 +26,7 @@ interface Props {
   to:            string
   stats:         HeroStats
   campaignCount: number
-  results:       ResultItem[]
+  results:       ResultSummaryItem[]
 }
 
 function fmtN(n: number) {
@@ -80,16 +50,16 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
   const cpm      = stats.impressions > 0 ? (stats.spend / stats.impressions) * 1000 : 0
   const freq     = stats.reach > 0 ? stats.impressions / stats.reach : 0
 
-  const hasVendas = results.some((r) => r.type === 'vendas')
-  const isMulti   = results.length > 1
+  // Categoria primária = a do resultado de maior count
+  const primary       = results[0] ?? null
+  const primaryLabel  = primary ? resolveResultLabel(primary.result_type) : null
+  const hasVendas     = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
+  const isMulti       = results.length > 1
+  const totalResults  = results.reduce((s, r) => s + r.count, 0)
 
   const periodLabel = from === to
     ? format(fromDate, "d 'de' MMM. yyyy", { locale: ptBR })
     : `${format(fromDate, "d 'de' MMM.", { locale: ptBR })} — ${format(toDate, "d 'de' MMM. yyyy", { locale: ptBR })} · ${days} dia${days !== 1 ? 's' : ''}`
-
-  // Primary result for subtitle (highest count)
-  const primaryResult = results[0]
-  const totalConversions = results.reduce((s, r) => s + r.count, 0)
 
   return (
     <div className="rounded-2xl overflow-hidden border border-[#2a2500] bg-gradient-to-br from-[#181400] via-[#0d0d00] to-[#0a0a0a]">
@@ -108,14 +78,14 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
           <div>
             <div className="flex items-end gap-3 leading-none flex-wrap">
               <span className="text-5xl lg:text-6xl font-black text-white tabular-nums">
-                {fmtN(totalConversions)}
+                {fmtN(totalResults)}
               </span>
               <div className="flex flex-col gap-1.5 pb-1.5">
                 <span className="text-white/40 text-base leading-tight">
-                  {primaryResult
-                    ? primaryResult.label
-                    : `resultado${totalConversions !== 1 ? 's' : ''}`}
-                  <span className="text-white/25 text-sm ml-1.5">gerado{totalConversions !== 1 ? 's' : ''} no período</span>
+                  {primaryLabel ?? `resultado${totalResults !== 1 ? 's' : ''}`}
+                  <span className="text-white/25 text-sm ml-1.5">
+                    {isMulti ? 'no total do período' : `gerado${totalResults !== 1 ? 's' : ''} no período`}
+                  </span>
                 </span>
                 {hasVendas && stats.roas > 0 && (
                   <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-full bg-green-500/15 border border-green-500/20 text-green-400 text-xs font-semibold">
@@ -125,18 +95,36 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
               </div>
             </div>
 
-            {/* Multi-type breakdown */}
-            {isMulti && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {results.map((r) => (
-                  <span
-                    key={r.type}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/50 text-xs"
-                  >
-                    <span className="font-semibold text-white/75">{fmtN(r.count)}</span>
-                    {r.label}
-                  </span>
-                ))}
+            {/* Breakdown multi-resultado */}
+            {results.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                <p className="text-[10px] text-white/30 uppercase tracking-widest">
+                  {isMulti ? 'Resultados por tipo' : 'Resultado primário'}
+                </p>
+                {results.map((r) => {
+                  const cat   = resolveResultCategory(r.result_type)
+                  const color = CATEGORY_COLORS[cat]
+                  return (
+                    <div key={r.result_type} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="text-white/70 truncate">{resolveResultLabel(r.result_type)}</span>
+                      </div>
+                      <span className="font-semibold text-white tabular-nums shrink-0 ml-2">
+                        {fmtN(r.count)}
+                      </span>
+                    </div>
+                  )
+                })}
+                {isMulti && (
+                  <div className="flex items-center justify-between text-sm pt-2 mt-1 border-t border-white/[0.07]">
+                    <span className="text-white/50">Total</span>
+                    <span className="font-semibold text-white/80 tabular-nums">{fmtN(totalResults)}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -148,7 +136,9 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
             {' '}investidos,{stats.reach > 0 && (
               <> alcançamos <span className="text-white/65 font-semibold">{fmtLarge(stats.reach)} pessoas</span> e</>
             )}{' '}geramos{' '}
-            <span className="text-white/65 font-semibold">{fmtN(totalConversions)} {primaryResult?.label ?? 'resultados'}</span>
+            <span className="text-white/65 font-semibold">
+              {fmtN(totalResults)} {primaryLabel ?? 'resultados'}
+            </span>
             {hasVendas && stats.roas > 0 ? (
               <> com ROAS de <span className="text-white/65 font-semibold">{stats.roas.toFixed(2).replace('.', ',')}x</span>.</>
             ) : (
@@ -160,7 +150,7 @@ export function TrafficHeroCard({ from, to, stats, campaignCount, results }: Pro
           <div className="flex items-center gap-0 pt-3 border-t border-white/[0.06]">
             <div className="flex-1 pr-5">
               <p className="text-[10px] text-white/25 uppercase tracking-widest mb-1.5">Resultados</p>
-              <p className="text-2xl font-black text-white tabular-nums">{fmtN(totalConversions)}</p>
+              <p className="text-2xl font-black text-white tabular-nums">{fmtN(totalResults)}</p>
             </div>
             <div className="w-px h-10 bg-white/[0.07]" />
             <div className="flex-1 px-5">

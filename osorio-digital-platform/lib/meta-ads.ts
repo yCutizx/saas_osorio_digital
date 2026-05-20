@@ -8,6 +8,13 @@
  */
 
 import type { MetaInsightRow } from '@/types'
+import {
+  OPTIMIZATION_GOAL_PRIMARY_ACTION,
+  OBJECTIVE_FALLBACK_GOAL,
+  RESULT_TYPE_LABELS,
+} from './meta-result-types'
+
+const KNOWN_ACTION_TYPES = new Set(Object.keys(RESULT_TYPE_LABELS))
 
 const META_API_BASE = 'https://graph.facebook.com'
 
@@ -125,27 +132,32 @@ export async function fetchAccountInsights(opts: {
   return fetchMetaApi<MetaInsightRow>(`/${id}/insights`, params)
 }
 
-/** Status atual de cada campanha (ACTIVE/PAUSED/...). */
+/** Status atual de cada campanha (ACTIVE/PAUSED/...) + optimization_goal quando disponível. */
 export async function fetchCampaignStatus(adAccountId: string): Promise<
   Array<{
     id: string
     name: string
     status: string
     objective: string
+    optimization_goal: string | null
     start_time: string | null
     stop_time: string | null
   }>
 > {
   const id = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`
+  // `optimization_goal` no endpoint /campaigns só vem em campanhas mais recentes ou
+  // quando explicitamente definido no nível da campanha — na maioria mora no AdSet.
+  // Quando vier null, o extractor cai no fallback baseado em `objective`.
   const data = await fetchMetaApi<{
     id: string
     name: string
     status: string
     objective: string
+    optimization_goal?: string
     start_time?: string
     stop_time?: string
   }>(`/${id}/campaigns`, {
-    fields: 'id,name,status,objective,start_time,stop_time',
+    fields: 'id,name,status,objective,optimization_goal,start_time,stop_time',
     limit: '500',
   })
 
@@ -154,6 +166,7 @@ export async function fetchCampaignStatus(adAccountId: string): Promise<
     name: c.name,
     status: c.status,
     objective: c.objective,
+    optimization_goal: c.optimization_goal ?? null,
     start_time: c.start_time ?? null,
     stop_time: c.stop_time ?? null,
   }))
@@ -167,39 +180,71 @@ export function parseMetaNumber(v: string | number | undefined | null): number {
   return Number.isFinite(n) ? n : 0
 }
 
-const CONVERSION_TYPES = [
-  'purchase',
-  'omni_purchase',
-  'lead',
-  'leadgen.other',
-  'complete_registration',
-  'submit_application',
-  'subscribe',
-  'add_to_cart',
-  'initiate_checkout',
-  'onsite_conversion.purchase',
-  'onsite_web_purchase',
-  'offsite_conversion.fb_pixel_purchase',
-]
+/**
+ * Extrai resultado primário, conversões totais e revenue de uma linha de insight.
+ *
+ * Estratégia (Etapa 12):
+ * 1. Determina o `optimization_goal` efetivo (explícito ou inferido do `objective`)
+ * 2. Procura no `actions[]` o `action_type` correspondente ao goal
+ *    → match: `result_type` = esse action_type, `conversions` = valor dele
+ * 3. Fallback: action_type categorizado de maior valor (em RESULT_TYPE_LABELS)
+ * 4. Último recurso: action_type bruto mais frequente
+ * 5. Edge case (ambos null E sem actions): conversions=0, result_type=null
+ * 6. Revenue: soma action_values com 'purchase' no nome (lógica original)
+ */
+export function extractConversionsAndRevenue(
+  row: MetaInsightRow,
+  optimizationGoal: string | null,
+  objective: string | null,
+): { conversions: number; revenue: number; result_type: string | null } {
+  // Goal efetivo: explícito > inferido do objective > null
+  const effectiveGoal =
+    optimizationGoal ??
+    (objective ? OBJECTIVE_FALLBACK_GOAL[objective] ?? null : null)
 
-/** Extrai conversions / revenue / result_type das actions[] da Meta. */
-export function extractConversionsAndRevenue(row: MetaInsightRow): {
-  conversions: number
-  revenue: number
-  result_type: string | null
-} {
-  let conversions = 0
-  let revenue = 0
-  const typeCounts: Record<string, number> = {}
-
+  // Totais por action_type
+  const actionTotals: Record<string, number> = {}
   for (const a of row.actions ?? []) {
     const value = parseMetaNumber(a.value)
-    typeCounts[a.action_type] = (typeCounts[a.action_type] ?? 0) + value
-    if (CONVERSION_TYPES.some((t) => a.action_type === t || a.action_type.includes(t))) {
-      conversions += value
+    actionTotals[a.action_type] = (actionTotals[a.action_type] ?? 0) + value
+  }
+
+  let result_type: string | null = null
+  let conversions = 0
+
+  // 1) Match priorizado pelo optimization_goal
+  if (effectiveGoal && OPTIMIZATION_GOAL_PRIMARY_ACTION[effectiveGoal]) {
+    const candidates = OPTIMIZATION_GOAL_PRIMARY_ACTION[effectiveGoal]
+    for (const candidate of candidates) {
+      if (actionTotals[candidate] !== undefined && actionTotals[candidate] > 0) {
+        result_type = candidate
+        conversions = actionTotals[candidate]
+        break
+      }
     }
   }
 
+  // 2) Fallback: maior action_type categorizado (KNOWN_ACTION_TYPES)
+  if (!result_type && Object.keys(actionTotals).length > 0) {
+    const knownActions = Object.entries(actionTotals)
+      .filter(([type]) => KNOWN_ACTION_TYPES.has(type))
+      .sort((a, b) => b[1] - a[1])
+
+    if (knownActions.length > 0) {
+      result_type = knownActions[0][0]
+      conversions = knownActions[0][1]
+    } else {
+      // 3) Último recurso: action_type bruto mais frequente
+      const sorted = Object.entries(actionTotals).sort((a, b) => b[1] - a[1])
+      if (sorted.length > 0) {
+        result_type = sorted[0][0]
+        conversions = sorted[0][1]
+      }
+    }
+  }
+
+  // Revenue (lógica original — só action_values com 'purchase')
+  let revenue = 0
   for (const av of row.action_values ?? []) {
     const value = parseMetaNumber(av.value)
     if (av.action_type.includes('purchase')) {
@@ -207,8 +252,9 @@ export function extractConversionsAndRevenue(row: MetaInsightRow): {
     }
   }
 
-  const sorted = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])
-  const result_type = sorted.length > 0 ? sorted[0][0] : null
-
-  return { conversions, revenue, result_type }
+  return {
+    conversions: Math.round(conversions),
+    revenue,
+    result_type,
+  }
 }

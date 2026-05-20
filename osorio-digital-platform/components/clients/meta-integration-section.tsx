@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, CheckCircle2, AlertCircle, Plug, RefreshCw, Unplug } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, Plug, RefreshCw, Unplug, CalendarRange } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -10,6 +10,7 @@ import {
   testMetaConnectionAction,
   connectMetaAccountAction,
   syncMetaAccountNowAction,
+  syncMetaAccountHistoryAction,
   disconnectMetaAccountAction,
 } from '@/app/actions/meta-sync'
 
@@ -33,6 +34,7 @@ export function MetaIntegrationSection({
   const [isTestingConnection, startTest] = useTransition()
   const [isConnecting, startConnect] = useTransition()
   const [isSyncing, startSync] = useTransition()
+  const [isSyncingHistory, startSyncHistory] = useTransition()
   const [isDisconnecting, startDisconnect] = useTransition()
 
   const isConnected = !!initialAdAccountId
@@ -75,6 +77,20 @@ export function MetaIntegrationSection({
     })
   }
 
+  function handleSyncHistory() {
+    if (!confirm('Sincronizar últimos 90 dias? Pode demorar 1-2 minutos e vai sobrescrever dados existentes com a lógica atual.')) return
+    startSyncHistory(async () => {
+      toast.info('Sincronizando histórico de 90 dias... aguarde')
+      const r = await syncMetaAccountHistoryAction(clientId)
+      if ('error' in r) {
+        toast.error(r.error)
+        return
+      }
+      toast.success(`Histórico sincronizado! ${r.campaigns} campanhas, ${r.rows} dias`)
+      router.refresh()
+    })
+  }
+
   function handleDisconnect() {
     if (!confirm('Desconectar a integração? Os dados históricos serão mantidos, mas não haverá mais sincronização automática.')) return
     startDisconnect(async () => {
@@ -89,7 +105,7 @@ export function MetaIntegrationSection({
     })
   }
 
-  const anyLoading = isTestingConnection || isConnecting || isSyncing || isDisconnecting
+  const anyLoading = isTestingConnection || isConnecting || isSyncing || isSyncingHistory || isDisconnecting
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5 space-y-4">
@@ -188,6 +204,15 @@ export function MetaIntegrationSection({
             >
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Sincronizar agora
+            </button>
+            <button
+              type="button"
+              onClick={handleSyncHistory}
+              disabled={anyLoading}
+              className="inline-flex items-center gap-2 bg-[#1a1a1a] border border-[#222] text-[#ccc] px-4 py-2 rounded-lg hover:bg-[#222] disabled:opacity-50 transition-colors"
+            >
+              {isSyncingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarRange className="h-4 w-4" />}
+              Sincronizar 90 dias
             </button>
             <button
               type="button"

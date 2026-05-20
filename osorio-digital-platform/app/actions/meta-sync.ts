@@ -99,6 +99,13 @@ export async function syncMetaAccountNowAction(clientId: string, daysBack = 30) 
   return syncClientFromMeta(ctx.admin, clientId, daysBack)
 }
 
+/** Sincronização ampla pra recompor histórico (90 dias) — usada pós Etapa 12. */
+export async function syncMetaAccountHistoryAction(clientId: string) {
+  const ctx = await getAdminCtx()
+  if ('error' in ctx) return { error: ctx.error }
+  return syncClientFromMeta(ctx.admin, clientId, 90)
+}
+
 /**
  * Função pura — usada pela action manual e pelo cron.
  * Não chama auth: o caller (action OR cron) já validou permissão.
@@ -138,8 +145,12 @@ export async function syncClientFromMeta(
       }),
     ])
 
-    // Upsert de campanhas
-    const campaignIdMap = new Map<string, string>()
+    // Upsert de campanhas — guarda optimization_goal + objective pra usar no extractor
+    const campaignIdMap = new Map<string, {
+      dbId:              string
+      optimization_goal: string | null
+      objective:         string | null
+    }>()
 
     for (const cs of campaignsStatus) {
       const platformStatus: 'active' | 'paused' | 'finished' =
@@ -161,12 +172,17 @@ export async function syncClientFromMeta(
           .update({
             status: platformStatus,
             objective: cs.objective,
+            optimization_goal: cs.optimization_goal,
             start_date: cs.start_time ? cs.start_time.slice(0, 10) : null,
             end_date: cs.stop_time ? cs.stop_time.slice(0, 10) : null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.id)
-        campaignIdMap.set(cs.id, existing.id)
+        campaignIdMap.set(cs.id, {
+          dbId: existing.id,
+          optimization_goal: cs.optimization_goal,
+          objective: cs.objective,
+        })
       } else {
         const { data: created } = await admin
           .from('campaigns')
@@ -176,12 +192,19 @@ export async function syncClientFromMeta(
             platform: 'meta',
             status: platformStatus,
             objective: cs.objective,
+            optimization_goal: cs.optimization_goal,
             start_date: cs.start_time ? cs.start_time.slice(0, 10) : null,
             end_date: cs.stop_time ? cs.stop_time.slice(0, 10) : null,
           })
           .select('id')
           .single()
-        if (created) campaignIdMap.set(cs.id, created.id)
+        if (created) {
+          campaignIdMap.set(cs.id, {
+            dbId: created.id,
+            optimization_goal: cs.optimization_goal,
+            objective: cs.objective,
+          })
+        }
       }
     }
 
@@ -202,20 +225,26 @@ export async function syncClientFromMeta(
     let dailyRows = 0
 
     for (const row of insights) {
-      const campaignDbId = campaignIdMap.get(row.campaign_id)
-      if (!campaignDbId) continue
+      const campaignInfo = campaignIdMap.get(row.campaign_id)
+      if (!campaignInfo) continue
+      const campaignDbId = campaignInfo.dbId
 
-      const { conversions, revenue, result_type } = extractConversionsAndRevenue(row)
+      const { conversions, revenue, result_type } = extractConversionsAndRevenue(
+        row,
+        campaignInfo.optimization_goal,
+        campaignInfo.objective,
+      )
 
       await admin
         .from('traffic_daily')
         .upsert({
-          client_id: clientId,
+          client_id:   clientId,
           campaign_id: campaignDbId,
-          date: row.date_start,
-          spend: parseMetaNumber(row.spend),
+          date:        row.date_start,
+          result_type,
+          spend:       parseMetaNumber(row.spend),
           impressions: Math.round(parseMetaNumber(row.impressions)),
-          clicks: Math.round(parseMetaNumber(row.clicks)),
+          clicks:      Math.round(parseMetaNumber(row.clicks)),
           conversions: Math.round(conversions),
         }, { onConflict: 'client_id,campaign_id,date' })
 

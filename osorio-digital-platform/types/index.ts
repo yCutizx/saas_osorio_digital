@@ -61,6 +61,7 @@ export interface Campaign {
   platform: 'meta' | 'google' | 'tiktok' | 'linkedin' | 'other'
   status: 'active' | 'paused' | 'finished'
   objective: string | null
+  optimization_goal: string | null
   budget_monthly: number | null
   start_date: string | null
   end_date: string | null
