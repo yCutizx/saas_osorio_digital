@@ -119,12 +119,13 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
     .eq('id', clientId)
     .single()
 
-  const { data: igDaily } = await admin
-    .from('instagram_daily')
-    .select('date, profile_views')
+  // Pós-v25: profile_views vem agregado em instagram_accounts (snapshot do sync)
+  const { data: igAccount } = await admin
+    .from('instagram_accounts')
+    .select('last_period_profile_views')
     .eq('client_id', clientId)
-    .gte('date', startDate)
-    .lte('date', endDate)
+    .eq('is_primary', true)
+    .maybeSingle()
 
   const reports      = (rawReports ?? []) as unknown as TrafficReportWithCampaign[]
   const dailyRecords = (rawDaily   ?? []) as DailyRowWithResultType[]
@@ -139,9 +140,9 @@ export default async function ClientAdsPage({ searchParams }: PageProps) {
   const roas = dailyStats.spend > 0 ? revenue / dailyStats.spend : 0
   const stats = { ...dailyStats, reach, revenue, ctr, cpc, cpa, roas }
 
-  // Etapa 13 — merge PROFILE_VISITS com IG profile_views
+  // Etapa 13 — merge PROFILE_VISITS com IG profile_views (snapshot v25)
   const rawResults = buildResultSummaryFromDaily(dailyRecords)
-  const results    = mergeProfileVisitsIntoResults(rawResults, igDaily ?? [], startDate, endDate)
+  const results    = mergeProfileVisitsIntoResults(rawResults, igAccount ?? null)
   const hasVendas  = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
 
   // Mapeia DailyRow → DailyPoint (chart shape: PT keys + data formatada + zero-fill)

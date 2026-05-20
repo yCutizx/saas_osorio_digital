@@ -75,6 +75,19 @@ export interface InstagramAccount {
   last_sync_status: 'success' | 'error' | 'pending' | null
   last_sync_error: string | null
   is_primary: boolean
+  // v25 — agregadas do período (snapshot do último sync)
+  last_period_since: string | null
+  last_period_until: string | null
+  last_period_views: number | null
+  last_period_profile_views: number | null
+  last_period_website_clicks: number | null
+  last_period_profile_links_taps: number | null
+  last_period_total_interactions: number | null
+  last_period_likes: number | null
+  last_period_comments: number | null
+  last_period_shares: number | null
+  last_period_saves: number | null
+  last_period_accounts_engaged: number | null
   created_at: string
   updated_at: string
 }

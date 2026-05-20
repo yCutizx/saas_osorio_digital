@@ -154,28 +154,20 @@ export function computeReachAndRevenue(reports: TrafficReportWithCampaign[]): {
  * `result_type='profile_visits_pending'` (porque a Meta Marketing API não tem
  * action_type confiável pra esse goal — o dado real vem do IG Graph).
  *
- * Esta função substitui o placeholder pelo total de `profile_views` do IG
- * no período. Se o IG não está conectado (igDaily vazio), remove o pending.
+ * Pós-v25: `profile_views` deixou de ser dia-a-dia e passou a vir agregado por
+ * período. Lemos do snapshot em `instagram_accounts.last_period_profile_views`.
+ * Se IG não conectado (account null) ou sem profile_views, remove o pending.
  */
-export interface IGProfileDataForMerge {
-  date:          string
-  profile_views: number | null
-}
-
 export function mergeProfileVisitsIntoResults(
   results: ResultSummaryItem[],
-  igDaily: IGProfileDataForMerge[],
-  from: string,
-  to:   string,
+  igAccount: { last_period_profile_views: number | null } | null,
 ): ResultSummaryItem[] {
   const hasPending = results.some((r) => r.result_type === 'profile_visits_pending')
   if (!hasPending) return results
 
-  const total = igDaily
-    .filter((r) => r.date >= from && r.date <= to)
-    .reduce((s, r) => s + (r.profile_views ?? 0), 0)
-
+  const total = igAccount?.last_period_profile_views ?? 0
   const withoutPending = results.filter((r) => r.result_type !== 'profile_visits_pending')
+
   if (total === 0) return withoutPending
 
   return [...withoutPending, { result_type: 'profile_views', count: total }]

@@ -136,125 +136,131 @@ export async function fetchPagesWithIG(): Promise<PageWithIG[]> {
   }))
 }
 
-// ── Insights diários do perfil ─────────────────────────────────────────────────
+// ── Insights do perfil (API v25 — 2 grupos) ────────────────────────────────────
 
 export interface IGInsightDailyRow {
-  date:                  string
-  impressions:           number
-  views:                 number
-  reach:                 number
-  profile_views:         number
-  profile_links_taps:    number
-  website_clicks:        number
-  email_contacts:        number
-  phone_call_clicks:     number
-  text_message_clicks:   number
-  get_directions_clicks: number
+  date:           string
+  reach:          number
+  follower_count: number  // novos seguidores no dia
 }
 
-type IGMetricPayload = {
-  name:        string
-  total_value?: { value: number }
-  values?:     Array<{ value: number; end_time: string }>
-}
-
-function accumulate(
-  out: Record<string, Record<string, number>>,
-  payload: IGMetricPayload[],
-) {
-  for (const m of payload) {
-    for (const v of m.values ?? []) {
-      const date = v.end_time.slice(0, 10)
-      if (!out[date]) out[date] = {}
-      out[date][m.name] = v.value
-    }
-  }
+export interface IGPeriodAggregated {
+  views:              number  // impressões (renomeado de impressions)
+  profile_views:      number
+  website_clicks:     number
+  profile_links_taps: number
+  total_interactions: number
+  likes:              number
+  comments:           number
+  shares:             number
+  saves:              number
+  accounts_engaged:   number
 }
 
 /**
- * Busca insights diários (perfil-level). Janela máxima ~30 dias pela API.
+ * Busca insights do perfil IG (API v25).
  *
- * Estratégia de fallback (v22+ deprecations):
- * - `impressions`/`profile_views` foram deprecated em algumas contas
- * - Se a chamada principal falhar, tenta `views`/`profile_links_taps`
+ * A Meta dividiu as métricas IG em 2 grupos a partir da v25:
+ * - Grupo A (period=day, sem metric_type): retornam série diária
+ *   → reach, follower_count
+ * - Grupo B (metric_type=total_value): retornam total agregado do período
+ *   → views, profile_views, website_clicks, profile_links_taps,
+ *     total_interactions, likes, comments, shares, saves, accounts_engaged
  *
- * Métricas total_value (CTAs) vão em chamada separada — exigem
- * `metric_type=total_value` desde v18+.
+ * Janela máxima ~30 dias pela API.
  */
 export async function fetchIGProfileInsights(opts: {
   igUserId: string
   since:    string // YYYY-MM-DD
   until:    string // YYYY-MM-DD
-}): Promise<IGInsightDailyRow[]> {
-  const sinceTs = Math.floor(new Date(opts.since).getTime() / 1000)
-  const untilTs = Math.floor(new Date(opts.until).getTime() / 1000)
+}): Promise<{ daily: IGInsightDailyRow[]; aggregated: IGPeriodAggregated }> {
+  // Forçar UTC nas bordas pra ts ficar previsível independente de TZ do server.
+  const sinceTs = Math.floor(new Date(opts.since + 'T00:00:00Z').getTime() / 1000)
+  const untilTs = Math.floor(new Date(opts.until + 'T23:59:59Z').getTime() / 1000)
 
-  // DEBUG — remover quando "0 dias" estiver resolvido
-  console.log('[IG insights debug]', {
-    igUserId:        opts.igUserId,
-    since:           opts.since,
-    until:           opts.until,
+  console.log('[IG insights v25]', {
+    igUserId:      opts.igUserId,
+    sinceStr:      opts.since,
+    untilStr:      opts.until,
     sinceTs,
     untilTs,
-    sinceTsAsDate:   new Date(sinceTs * 1000).toISOString(),
-    untilTsAsDate:   new Date(untilTs * 1000).toISOString(),
+    sinceTsAsDate: new Date(sinceTs * 1000).toISOString(),
+    untilTsAsDate: new Date(untilTs * 1000).toISOString(),
   })
 
-  const collected: Record<string, Record<string, number>> = {}
+  // ── Grupo A: diárias ────────────────────────────────────────────────────────
+  const dailyByDate: Record<string, { reach: number; follower_count: number }> = {}
 
-  // 1) Métricas regulares — tenta legacy, faz fallback pra v22+
   try {
-    const legacy = await fetchIGApi<IGMetricPayload>(`/${opts.igUserId}/insights`, {
-      metric: 'impressions,reach,profile_views,website_clicks',
+    const dailyResults = await fetchIGApi<{
+      name:   string
+      values: Array<{ value: number; end_time: string }>
+    }>(`/${opts.igUserId}/insights`, {
+      metric: 'reach,follower_count',
       period: 'day',
       since:  String(sinceTs),
       until:  String(untilTs),
     })
-    accumulate(collected, legacy)
-  } catch (e) {
-    console.warn('[IG insights] métricas legacy falharam, tentando v22+ fallback:', e)
-    try {
-      const v22 = await fetchIGApi<IGMetricPayload>(`/${opts.igUserId}/insights`, {
-        metric: 'views,reach,profile_links_taps,website_clicks',
-        period: 'day',
-        since:  String(sinceTs),
-        until:  String(untilTs),
-      })
-      accumulate(collected, v22)
-    } catch (e2) {
-      console.error('[IG insights] fallback v22+ também falhou:', e2)
+
+    for (const m of dailyResults) {
+      for (const v of m.values ?? []) {
+        const date = v.end_time.slice(0, 10)
+        if (!dailyByDate[date]) dailyByDate[date] = { reach: 0, follower_count: 0 }
+        if (m.name === 'reach')          dailyByDate[date].reach          = v.value
+        if (m.name === 'follower_count') dailyByDate[date].follower_count = v.value
+      }
     }
+  } catch (e) {
+    console.error('[IG daily metrics] erro:', e)
   }
 
-  // 2) CTAs (total_value)
+  // ── Grupo B: agregadas do período ──────────────────────────────────────────
+  const aggregated: IGPeriodAggregated = {
+    views:              0,
+    profile_views:      0,
+    website_clicks:     0,
+    profile_links_taps: 0,
+    total_interactions: 0,
+    likes:              0,
+    comments:           0,
+    shares:             0,
+    saves:              0,
+    accounts_engaged:   0,
+  }
+
   try {
-    const cta = await fetchIGApi<IGMetricPayload>(`/${opts.igUserId}/insights`, {
-      metric:      'email_contacts,phone_call_clicks,text_message_clicks,get_directions_clicks',
+    const totalResults = await fetchIGApi<{
+      name:         string
+      total_value?: { value: number }
+    }>(`/${opts.igUserId}/insights`, {
+      metric:      'views,profile_views,website_clicks,profile_links_taps,total_interactions,likes,comments,shares,saves,accounts_engaged',
       period:      'day',
       metric_type: 'total_value',
       since:       String(sinceTs),
       until:       String(untilTs),
     })
-    accumulate(collected, cta)
+
+    for (const m of totalResults) {
+      const value = m.total_value?.value ?? 0
+      if (m.name in aggregated) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (aggregated as any)[m.name] = value
+      }
+    }
   } catch (e) {
-    console.warn('[IG insights] CTAs falharam (conta pode não ter histórico):', e)
+    console.error('[IG aggregated metrics] erro:', e)
   }
 
-  return Object.entries(collected)
-    .map(([date, m]) => ({
-      date,
-      impressions:           m.impressions           ?? 0,
-      views:                 m.views                 ?? 0,
-      reach:                 m.reach                 ?? 0,
-      profile_views:         m.profile_views         ?? 0,
-      profile_links_taps:    m.profile_links_taps    ?? 0,
-      website_clicks:        m.website_clicks        ?? 0,
-      email_contacts:        m.email_contacts        ?? 0,
-      phone_call_clicks:     m.phone_call_clicks     ?? 0,
-      text_message_clicks:   m.text_message_clicks   ?? 0,
-      get_directions_clicks: m.get_directions_clicks ?? 0,
-    }))
+  const daily = Object.entries(dailyByDate)
+    .map(([date, data]) => ({ date, reach: data.reach, follower_count: data.follower_count }))
     .sort((a, b) => a.date.localeCompare(b.date))
+
+  console.log('[IG insights v25 result]', {
+    dailyCount:       daily.length,
+    aggregatedTotals: aggregated,
+  })
+
+  return { daily, aggregated }
 }
 
 // ── Info do perfil (snapshot atual) ────────────────────────────────────────────

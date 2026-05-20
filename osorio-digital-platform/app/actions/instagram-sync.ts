@@ -152,55 +152,63 @@ export async function syncIGFromGraph(
     const sinceStr = since.toISOString().slice(0, 10)
     const untilStr = until.toISOString().slice(0, 10)
 
-    // DEBUG — remover quando "0 dias" estiver resolvido
-    console.log('[IG sync debug]', {
-      daysBack,
-      since_date: since.toISOString(),
-      until_date: until.toISOString(),
-      sinceStr,
-      untilStr,
-    })
+    console.log('[IG sync v25]', { clientId, daysBack, sinceStr, untilStr })
 
-    const insights = await fetchIGProfileInsights({
+    // 2 chamadas internas (diária + agregada — v25)
+    const { daily, aggregated } = await fetchIGProfileInsights({
       igUserId: account.ig_user_id,
       since:    sinceStr,
       until:    untilStr,
     })
 
-    // Snapshot atual de followers — Meta não expõe histórico per-day fora de
-    // contas muito grandes, então gravamos o número de "agora" em todas as
-    // linhas do sync. Cron diário cria pontos suficientes pra evolução.
-    const accountInfo = await fetchIGAccountInfo(account.ig_user_id)
+    // Snapshot de followers (a Meta não expõe histórico per-day fora de contas
+    // muito grandes; gravamos o número atual em todas as linhas do sync).
+    const accountInfo  = await fetchIGAccountInfo(account.ig_user_id)
     const followersNow = accountInfo?.followers_count ?? 0
 
-    for (const row of insights) {
+    // Diário — reach + follower_count por dia. Colunas legacy ficam 0 (não são
+    // mais populadas pela v25, deixadas no schema pra não quebrar histórico).
+    for (const row of daily) {
       await admin
         .from('instagram_daily')
         .upsert({
           client_id:             clientId,
           ig_user_id:            account.ig_user_id,
           date:                  row.date,
-          impressions:           row.impressions,
-          views:                 row.views,
           reach:                 row.reach,
-          profile_views:         row.profile_views,
-          profile_links_taps:    row.profile_links_taps,
-          website_clicks:        row.website_clicks,
           follower_count:        followersNow,
-          email_contacts:        row.email_contacts,
-          phone_call_clicks:     row.phone_call_clicks,
-          text_message_clicks:   row.text_message_clicks,
-          get_directions_clicks: row.get_directions_clicks,
+          impressions:           0,
+          views:                 0,
+          profile_views:         0,
+          profile_links_taps:    0,
+          website_clicks:        0,
+          email_contacts:        0,
+          phone_call_clicks:     0,
+          text_message_clicks:   0,
+          get_directions_clicks: 0,
         }, { onConflict: 'client_id,ig_user_id,date' })
     }
 
+    // Agregado do período → snapshot em instagram_accounts.
     await admin
       .from('instagram_accounts')
       .update({
-        last_sync_at:     new Date().toISOString(),
-        last_sync_status: 'success',
-        last_sync_error:  null,
-        ig_username:      accountInfo?.username ?? account.ig_username,
+        last_sync_at:                    new Date().toISOString(),
+        last_sync_status:                'success',
+        last_sync_error:                 null,
+        ig_username:                     accountInfo?.username ?? account.ig_username,
+        last_period_since:               sinceStr,
+        last_period_until:               untilStr,
+        last_period_views:               aggregated.views,
+        last_period_profile_views:       aggregated.profile_views,
+        last_period_website_clicks:      aggregated.website_clicks,
+        last_period_profile_links_taps:  aggregated.profile_links_taps,
+        last_period_total_interactions:  aggregated.total_interactions,
+        last_period_likes:               aggregated.likes,
+        last_period_comments:            aggregated.comments,
+        last_period_shares:              aggregated.shares,
+        last_period_saves:               aggregated.saves,
+        last_period_accounts_engaged:    aggregated.accounts_engaged,
       })
       .eq('client_id', clientId)
       .eq('ig_user_id', account.ig_user_id)
@@ -211,7 +219,7 @@ export async function syncIGFromGraph(
     revalidatePath(`/traffic/dashboard/${clientId}`)
     revalidatePath('/client/ads')
 
-    return { ok: true as const, days: insights.length }
+    return { ok: true as const, days: daily.length }
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Erro desconhecido'
     await admin

@@ -128,15 +128,14 @@ async function fetchData(clientId: string, from: string, to: string, isMax: bool
     .single()
   if (!clientData) return null
 
-  // IG daily pra merge de PROFILE_VISITS (Etapa 13 — campanhas com goal
-  // PROFILE_VISITS gravam result_type='profile_visits_pending', dashboard cruza
-  // com profile_views do IG quando há conexão).
-  const { data: igDaily } = await admin
-    .from('instagram_daily')
-    .select('date, profile_views')
+  // IG account (snapshot agregado v25) — usado pra merge de PROFILE_VISITS.
+  // Pós-v25, profile_views não vem mais dia-a-dia: vem agregado do último sync.
+  const { data: igAccount } = await admin
+    .from('instagram_accounts')
+    .select('last_period_profile_views')
     .eq('client_id', clientId)
-    .gte('date', isMax ? '1900-01-01' : from)
-    .lte('date', isMax ? '2999-12-31' : to)
+    .eq('is_primary', true)
+    .maybeSingle()
 
   // Reports query — skip date filter when max
   let reportsQuery = supabase
@@ -196,7 +195,7 @@ async function fetchData(clientId: string, from: string, to: string, isMax: bool
     profile,
     reports:      (reports ?? []) as unknown as TrafficReportWithCampaign[],
     dailyRecords: records as DailyRowWithResultType[],
-    igDaily:      igDaily ?? [],
+    igAccount:    igAccount ?? null,
     actualFrom,
     actualTo,
     prevCpm,
@@ -253,7 +252,7 @@ export default async function ClientTrafficDashboardPage({ params, searchParams 
   const data = await fetchData(clientId, from, to, isMax)
   if (!data) { redirect('/traffic/dashboard') }
 
-  const { client, profile, reports, dailyRecords, igDaily, actualFrom, actualTo, prevCpm = 0 } = data
+  const { client, profile, reports, dailyRecords, igAccount, actualFrom, actualTo, prevCpm = 0 } = data
   const canEdit  = profile?.role === 'admin' || profile?.role === 'traffic_manager'
 
   // Stats híbrido: granularidade dia-a-dia (respeita filtro exato) +
@@ -269,9 +268,10 @@ export default async function ClientTrafficDashboardPage({ params, searchParams 
   const stats: StatsDerived = { ...dailyStats, reach, revenue, ctr, cpc, cpa, roas }
 
   // Etapa 13 — substitui profile_visits_pending (campanhas PROFILE_VISITS) pelo
-  // total de profile_views do IG no período. Sem IG conectado, remove pending.
+  // profile_views agregado do IG. Pós-v25 lê de instagram_accounts (snapshot).
+  // Sem IG conectado, remove pending.
   const rawResults = buildResultSummaryFromDaily(dailyRecords)
-  const results    = mergeProfileVisitsIntoResults(rawResults, igDaily, from, to)
+  const results    = mergeProfileVisitsIntoResults(rawResults, igAccount)
   const hasVendas  = results.some((r) => resolveResultCategory(r.result_type) === 'venda')
 
   // Mapeia DailyRow → DailyPoint (chart shape: PT keys + data formatada + zero-fill)

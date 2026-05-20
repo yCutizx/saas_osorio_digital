@@ -41,7 +41,7 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
   const admin = createAdminClient()
   const { data: igAccount } = await admin
     .from('instagram_accounts')
-    .select('ig_user_id, ig_username, account_kind')
+    .select('ig_user_id, ig_username, account_kind, last_period_views, last_period_profile_views, last_period_website_clicks, last_period_total_interactions, last_period_likes, last_period_comments, last_period_shares, last_period_saves, last_period_accounts_engaged')
     .eq('client_id', clientId)
     .eq('is_primary', true)
     .maybeSingle()
@@ -51,7 +51,7 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
 
   const { data: daily } = await admin
     .from('instagram_daily')
-    .select('date, impressions, views, reach, profile_views, profile_links_taps, website_clicks, follower_count, email_contacts, phone_call_clicks, text_message_clicks, get_directions_clicks')
+    .select('date, reach, follower_count')
     .eq('client_id', clientId)
     .gte('date', from)
     .lte('date', to)
@@ -60,11 +60,17 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
   const rows = daily ?? []
 
   const stats: IGHeroStats = {
-    followers:      rows.length > 0 ? rows[rows.length - 1].follower_count ?? 0 : 0,
-    impressions:    rows.reduce((s, r) => s + (r.impressions ?? r.views ?? 0), 0),
-    reach:          rows.reduce((s, r) => s + (r.reach ?? 0), 0),
-    profile_views:  rows.reduce((s, r) => s + (r.profile_views ?? r.profile_links_taps ?? 0), 0),
-    website_clicks: rows.reduce((s, r) => s + (r.website_clicks ?? 0), 0),
+    followers:          rows.length > 0 ? rows[rows.length - 1].follower_count ?? 0 : 0,
+    reach:              rows.reduce((s, r) => s + (r.reach ?? 0), 0),
+    views:              igAccount?.last_period_views              ?? 0,
+    profile_views:      igAccount?.last_period_profile_views      ?? 0,
+    website_clicks:     igAccount?.last_period_website_clicks     ?? 0,
+    total_interactions: igAccount?.last_period_total_interactions ?? 0,
+    likes:              igAccount?.last_period_likes              ?? 0,
+    comments:           igAccount?.last_period_comments           ?? 0,
+    shares:             igAccount?.last_period_shares             ?? 0,
+    saves:              igAccount?.last_period_saves              ?? 0,
+    accounts_engaged:   igAccount?.last_period_accounts_engaged   ?? 0,
   }
 
   const byDate = new Map(rows.map((r) => [r.date.slice(0, 10), r]))
@@ -73,20 +79,15 @@ export default async function ClientInstagramPage({ searchParams }: PageProps) {
     const r   = byDate.get(key)
     return {
       date:           format(day, 'dd/MM', { locale: ptBR }),
-      impressoes:     r?.impressions ?? r?.views ?? 0,
+      impressoes:     0,
       alcance:        r?.reach ?? 0,
-      visitas_perfil: r?.profile_views ?? r?.profile_links_taps ?? 0,
-      cliques_link:   r?.website_clicks ?? 0,
+      visitas_perfil: 0,
+      cliques_link:   0,
       seguidores:     r?.follower_count ?? 0,
     }
   })
 
-  const ctaBreakdown: IGCTABreakdown = {
-    email:       rows.reduce((s, r) => s + (r.email_contacts ?? 0), 0),
-    telefone:    rows.reduce((s, r) => s + (r.phone_call_clicks ?? 0), 0),
-    whatsapp:    rows.reduce((s, r) => s + (r.text_message_clicks ?? 0), 0),
-    localizacao: rows.reduce((s, r) => s + (r.get_directions_clicks ?? 0), 0),
-  }
+  const ctaBreakdown: IGCTABreakdown = { email: 0, telefone: 0, whatsapp: 0, localizacao: 0 }
 
   return (
     <AppLayout pageTitle="Instagram">
