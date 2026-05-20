@@ -129,7 +129,7 @@ export async function fetchAccountInsights(opts: {
     limit: '500',
     // Alinha com o que o Ads Manager UI mostra por padrão (default da conta).
     // Fix Etapa 13 — drift de 3-4% em impressions/clicks vs UI.
-    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_engaged_view']),
+    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_ev']),
     use_unified_attribution_setting: 'true',
   }
 
@@ -151,7 +151,7 @@ export async function fetchAccountReachForPeriod(opts: {
     level: 'account',
     time_range: JSON.stringify({ since: opts.since, until: opts.until }),
     fields: 'reach,frequency,impressions',
-    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_engaged_view']),
+    action_attribution_windows: JSON.stringify(['7d_click', '1d_view', '1d_ev']),
     use_unified_attribution_setting: 'true',
     // SEM time_increment — Meta devolve 1 linha agregada do período inteiro
   }
