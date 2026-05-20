@@ -29,38 +29,53 @@ async function getAdminCtx() {
   return { user, profile, admin }
 }
 
-/** Pages do user + IG vinculado de cada. Filtra Personal (não tem insights). */
+/**
+ * Pages do user + IG vinculado de cada. Filtra apenas Pages SEM IG
+ * (qualquer IG vinculado a Page é Business ou Creator — Personal não vincula).
+ * Validação fina de Business/Creator agora roda no connectIGAccountAction.
+ */
 export async function listAvailableIGAccountsAction() {
   const ctx = await getAdminCtx()
   if ('error' in ctx) return { error: ctx.error }
 
   try {
     const pages = await fetchPagesWithIG()
-    const accounts = pages.filter((p) => p.ig_user_id && p.account_type !== 'PERSONAL')
+    const accounts = pages.filter((p) => p.ig_user_id !== null)
     return { ok: true as const, accounts }
   } catch (e) {
+    console.error('[listAvailableIGAccountsAction]', e)
     return { error: e instanceof Error ? e.message : 'Erro ao buscar contas' }
   }
 }
 
-/** Conecta uma conta IG a um cliente. Rejeita PERSONAL (sem insights). */
+/**
+ * Conecta uma conta IG a um cliente. Faz 1 chamada extra pra validar
+ * account_type aqui (movido do discovery — evita N+1 calls no listing).
+ * Rejeita Personal.
+ */
 export async function connectIGAccountAction(opts: {
   clientId:    string
   igUserId:    string
   igUsername:  string
   pageId:      string
   pageName:    string
-  accountType: string // BUSINESS | MEDIA_CREATOR | ...
 }) {
   const ctx = await getAdminCtx()
   if ('error' in ctx) return { error: ctx.error }
 
-  const accountKind =
-    opts.accountType === 'BUSINESS'      ? 'business' :
-    opts.accountType === 'MEDIA_CREATOR' ? 'creator'  : null
+  let accountKind: 'business' | 'creator' | null = null
+  try {
+    const info = await fetchIGAccountInfo(opts.igUserId)
+    if      (info?.account_type === 'BUSINESS')      accountKind = 'business'
+    else if (info?.account_type === 'MEDIA_CREATOR') accountKind = 'creator'
+  } catch (e) {
+    console.warn('[connectIGAccountAction] erro buscando account_type:', e)
+  }
 
   if (!accountKind) {
-    return { error: 'Conta IG precisa ser Business ou Creator (Personal não expõe insights)' }
+    return {
+      error: 'Conta IG precisa ser Business ou Creator (não Personal). Verifique nas configurações do Instagram.',
+    }
   }
 
   const { error } = await ctx.admin

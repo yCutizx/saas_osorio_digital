@@ -27,11 +27,10 @@ interface ExistingConnection {
 }
 
 interface DiscoveredAccount {
-  page_id:      string
-  page_name:    string
-  ig_user_id:   string | null
-  ig_username:  string | null
-  account_type: string | null
+  page_id:     string
+  page_name:   string
+  ig_user_id:  string | null
+  ig_username: string | null
 }
 
 interface Props {
@@ -75,11 +74,10 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
     startConnect(async () => {
       const r = await connectIGAccountAction({
         clientId,
-        igUserId:    picked.ig_user_id!,
-        igUsername:  picked.ig_username ?? '',
-        pageId:      picked.page_id,
-        pageName:    picked.page_name,
-        accountType: picked.account_type ?? '',
+        igUserId:   picked.ig_user_id!,
+        igUsername: picked.ig_username ?? '',
+        pageId:     picked.page_id,
+        pageName:   picked.page_name,
       })
       if ('error' in r) {
         toast.error(r.error)
@@ -256,7 +254,7 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
                 <option value="">— selecione —</option>
                 {discovered.map((a) => (
                   <option key={a.ig_user_id ?? a.page_id} value={a.ig_user_id ?? ''}>
-                    @{a.ig_username ?? a.ig_user_id} ({a.account_type ?? '—'}) · via {a.page_name}
+                    @{a.ig_username ?? a.ig_user_id} · via {a.page_name}
                   </option>
                 ))}
               </select>

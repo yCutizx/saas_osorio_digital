@@ -73,61 +73,67 @@ async function fetchIGApi<T>(path: string, params: Record<string, string> = {}):
 // ── Discovery: Pages do user + IG vinculado ────────────────────────────────────
 
 export interface PageWithIG {
-  page_id:      string
-  page_name:    string
-  ig_user_id:   string | null
-  ig_username:  string | null
-  account_type: string | null // BUSINESS, MEDIA_CREATOR, PERSONAL
+  page_id:     string
+  page_name:   string
+  ig_user_id:  string | null
+  ig_username: string | null
 }
 
 /**
- * Lista todas as Pages que o token acessa + IG vinculado de cada uma.
- * Pages sem IG entram com `ig_user_id: null` (cliente sabe que não pode conectar).
+ * Lista Pages do token + IG vinculado de cada uma.
+ *
+ * Estratégia (fix pós-Etapa 13): UMA chamada `/me/accounts` pedindo
+ * `instagram_business_account` de uma vez (em vez de N+1 chamadas seriais).
+ * Usernames são puxados em paralelo (`Promise.all`). `account_type` foi
+ * removido do discovery — passou a ser validado só no `connectIGAccountAction`
+ * (era a fonte de falha silenciosa que zerava a lista).
  */
 export async function fetchPagesWithIG(): Promise<PageWithIG[]> {
-  const pages = await fetchIGApi<{ id: string; name: string }>('/me/accounts', {
-    fields: 'id,name',
+  const pages = await fetchIGApi<{
+    id:                          string
+    name:                        string
+    instagram_business_account?: { id: string }
+  }>('/me/accounts', {
+    fields: 'id,name,instagram_business_account',
     limit:  '100',
   })
 
-  const results: PageWithIG[] = []
+  const pagesWithIG = pages.filter((p) => p.instagram_business_account?.id)
 
-  for (const page of pages) {
-    try {
-      const detail = await fetchIGApi<{ instagram_business_account?: { id: string } }>(
-        `/${page.id}`,
-        { fields: 'instagram_business_account' },
-      )
-      const igAccount = detail[0]?.instagram_business_account
-
-      if (igAccount?.id) {
-        const igInfo = await fetchIGApi<{ username?: string; account_type?: string }>(
-          `/${igAccount.id}`,
-          { fields: 'username,account_type' },
-        )
-        results.push({
-          page_id:      page.id,
-          page_name:    page.name,
-          ig_user_id:   igAccount.id,
-          ig_username:  igInfo[0]?.username ?? null,
-          account_type: igInfo[0]?.account_type ?? null,
-        })
-      } else {
-        results.push({
-          page_id:      page.id,
-          page_name:    page.name,
-          ig_user_id:   null,
-          ig_username:  null,
-          account_type: null,
-        })
-      }
-    } catch (e) {
-      // Page sem permissão ou erro pontual — não derruba a lista inteira.
-      console.warn(`[fetchPagesWithIG] erro em page ${page.id}:`, e)
-    }
+  // Sem IG vinculado em nenhuma Page — retorna mesmo assim com ig_user_id=null
+  // pra UI poder informar "nenhuma conta vinculada".
+  if (pagesWithIG.length === 0) {
+    return pages.map((p) => ({
+      page_id:     p.id,
+      page_name:   p.name,
+      ig_user_id:  null,
+      ig_username: null,
+    }))
   }
 
-  return results
+  // Usernames em paralelo — 17 calls ≈ <2s vs ~15s serial.
+  const usernameResults = await Promise.all(
+    pagesWithIG.map(async (p) => {
+      const igId = p.instagram_business_account!.id
+      try {
+        const info = await fetchIGApi<{ username?: string }>(`/${igId}`, { fields: 'username' })
+        return { igId, username: info[0]?.username ?? null }
+      } catch (e) {
+        console.warn(`[fetchPagesWithIG] username de ${igId} falhou:`, e)
+        return { igId, username: null }
+      }
+    }),
+  )
+  const usernameMap = new Map(usernameResults.map((r) => [r.igId, r.username]))
+
+  return pages.map((p) => ({
+    page_id:     p.id,
+    page_name:   p.name,
+    ig_user_id:  p.instagram_business_account?.id ?? null,
+    ig_username: p.instagram_business_account
+      ? (usernameMap.get(p.instagram_business_account.id) ?? null)
+      : null,
+  }))
 }
 
 // ── Insights diários do perfil ─────────────────────────────────────────────────
