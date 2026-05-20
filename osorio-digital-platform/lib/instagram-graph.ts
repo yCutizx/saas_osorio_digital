@@ -189,6 +189,17 @@ export async function fetchIGProfileInsights(opts: {
   const sinceTs = Math.floor(new Date(opts.since).getTime() / 1000)
   const untilTs = Math.floor(new Date(opts.until).getTime() / 1000)
 
+  // DEBUG — remover quando "0 dias" estiver resolvido
+  console.log('[IG insights debug]', {
+    igUserId:        opts.igUserId,
+    since:           opts.since,
+    until:           opts.until,
+    sinceTs,
+    untilTs,
+    sinceTsAsDate:   new Date(sinceTs * 1000).toISOString(),
+    untilTsAsDate:   new Date(untilTs * 1000).toISOString(),
+  })
+
   const collected: Record<string, Record<string, number>> = {}
 
   // 1) Métricas regulares — tenta legacy, faz fallback pra v22+

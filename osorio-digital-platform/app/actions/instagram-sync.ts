@@ -152,6 +152,15 @@ export async function syncIGFromGraph(
     const sinceStr = since.toISOString().slice(0, 10)
     const untilStr = until.toISOString().slice(0, 10)
 
+    // DEBUG — remover quando "0 dias" estiver resolvido
+    console.log('[IG sync debug]', {
+      daysBack,
+      since_date: since.toISOString(),
+      until_date: until.toISOString(),
+      sinceStr,
+      untilStr,
+    })
+
     const insights = await fetchIGProfileInsights({
       igUserId: account.ig_user_id,
       since:    sinceStr,
