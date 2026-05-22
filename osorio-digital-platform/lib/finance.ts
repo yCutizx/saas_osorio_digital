@@ -147,6 +147,41 @@ export function composeDate(year: number, month: number, day: number): string {
   return `${baseYear}-${mm}-${dd}`
 }
 
+/**
+ * Último dia de um mês específico (year, month=1-12).
+ * Ex: lastDayOfMonth(2026, 2) = 28 (ou 29 em ano bissexto)
+ *     lastDayOfMonth(2026, 4) = 30
+ *     lastDayOfMonth(2027, 2) = 28
+ *     lastDayOfMonth(2028, 2) = 29 (bissexto)
+ */
+export function lastDayOfMonth(year: number, month: number): number {
+  // JS Date: month é 0-11; new Date(year, month, 0) retorna último dia do mês ANTERIOR.
+  // Passando month direto (1-12) com day=0 dá o último dia do mês desejado.
+  return new Date(year, month, 0).getDate()
+}
+
+/**
+ * Compõe due_date dado year/month/billing_day, com CAP automático no último
+ * dia do mês quando o billing_day excede.
+ *
+ * Comportamento "fintech" (Nubank/Inter): billing_day=30 em fevereiro vira 28.
+ *
+ * Ex: composeDueDate(2026, 2, 30) → '2026-02-28'
+ *     composeDueDate(2026, 1, 5)  → '2026-01-05'
+ *     composeDueDate(2026, 4, 31) → '2026-04-30'
+ *
+ * Normaliza overflow de mês (ex: month=13 → year+1, month=1).
+ */
+export function composeDueDate(year: number, month: number, billingDay: number): string {
+  const baseYear  = year + Math.floor((month - 1) / 12)
+  const baseMonth = ((month - 1) % 12 + 12) % 12 + 1
+  const lastDay   = lastDayOfMonth(baseYear, baseMonth)
+  const day       = Math.min(billingDay, lastDay)
+  const mm = String(baseMonth).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
+  return `${baseYear}-${mm}-${dd}`
+}
+
 /** Extrai year/month(1-12)/day de YYYY-MM-DD. */
 export function parseYMD(yyyyMmDd: string): { year: number; month: number; day: number } {
   const [y, m, d] = yyyyMmDd.split('-').map(Number)
@@ -159,14 +194,19 @@ export function parseYMD(yyyyMmDd: string): { year: number; month: number; day: 
  * Regra (D7 ajustada):
  * - SE start_date.day <= billing_day desse mês: vence ESSE mês no billing_day
  * - SENÃO: vence no próximo mês no billing_day
+ *
+ * Cap automático no último dia do mês quando billing_day > último dia
+ * (ex: billing_day=30 em fevereiro vence 28/02).
  */
 export function computeFirstInvoiceDueDate(opts: {
   startDate:  string // YYYY-MM-DD
   billingDay: number
 }): string {
   const { year, month, day } = parseYMD(opts.startDate)
-  if (day <= opts.billingDay) {
-    return composeDate(year, month, opts.billingDay)
+  // Compara contra billing_day "efetivo" do mês corrente (já com cap).
+  const effectiveBillingDayThisMonth = Math.min(opts.billingDay, lastDayOfMonth(year, month))
+  if (day <= effectiveBillingDayThisMonth) {
+    return composeDueDate(year, month, opts.billingDay)
   }
-  return composeDate(year, month + 1, opts.billingDay)
+  return composeDueDate(year, month + 1, opts.billingDay)
 }

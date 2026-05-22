@@ -6,7 +6,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification, createNotificationForMany } from '@/lib/notifications'
 import {
+  addDays,
   composeDate,
+  composeDueDate,
   computeFirstInvoiceDueDate,
   firstDayOfMonth,
   formatBRL,
@@ -53,7 +55,7 @@ function revalidateFinance(clientId?: string) {
 const contractInputSchema = z.object({
   client_id:     z.string().uuid(),
   monthly_value: z.number().positive('Valor mensal deve ser maior que zero'),
-  billing_day:   z.number().int().min(1).max(28),
+  billing_day:   z.number().int().min(1).max(31),
   start_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
   end_date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   notes:         z.string().max(2000).nullable().optional(),
@@ -142,7 +144,7 @@ export async function createContractAction(input: unknown) {
 
 const updateContractSchema = z.object({
   monthly_value: z.number().positive().optional(),
-  billing_day:   z.number().int().min(1).max(28).optional(),
+  billing_day:   z.number().int().min(1).max(31).optional(),
   start_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   end_date:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   status:        z.enum(['active', 'paused', 'ended']).optional(),
@@ -343,7 +345,7 @@ export async function generateMonthlyInvoices(
   let generated = 0
 
   for (const c of contracts ?? []) {
-    const dueDate = composeDate(year, month, c.billing_day)
+    const dueDate = composeDueDate(year, month, c.billing_day)
     const { error: insertErr } = await admin
       .from('financial_invoices')
       .upsert({
@@ -373,9 +375,10 @@ export async function generateMonthlyInvoices(
 export async function notifyUpcomingInvoices(
   admin: AdminClient,
 ): Promise<{ notified: number }> {
-  const today = todayBRT()
-  const { year, month, day } = parseYMD(today)
-  const tomorrow = composeDate(year, month, day + 1)
+  const today    = todayBRT()
+  // addDays usa Date math nativo (respeita overflow de mês — ex: 31/01 + 1 = 01/02).
+  // composeDate fazia cap no último dia e quebrava na virada de mês.
+  const tomorrow = addDays(today, 1)
 
   // View live garante effective_status atualizado (overdue já não conta como pending)
   const { data: invoices, error } = await admin

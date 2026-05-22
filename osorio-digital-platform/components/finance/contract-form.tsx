@@ -40,7 +40,7 @@ export function ContractForm({ clientId, existingContract }: Props) {
     const valueNum = parseFloat(monthlyValue.replace(',', '.'))
     const dayNum   = parseInt(billingDay, 10)
     if (Number.isNaN(valueNum) || valueNum <= 0) { setError('Valor mensal deve ser maior que zero'); return }
-    if (Number.isNaN(dayNum) || dayNum < 1 || dayNum > 28) { setError('Dia de vencimento entre 1 e 28'); return }
+    if (Number.isNaN(dayNum) || dayNum < 1 || dayNum > 31) { setError('Dia de vencimento entre 1 e 31'); return }
 
     startSubmit(async () => {
       if (isEdit && existingContract) {
@@ -113,18 +113,21 @@ export function ContractForm({ clientId, existingContract }: Props) {
             />
           </Field>
 
-          <Field label="Dia de vencimento (1-28)" htmlFor="billing-day">
+          <Field label="Dia de vencimento (1-31)" htmlFor="billing-day">
             <input
               id="billing-day"
               type="number"
               min={1}
-              max={28}
+              max={31}
               value={billingDay}
               onChange={(e) => setBillingDay(e.target.value)}
               required
               disabled={pending}
               className="w-full bg-[#0A0A0A] border border-[#222] rounded-lg px-3 py-2 text-sm text-[#F5F5F0] focus:outline-none focus:border-[#EACE00]/60 disabled:opacity-50"
             />
+            <p className="text-[10px] text-[#888] mt-1">
+              Em meses sem esse dia (ex: fev/30), a fatura vence no último dia do mês.
+            </p>
           </Field>
 
           <Field label="Data de início" htmlFor="start-date">
