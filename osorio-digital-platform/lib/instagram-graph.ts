@@ -289,6 +289,148 @@ export async function fetchIGProfileInsights(opts: {
   return { daily, aggregated }
 }
 
+// ── Mídia (posts, reels) — Etapa 14 ────────────────────────────────────────────
+
+export interface IGMediaItem {
+  id:                 string
+  media_type:         'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+  media_product_type?: 'REELS' | 'FEED' | 'STORY'
+  caption?:           string
+  permalink?:         string
+  thumbnail_url?:     string
+  media_url?:         string
+  timestamp:          string  // ISO
+}
+
+/**
+ * Lista mídia recente de um IG user. Pagina automaticamente respeitando
+ * `sinceDate` (para antes de buscar posts mais antigos que isso) e `limit`
+ * (max acumulado). API v25: /{ig-user-id}/media.
+ */
+export async function fetchIGMedia(opts: {
+  igUserId:   string
+  limit?:     number
+  sinceDate?: string // YYYY-MM-DD
+}): Promise<IGMediaItem[]> {
+  const limit = opts.limit ?? 100
+  const fields = 'id,media_type,media_product_type,caption,permalink,thumbnail_url,media_url,timestamp'
+
+  const results: IGMediaItem[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type Body = { data?: IGMediaItem[]; paging?: { next?: string }; error?: { message: string } }
+
+  // Primeira URL
+  let nextUrl: string | null = (() => {
+    const url = new URL(`${getBaseUrl()}/${opts.igUserId}/media`)
+    url.searchParams.set('access_token', getAccessToken())
+    url.searchParams.set('fields', fields)
+    url.searchParams.set('limit', '25')
+    return url.toString()
+  })()
+
+  let pageCount = 0
+  const maxPages = 10 // safety: ~250 posts
+
+  try {
+    while (nextUrl && pageCount < maxPages) {
+      pageCount++
+      const res = await fetch(nextUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`IG media ${res.status}: ${text.slice(0, 500)}`)
+      }
+      const body = (await res.json()) as Body
+      if (body.error) throw new Error(`IG media: ${body.error.message}`)
+
+      let earlyStop = false
+      for (const item of body.data ?? []) {
+        if (opts.sinceDate) {
+          const itemDate = item.timestamp.slice(0, 10)
+          if (itemDate < opts.sinceDate) { earlyStop = true; break }
+        }
+        results.push(item)
+        if (results.length >= limit) { earlyStop = true; break }
+      }
+
+      nextUrl = earlyStop ? null : (body.paging?.next ?? null)
+    }
+
+    console.log('[IG media fetch]', {
+      igUserId: opts.igUserId,
+      total:    results.length,
+      pages:    pageCount,
+    })
+    return results
+  } catch (e) {
+    console.error('[IG media fetch] erro:', e)
+    return results // retorna o que conseguiu antes do erro
+  }
+}
+
+export interface IGMediaInsightValues {
+  views:                          number
+  reach:                          number
+  likes:                          number
+  comments:                       number
+  shares:                         number
+  saves:                          number
+  total_interactions:             number
+  ig_reels_avg_watch_time:        number | null
+  ig_reels_video_view_total_time: number | null
+}
+
+/**
+ * Insights de um post/reel específico. Métricas variam por tipo:
+ * IMAGE/CAROUSEL: views, reach, likes, comments, shares, saves, total_interactions
+ * VIDEO/REELS: + ig_reels_avg_watch_time, ig_reels_video_view_total_time
+ */
+export async function fetchIGMediaInsights(opts: {
+  mediaId: string
+  isReel:  boolean
+}): Promise<IGMediaInsightValues | null> {
+  const baseMetrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'total_interactions']
+  const reelMetrics = opts.isReel
+    ? ['ig_reels_avg_watch_time', 'ig_reels_video_view_total_time']
+    : []
+  const metric = [...baseMetrics, ...reelMetrics].join(',')
+
+  try {
+    const rows = await fetchIGApi<{
+      name:         string
+      values?:      Array<{ value: number }>
+      total_value?: { value: number }
+    }>(`/${opts.mediaId}/insights`, { metric })
+
+    const insights: IGMediaInsightValues = {
+      views:                          0,
+      reach:                          0,
+      likes:                          0,
+      comments:                       0,
+      shares:                         0,
+      saves:                          0,
+      total_interactions:             0,
+      ig_reels_avg_watch_time:        null,
+      ig_reels_video_view_total_time: null,
+    }
+
+    for (const m of rows) {
+      const value = m.total_value?.value ?? m.values?.[0]?.value ?? 0
+      if (m.name in insights) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (insights as any)[m.name] = value
+      }
+    }
+    return insights
+  } catch (e) {
+    console.error('[IG media insights] erro:', opts.mediaId, e instanceof Error ? e.message : e)
+    return null
+  }
+}
+
 // ── Info do perfil (snapshot atual) ────────────────────────────────────────────
 
 export interface IGAccountInfo {

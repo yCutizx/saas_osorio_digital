@@ -94,6 +94,48 @@ export interface InstagramAccount {
   updated_at: string
 }
 
+// Etapa 14 — Posts individuais
+export type InstagramMediaType = 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'REELS'
+
+export interface InstagramMedia {
+  id:            string
+  client_id:     string
+  ig_user_id:    string
+  media_id:      string
+  media_type:    InstagramMediaType
+  caption:       string | null
+  permalink:     string | null
+  thumbnail_url: string | null
+  media_url:     string | null
+  posted_at:     string
+  synced_at:     string
+  created_at:    string
+  updated_at:    string
+}
+
+export interface InstagramMediaInsight {
+  id:                              string
+  media_id:                        string
+  client_id:                       string
+  views:                           number
+  reach:                           number
+  likes:                           number
+  comments:                        number
+  shares:                          number
+  saves:                           number
+  total_interactions:              number
+  ig_reels_avg_watch_time:         number | null
+  ig_reels_video_view_total_time:  number | null
+  snapshot_date:                   string
+  snapshot_at:                     string
+  created_at:                      string
+}
+
+export interface InstagramMediaWithInsights extends InstagramMedia {
+  latest_insight:    InstagramMediaInsight | null
+  insights_history?: InstagramMediaInsight[]
+}
+
 export interface InstagramDailyRow {
   id: string
   client_id: string

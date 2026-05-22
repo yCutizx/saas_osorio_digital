@@ -7,6 +7,8 @@ import {
   fetchPagesWithIG,
   fetchIGProfileInsights,
   fetchIGAccountInfo,
+  fetchIGMedia,
+  fetchIGMediaInsights,
 } from '@/lib/instagram-graph'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -120,6 +122,121 @@ export async function syncIGAccountHistoryAction(clientId: string) {
 }
 
 /**
+ * Etapa 14 — sincroniza catálogo de mídia + snapshot diário de insights.
+ * Chamado dentro de `syncIGFromGraph` após o sync de métricas de perfil.
+ *
+ * Estratégia:
+ * 1. Lista posts/reels mais novos que `daysBack` dias atrás (máx 100, paginado)
+ * 2. Pra cada item: upsert em `instagram_media` (catálogo)
+ * 3. Busca insights individuais (1 chamada por post — Meta não tem batch insights)
+ * 4. Upsert em `instagram_media_insights` com `snapshot_date=hoje` (1/dia/post)
+ *
+ * Sequencial pra evitar rate limit da Meta — Reach do app é ~200 calls/h/user.
+ */
+async function syncIGMediaInternal(
+  admin: AdminClient,
+  clientId: string,
+  igUserId: string,
+  daysBack: number,
+): Promise<{ media: number; snapshots: number }> {
+  const sinceDate = new Date()
+  sinceDate.setDate(sinceDate.getDate() - Math.min(daysBack, 90))
+  const sinceStr = sinceDate.toISOString().slice(0, 10)
+  const todayStr = new Date().toISOString().slice(0, 10)
+
+  console.log('[IG media sync]', { clientId, igUserId, sinceStr, daysBack })
+
+  const mediaList = await fetchIGMedia({
+    igUserId,
+    sinceDate: sinceStr,
+    limit:     100,
+  })
+
+  let mediaCount    = 0
+  let snapshotCount = 0
+
+  for (const item of mediaList) {
+    const isReel = item.media_product_type === 'REELS'
+    const mediaType: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'REELS' =
+      isReel ? 'REELS' : item.media_type
+
+    const { error: mediaError } = await admin
+      .from('instagram_media')
+      .upsert({
+        client_id:     clientId,
+        ig_user_id:    igUserId,
+        media_id:      item.id,
+        media_type:    mediaType,
+        caption:       item.caption ?? null,
+        permalink:     item.permalink ?? null,
+        thumbnail_url: item.thumbnail_url ?? null,
+        media_url:     item.media_url ?? null,
+        posted_at:     item.timestamp,
+        synced_at:     new Date().toISOString(),
+        updated_at:    new Date().toISOString(),
+      }, { onConflict: 'client_id,media_id' })
+
+    if (mediaError) {
+      console.error('[IG media upsert] erro:', item.id, mediaError.message)
+      continue
+    }
+    mediaCount++
+
+    const insights = await fetchIGMediaInsights({ mediaId: item.id, isReel })
+    if (!insights) continue
+
+    const { error: insightError } = await admin
+      .from('instagram_media_insights')
+      .upsert({
+        media_id:                       item.id,
+        client_id:                      clientId,
+        views:                          insights.views,
+        reach:                          insights.reach,
+        likes:                          insights.likes,
+        comments:                       insights.comments,
+        shares:                         insights.shares,
+        saves:                          insights.saves,
+        total_interactions:             insights.total_interactions,
+        ig_reels_avg_watch_time:        insights.ig_reels_avg_watch_time,
+        ig_reels_video_view_total_time: insights.ig_reels_video_view_total_time,
+        snapshot_date:                  todayStr,
+        snapshot_at:                    new Date().toISOString(),
+      }, { onConflict: 'media_id,snapshot_date' })
+
+    if (insightError) {
+      console.error('[IG insight upsert] erro:', item.id, insightError.message)
+      continue
+    }
+    snapshotCount++
+  }
+
+  console.log('[IG media sync result]', { mediaCount, snapshotCount })
+  return { media: mediaCount, snapshots: snapshotCount }
+}
+
+/**
+ * Etapa 14 — server action chamada pelo drawer ao abrir um post.
+ * Retorna histórico cronológico de snapshots pra plotar evolução de views.
+ */
+export async function fetchPostInsightsHistoryAction(opts: {
+  clientId: string
+  mediaId:  string
+}) {
+  const ctx = await getAdminCtx()
+  if ('error' in ctx) return { error: ctx.error }
+
+  const { data, error } = await ctx.admin
+    .from('instagram_media_insights')
+    .select('snapshot_date, views, reach, likes, comments, shares, saves, total_interactions, ig_reels_avg_watch_time, ig_reels_video_view_total_time')
+    .eq('client_id', opts.clientId)
+    .eq('media_id',  opts.mediaId)
+    .order('snapshot_date', { ascending: true })
+
+  if (error) return { error: 'Erro ao buscar histórico' }
+  return { ok: true as const, history: data ?? [] }
+}
+
+/**
  * Função pura — usada pelas actions UI e pelo cron.
  * Não chama auth: o caller já validou permissão.
  */
@@ -220,6 +337,20 @@ export async function syncIGFromGraph(
       })
       .eq('client_id', clientId)
       .eq('ig_user_id', account.ig_user_id)
+
+    // Etapa 14 — sync de mídia individual (posts + reels) com snapshots diários.
+    // Best-effort: falha NÃO bloqueia o sync de perfil que já gravou ok.
+    try {
+      const mediaResult = await syncIGMediaInternal(
+        admin,
+        clientId,
+        account.ig_user_id,
+        daysBack,
+      )
+      console.log('[IG sync] media sync ok', mediaResult)
+    } catch (e) {
+      console.error('[IG sync] media sync falhou (não bloqueia):', e instanceof Error ? e.message : e)
+    }
 
     revalidatePath(`/admin/clients/${clientId}/edit`)
     revalidatePath(`/traffic/dashboard/${clientId}/instagram`)

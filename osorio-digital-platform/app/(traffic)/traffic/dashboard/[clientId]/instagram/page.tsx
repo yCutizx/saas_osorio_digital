@@ -9,13 +9,23 @@ import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { InstagramHeroCard, type IGHeroStats } from '@/components/instagram/instagram-hero-card'
 import { InstagramCharts, type IGDailyPoint, type IGCTABreakdown } from '@/components/instagram/instagram-charts'
+import { InstagramTabNav } from '@/components/instagram/instagram-tab-nav'
+import { InstagramPostsFilters, type PostsFilterType, type PostsFilterPeriod, type PostsFilterSort } from '@/components/instagram/instagram-posts-filters'
+import { InstagramPostsGrid } from '@/components/instagram/instagram-posts-grid'
 import { redirect } from 'next/navigation'
 
 const ALLOWED = ['admin', 'traffic_manager', 'social_media']
 
 interface PageProps {
   params:       { clientId: string }
-  searchParams: { from?: string; to?: string }
+  searchParams: {
+    from?:   string
+    to?:     string
+    tab?:    'overview' | 'posts'
+    type?:   PostsFilterType
+    period?: PostsFilterPeriod
+    sort?:   PostsFilterSort
+  }
 }
 
 export default async function ClientInstagramDashboardPage({ params, searchParams }: PageProps) {
@@ -125,6 +135,11 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
   // CTAs não vêm mais na v25 sem upgrade pra business_discovery — placeholder zerado
   const ctaBreakdown: IGCTABreakdown = { email: 0, telefone: 0, whatsapp: 0, localizacao: 0 }
 
+  const activeTab    = searchParams.tab ?? 'overview'
+  const postsType    = searchParams.type   ?? 'all'
+  const postsPeriod  = searchParams.period ?? '30d'
+  const postsSort    = searchParams.sort   ?? 'recent'
+
   return (
     <AppLayout pageTitle={`${clientRow.name} · Instagram`}>
       <div className="space-y-5">
@@ -152,28 +167,54 @@ export default async function ClientInstagramDashboardPage({ params, searchParam
               Conectar Instagram
             </Link>
           </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-2xl bg-yellow-500/8 border border-yellow-500/20 p-5 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-white font-semibold">Nenhum dado no período</p>
-              <p className="text-white/50 text-sm mt-0.5">
-                Rode &quot;Sincronizar 30 dias&quot; em /admin/clients/{clientId}/edit pra puxar histórico.
-              </p>
-            </div>
-          </div>
         ) : (
           <>
-            <InstagramHeroCard
-              from={from}
-              to={to}
-              username={igAccount.ig_username}
-              stats={stats}
+            <InstagramTabNav
+              basePath={`/traffic/dashboard/${clientId}/instagram`}
+              active={activeTab}
+              preserve={{ from: searchParams.from, to: searchParams.to }}
             />
-            <InstagramCharts
-              dailyData={dailyData}
-              ctaBreakdown={ctaBreakdown}
-            />
+
+            {activeTab === 'overview' ? (
+              rows.length === 0 ? (
+                <div className="rounded-2xl bg-yellow-500/8 border border-yellow-500/20 p-5 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-semibold">Nenhum dado no período</p>
+                    <p className="text-white/50 text-sm mt-0.5">
+                      Rode &quot;Sincronizar 30 dias&quot; em /admin/clients/{clientId}/edit pra puxar histórico.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <InstagramHeroCard
+                    from={from}
+                    to={to}
+                    username={igAccount.ig_username}
+                    stats={stats}
+                  />
+                  <InstagramCharts
+                    dailyData={dailyData}
+                    ctaBreakdown={ctaBreakdown}
+                  />
+                </>
+              )
+            ) : (
+              <>
+                <InstagramPostsFilters
+                  type={postsType}
+                  period={postsPeriod}
+                  sort={postsSort}
+                />
+                <InstagramPostsGrid
+                  clientId={clientId}
+                  type={postsType}
+                  period={postsPeriod}
+                  sort={postsSort}
+                />
+              </>
+            )}
           </>
         )}
       </div>
