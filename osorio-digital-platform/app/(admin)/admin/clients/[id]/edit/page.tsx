@@ -8,6 +8,7 @@ import { redirect, notFound } from 'next/navigation'
 import { EditClientForm } from './edit-client-form'
 import { MetaIntegrationSection } from '@/components/clients/meta-integration-section'
 import { InstagramIntegrationSection } from '@/components/clients/instagram-integration-section'
+import { FinancialSection } from '@/components/finance/financial-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -104,6 +105,8 @@ export default async function EditClientPage({ params }: { params: { id: string 
           clientId={clientRow.id}
           connection={igAccount ?? null}
         />
+
+        <FinancialSection clientId={clientRow.id} />
       </div>
     </AppLayout>
   )

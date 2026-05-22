@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import { Bell, Check, X, BarChart2, Kanban, FileText, Lightbulb, MessageSquare, Users } from 'lucide-react'
+import { Bell, Check, X, BarChart2, Kanban, FileText, Lightbulb, MessageSquare, Users, DollarSign } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   getUnreadCount, getNotifications, markAsRead, markAllAsRead,
@@ -29,6 +29,7 @@ function NotifIcon({ type }: { type: string }) {
   if (type.startsWith('post'))    return <FileText   className={`${cls} text-green-400`} />
   if (type.startsWith('comment')) return <MessageSquare className={`${cls} text-cyan-400`} />
   if (type.startsWith('team'))    return <Users      className={`${cls} text-orange-400`} />
+  if (type.startsWith('finance')) return <DollarSign className={`${cls} text-yellow-400`} />
   return                                 <Bell       className={`${cls} text-white/40`} />
 }
 
