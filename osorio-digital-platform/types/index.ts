@@ -421,3 +421,60 @@ export const TEMPERATURE_COLOR: Record<LeadTemperature, string> = {
   morno: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
   quente: 'text-red-400 bg-red-500/10 border-red-500/20',
 }
+
+// ── Etapa 15 — Módulo Financeiro ─────────────────────────────────────────────
+export type ContractStatus  = 'active' | 'paused' | 'ended'
+export type InvoiceStatus   = 'pending' | 'paid' | 'overdue' | 'canceled'
+export type TransactionType = 'income' | 'expense' | 'refund' | 'adjustment'
+
+export interface FinancialContract {
+  id:            string
+  client_id:     string
+  monthly_value: number
+  billing_day:   number
+  start_date:    string
+  end_date:      string | null
+  status:        ContractStatus
+  notes:         string | null
+  created_by:    string | null
+  created_at:    string
+  updated_at:    string
+}
+
+export interface FinancialInvoice {
+  id:              string
+  client_id:       string
+  contract_id:     string | null
+  reference_month: string
+  due_date:        string
+  amount:          number
+  discount:        number
+  status:          InvoiceStatus
+  paid_at:         string | null
+  paid_amount:     number | null
+  paid_by:         string | null
+  payment_method:  string | null
+  notes:           string | null
+  seller_id:       string | null
+  created_at:      string
+  updated_at:      string
+}
+
+/** Vem da view `financial_invoices_live`: inclui status efetivo recalculado. */
+export interface FinancialInvoiceLive extends FinancialInvoice {
+  effective_status: InvoiceStatus
+  days_overdue:     number
+}
+
+export interface FinancialTransaction {
+  id:               string
+  client_id:        string | null
+  type:             TransactionType
+  amount:           number
+  description:      string
+  transaction_date: string
+  category:         string | null
+  invoice_id:       string | null
+  created_by:       string | null
+  created_at:       string
+}

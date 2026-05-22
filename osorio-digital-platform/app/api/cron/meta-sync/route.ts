@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { syncClientFromMeta } from '@/app/actions/meta-sync'
+import {
+  generateMonthlyInvoices,
+  notifyUpcomingInvoices,
+  notifyOverdueInvoices,
+} from '@/app/actions/financial'
 
 export const maxDuration = 300 // Hobby caps at 60s, Pro permite 300s
 export const dynamic = 'force-dynamic'
@@ -18,6 +23,33 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient()
+
+  // Etapa 15 — Módulo Financeiro (rodam ANTES do sync Meta; isoladas em
+  // try/catch pra não bloquear sync se uma falhar)
+  let financeGen: unknown = null
+  let financeUpc: unknown = null
+  let financeOvd: unknown = null
+
+  try {
+    financeGen = await generateMonthlyInvoices(admin)
+    console.log('[finance cron] generateMonthlyInvoices:', financeGen)
+  } catch (e) {
+    console.error('[finance cron] generateMonthlyInvoices ERRO:', e instanceof Error ? e.message : e)
+  }
+
+  try {
+    financeUpc = await notifyUpcomingInvoices(admin)
+    console.log('[finance cron] notifyUpcomingInvoices:', financeUpc)
+  } catch (e) {
+    console.error('[finance cron] notifyUpcomingInvoices ERRO:', e instanceof Error ? e.message : e)
+  }
+
+  try {
+    financeOvd = await notifyOverdueInvoices(admin)
+    console.log('[finance cron] notifyOverdueInvoices:', financeOvd)
+  } catch (e) {
+    console.error('[finance cron] notifyOverdueInvoices ERRO:', e instanceof Error ? e.message : e)
+  }
 
   const { data: clients, error } = await admin
     .from('clients')
@@ -69,5 +101,10 @@ export async function GET(request: Request) {
     success_count: results.filter((r) => r.ok).length,
     error_count:   results.filter((r) => !r.ok).length,
     results,
+    finance: {
+      generated: financeGen,
+      upcoming:  financeUpc,
+      overdue:   financeOvd,
+    },
   })
 }
