@@ -63,6 +63,9 @@ export function InstagramPostCard({ clientId, post, isTop }: Props) {
   const meta    = TYPE_META[post.media_type]
   const Icon    = meta.icon
   const insight = post.latest_insight
+  // API v25 não popula thumbnail_url pra CAROUSEL_ALBUM — usa media_url como
+  // fallback (primeira imagem do álbum).
+  const coverSrc = post.thumbnail_url ?? post.media_url ?? null
 
   function loadHistory() {
     if (history !== null || pending) return
@@ -89,17 +92,18 @@ export function InstagramPostCard({ clientId, post, isTop }: Props) {
       >
           {/* Thumb */}
           <div className="relative aspect-video bg-[#0a0a0a] overflow-hidden">
-            {post.thumbnail_url ? (
+            {coverSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={post.thumbnail_url}
+                src={coverSrc}
                 alt={post.caption?.slice(0, 60) ?? 'Post'}
                 className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
                 loading="lazy"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-white/20">
+              <div className="w-full h-full flex flex-col items-center justify-center text-white/20 gap-1">
                 <Icon className="h-8 w-8" />
+                <span className="text-[10px] uppercase tracking-widest">Sem capa</span>
               </div>
             )}
             {isTop && (
@@ -143,16 +147,17 @@ export function InstagramPostCard({ clientId, post, isTop }: Props) {
 
         {/* Imagem grande */}
         <div className="relative aspect-square bg-[#0a0a0a] overflow-hidden">
-          {post.thumbnail_url ? (
+          {coverSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={post.thumbnail_url}
+              src={coverSrc}
               alt={post.caption?.slice(0, 60) ?? 'Post'}
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/20">
+            <div className="w-full h-full flex flex-col items-center justify-center text-white/20 gap-1">
               <Icon className="h-12 w-12" />
+              <span className="text-xs uppercase tracking-widest">Sem capa</span>
             </div>
           )}
         </div>
