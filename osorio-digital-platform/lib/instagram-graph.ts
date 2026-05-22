@@ -392,7 +392,10 @@ export async function fetchIGMediaInsights(opts: {
   mediaId: string
   isReel:  boolean
 }): Promise<IGMediaInsightValues | null> {
-  const baseMetrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'total_interactions']
+  // Meta v25 inconsistência: insights de PERFIL usam 'saves' (plural), insights
+  // de MÍDIA individual usam 'saved' (singular). Schema do banco mantém 'saves' —
+  // o parsing abaixo mapeia 'saved' → 'saves'.
+  const baseMetrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'total_interactions']
   const reelMetrics = opts.isReel
     ? ['ig_reels_avg_watch_time', 'ig_reels_video_view_total_time']
     : []
@@ -419,9 +422,11 @@ export async function fetchIGMediaInsights(opts: {
 
     for (const m of rows) {
       const value = m.total_value?.value ?? m.values?.[0]?.value ?? 0
-      if (m.name in insights) {
+      // Mapeia 'saved' (API mídia v25) → 'saves' (schema do banco)
+      const fieldName = m.name === 'saved' ? 'saves' : m.name
+      if (fieldName in insights) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (insights as any)[m.name] = value
+        (insights as any)[fieldName] = value
       }
     }
     return insights
