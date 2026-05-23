@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Impede iOS Safari de aumentar texto automaticamente em landscape (Etapa 13.6) */
+html { -webkit-text-size-adjust: 100%; }
+
 /* Oculta scrollbar nativa nos containers de kanban */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
