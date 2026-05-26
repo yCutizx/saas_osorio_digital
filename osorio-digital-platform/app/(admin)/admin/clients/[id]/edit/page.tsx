@@ -9,6 +9,7 @@ import { EditClientForm } from './edit-client-form'
 import { MetaIntegrationSection } from '@/components/clients/meta-integration-section'
 import { InstagramIntegrationSection } from '@/components/clients/instagram-integration-section'
 import { FinancialSection } from '@/components/finance/financial-section'
+import { ClientMembersSection } from '@/components/clients/client-members-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -88,6 +89,8 @@ export default async function EditClientPage({ params }: { params: { id: string 
             />
           </CardContent>
         </Card>
+
+        <ClientMembersSection clientId={clientRow.id} />
 
         <MetaIntegrationSection
           clientId={clientRow.id}
