@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { TrendingUp, CalendarDays, Target } from 'lucide-react'
+import { BarChart3, CalendarDays, DollarSign } from 'lucide-react'
 
-const WORDS = ['Escalar.', 'Converter.', 'Crescer.', 'Dominar.']
+const WORDS = ['Gerenciar.', 'Organizar.', 'Acompanhar.', 'Decidir.']
 
 const CARDS = [
-  { icon: TrendingUp,   metric: 'ROAS 4.2x',           sub: '↑ 23% este mês',          color: '#22C55E', delay: '0.7s' },
-  { icon: CalendarDays, metric: '12 posts aprovados',   sub: 'esta semana',              color: '#3B82F6', delay: '0.95s' },
-  { icon: Target,       metric: 'CPL R$ 8,50',          sub: '↓ 18% vs mês anterior',   color: '#EACE00', delay: '1.2s' },
+  { icon: BarChart3,    metric: 'Tráfego em tempo real', sub: 'Meta Ads + Instagram',        color: '#3B82F6', delay: '0.7s' },
+  { icon: CalendarDays, metric: 'Calendário editorial',  sub: 'Aprovação em 1 clique',       color: '#A855F7', delay: '0.95s' },
+  { icon: DollarSign,   metric: 'Financeiro',            sub: 'Controle de pagamentos',      color: '#EACE00', delay: '1.2s' },
 ]
 
 const TICKER_ITEMS = [
-  '+100 clientes satisfeitos',
-  '+R$15MM em vendas geradas',
-  '+5 anos de experiência',
-  '+R$700K investidos em tráfego',
-  'ROI médio 6x',
+  'Tudo da agência em um só lugar',
+  'Tráfego pago e orgânico unificados',
+  'Relatórios automáticos',
+  'Calendário editorial colaborativo',
+  'Financeiro e CRM integrados',
 ]
 
 
@@ -53,7 +53,7 @@ export function LeftPanel() {
 
         {/* Label — escondido no mobile */}
         <p className="hidden lg:block text-[11px] font-bold uppercase tracking-[0.2em] text-[#EACE00]/55 mb-5">
-          A plataforma completa da Osorio Digital
+          Plataforma Osório Digital
         </p>
 
         {/* Typewriter headline */}
@@ -75,7 +75,7 @@ export function LeftPanel() {
 
         {/* Subtítulo — escondido no mobile */}
         <p className="hidden lg:block mt-5 text-[#777] text-base leading-relaxed max-w-[280px]">
-          Métricas de tráfego, calendário editorial, insights e CRM em um único lugar.
+          Operação, métricas e conteúdo em um só lugar.
         </p>
 
         {/* Floating metric cards */}
