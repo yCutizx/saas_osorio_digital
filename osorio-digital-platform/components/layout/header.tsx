@@ -20,6 +20,9 @@ const ROLE_LABELS: Record<UserRole, string> = {
   traffic_manager: 'Gestor de Tráfego',
   social_media:    'Social Media',
   client:          'Cliente',
+  vendedor:        'Vendedor',
+  sdr:             'SDR',
+  closer:          'Closer',
 }
 
 interface HeaderProps {

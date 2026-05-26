@@ -70,6 +70,36 @@ export async function middleware(request: NextRequest) {
     sessionUser = result.user
   }
 
+  // ── Etapa 16 — Guard de /seller/* (roles comerciais + admin) ─────────────────
+  // Roles comerciais (vendedor/sdr/closer) só acessam /seller/*. Admin entra
+  // pra inspecionar. Outros roles → redirect pra /login (fail-safe).
+  const isSellerRoute = pathname.startsWith('/seller/')
+  if (isSellerRoute) {
+    if (!sessionUser) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/login'
+      const r = NextResponse.redirect(redirectUrl)
+      applySecurity(r, requestId)
+      return r
+    }
+    try {
+      const admin = createAdminClient()
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('role')
+        .eq('id', sessionUser.id)
+        .maybeSingle()
+      const role = profile?.role as string | undefined
+      if (!role || !['admin', 'vendedor', 'sdr', 'closer'].includes(role)) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = '/login'
+        const r = NextResponse.redirect(redirectUrl)
+        applySecurity(r, requestId)
+        return r
+      }
+    } catch { /* fail open — DB indisponível não trava acesso já autenticado */ }
+  }
+
   // ── MFA enforcement (authenticated, non-API, non-MFA, non-auth routes) ───────
   const isMfaRoute  = pathname.startsWith('/mfa/')
   const isAuthRoute = pathname === '/login' || pathname.startsWith('/reset-password') || pathname === '/'

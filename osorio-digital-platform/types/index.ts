@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'traffic_manager' | 'social_media' | 'client'
+                     | 'vendedor' | 'sdr' | 'closer'
 
 export type Platform = 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'twitter'
 
@@ -477,4 +478,56 @@ export interface FinancialTransaction {
   invoice_id:       string | null
   created_by:       string | null
   created_at:       string
+}
+
+// ── Etapa 16 — Vendedores + Comissionamento ──────────────────────────────────
+export type SellerRole       = 'vendedor' | 'sdr' | 'closer'
+export type CommissionStatus = 'pending' | 'paid' | 'canceled'
+
+export interface CommissionRule {
+  sdr_fixed:          number
+  closer_month_1_pct: number
+  closer_month_2_pct: number
+  closer_month_3_pct: number
+}
+
+export interface ClientSeller {
+  id:             string
+  client_id:      string
+  user_id:        string
+  seller_role:    SellerRole
+  custom_rule:    CommissionRule | null
+  active:         boolean
+  assigned_at:    string
+  deactivated_at: string | null
+  created_at:     string
+}
+
+export interface CommissionInvoice {
+  id:                  string
+  seller_user_id:      string
+  client_id:           string
+  source_invoice_id:   string
+  source_seller_role:  SellerRole
+  source_month_index:  number
+  base_amount:         number
+  commission_pct:      number | null
+  commission_fixed:    number | null
+  commission_amount:   number
+  status:              CommissionStatus
+  paid_at:             string | null
+  paid_amount:         number | null
+  paid_by:             string | null
+  payment_method:      string | null
+  notes:               string | null
+  created_at:          string
+  updated_at:          string
+}
+
+export interface CommissionInvoiceWithMeta extends CommissionInvoice {
+  seller_name:    string | null
+  seller_email:   string
+  client_name:    string
+  reference_month: string
+  source_paid_at: string | null
 }

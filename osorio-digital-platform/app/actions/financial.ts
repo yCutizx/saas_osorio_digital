@@ -233,6 +233,16 @@ export async function markInvoiceAsPaidAction(id: string, input: unknown) {
     link:    '/admin/finance',
   })
 
+  // Etapa 16 — dispara cálculo de comissão. Best-effort: falha NÃO bloqueia
+  // o markAsPaid (commission é processo secundário).
+  try {
+    const { generateCommissionsFromPaidInvoice } = await import('./commissions-engine')
+    const r = await generateCommissionsFromPaidInvoice(ctx.admin, id)
+    console.log('[commissions] generated:', r)
+  } catch (e) {
+    console.error('[commissions] generation failed:', e instanceof Error ? e.message : e)
+  }
+
   revalidateFinance(invoice.client_id)
   return { ok: true as const }
 }
@@ -269,6 +279,15 @@ export async function cancelInvoiceAction(id: string, reason: string) {
     .eq('id', id)
 
   if (error) return { error: 'Erro ao cancelar: ' + error.message }
+
+  // Etapa 16 — cancela comissões PENDENTES vinculadas. Paid intactas.
+  try {
+    const { cancelCommissionsFromCanceledInvoice } = await import('./commissions-engine')
+    const r = await cancelCommissionsFromCanceledInvoice(ctx.admin, id)
+    console.log('[commissions] canceled:', r)
+  } catch (e) {
+    console.error('[commissions] cancellation failed:', e instanceof Error ? e.message : e)
+  }
 
   revalidateFinance(invoice.client_id)
   return { ok: true as const }
@@ -344,8 +363,14 @@ export async function generateMonthlyInvoices(
   const referenceMonth = composeDate(year, month, 1)
   let generated = 0
 
+  // Etapa 16 — dynamic import pra evitar ciclo (engine importa types comuns)
+  const { getActiveSellerForInvoiceGeneration } = await import('./commissions-engine')
+
   for (const c of contracts ?? []) {
-    const dueDate = composeDueDate(year, month, c.billing_day)
+    const dueDate  = composeDueDate(year, month, c.billing_day)
+    // Popula seller_id com o "dono" da receita (vendedor único > closer)
+    const sellerId = await getActiveSellerForInvoiceGeneration(admin, c.client_id)
+
     const { error: insertErr } = await admin
       .from('financial_invoices')
       .upsert({
@@ -356,6 +381,7 @@ export async function generateMonthlyInvoices(
         amount:          Number(c.monthly_value),
         discount:        0,
         status:          'pending',
+        seller_id:       sellerId,
       }, { onConflict: 'client_id,reference_month', ignoreDuplicates: true })
 
     if (insertErr) {

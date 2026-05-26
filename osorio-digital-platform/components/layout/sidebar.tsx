@@ -52,6 +52,10 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Pipeline',   href: '/social/pipeline',   icon: GitMerge },
     SETTINGS_ITEM,
   ],
+  // Etapa 16 Push 3 vai preencher com SELLER_NAV (dashboard, clientes, comissões)
+  vendedor: [SETTINGS_ITEM],
+  sdr:      [SETTINGS_ITEM],
+  closer:   [SETTINGS_ITEM],
 }
 
 const CLIENT_NAV: NavItem[] = [
