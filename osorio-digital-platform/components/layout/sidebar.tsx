@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import {
   LayoutDashboard, Users, Users2, TrendingUp, Calendar,
-  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, LayoutList, GitMerge, Settings, AtSign, DollarSign, Receipt,
+  Lightbulb, FileSearch, LogOut, ChevronLeft, ChevronRight, X, BarChart2, LayoutList, GitMerge, Settings, AtSign, DollarSign, Receipt, Briefcase,
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,7 @@ const NAV_BY_ROLE: Record<Exclude<UserRole, 'client'>, NavItem[]> = {
     { label: 'Pesquisas',  href: '/admin/research',       icon: FileSearch },
     { label: 'Kanban',     href: '/admin/kanban',         icon: LayoutList },
     { label: 'Pipeline',   href: '/admin/pipeline',       icon: GitMerge },
+    { label: 'Comercial',  href: '/admin/commercial',     icon: Briefcase },
     SETTINGS_ITEM,
   ],
   traffic_manager: [
