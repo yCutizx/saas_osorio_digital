@@ -10,6 +10,7 @@ import { MetaIntegrationSection } from '@/components/clients/meta-integration-se
 import { InstagramIntegrationSection } from '@/components/clients/instagram-integration-section'
 import { FinancialSection } from '@/components/finance/financial-section'
 import { ClientMembersSection } from '@/components/clients/client-members-section'
+import { CommercialSection } from '@/components/commercial/commercial-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -110,6 +111,8 @@ export default async function EditClientPage({ params }: { params: { id: string 
         />
 
         <FinancialSection clientId={clientRow.id} />
+
+        <CommercialSection clientId={clientRow.id} />
       </div>
     </AppLayout>
   )

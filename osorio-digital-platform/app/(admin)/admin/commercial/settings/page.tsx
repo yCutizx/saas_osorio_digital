@@ -1,10 +1,12 @@
-import { Settings } from 'lucide-react'
+import { getCommissionDefaults } from '@/lib/app-settings'
+import { CommissionDefaultsForm } from './defaults-form'
 
-export default function CommercialSettingsPlaceholderPage() {
+export default async function CommercialSettingsPage() {
+  const defaults = await getCommissionDefaults()
+
   return (
-    <div className="rounded-2xl bg-[#111] border border-[#222] p-10 text-center space-y-3">
-      <Settings className="h-8 w-8 text-white/20 mx-auto" />
-      <p className="text-white/40 text-sm">Configurações de comissão — em breve (Push 2D).</p>
+    <div className="max-w-2xl space-y-6">
+      <CommissionDefaultsForm initial={defaults} />
     </div>
   )
 }
