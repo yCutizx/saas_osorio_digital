@@ -13,6 +13,7 @@ import {
   syncMetaAccountHistoryAction,
   disconnectMetaAccountAction,
 } from '@/app/actions/meta-sync'
+import { useCooldown } from '@/lib/hooks/use-cooldown'
 
 interface Props {
   clientId: string
@@ -36,6 +37,9 @@ export function MetaIntegrationSection({
   const [isSyncing, startSync] = useTransition()
   const [isSyncingHistory, startSyncHistory] = useTransition()
   const [isDisconnecting, startDisconnect] = useTransition()
+
+  // Cooldown compartilhado entre os 2 botões de sync (mesma quota Meta).
+  const syncCooldown = useCooldown(60)
 
   const isConnected = !!initialAdAccountId
   const hasChanged = adAccountId.trim() !== (initialAdAccountId ?? '')
@@ -65,29 +69,39 @@ export function MetaIntegrationSection({
   }
 
   function handleSync() {
+    if (syncCooldown.isCoolingDown) return
     startSync(async () => {
       toast.info('Sincronizando... pode levar alguns segundos')
-      const r = await syncMetaAccountNowAction(clientId, 30)
-      if ('error' in r) {
-        toast.error(r.error)
-        return
+      try {
+        const r = await syncMetaAccountNowAction(clientId, 30)
+        if ('error' in r) {
+          toast.error(r.error)
+          return
+        }
+        toast.success(`Sincronizado! ${r.campaigns} campanhas, ${r.rows} dias`)
+        router.refresh()
+      } finally {
+        syncCooldown.startCooldown()
       }
-      toast.success(`Sincronizado! ${r.campaigns} campanhas, ${r.rows} dias`)
-      router.refresh()
     })
   }
 
   function handleSyncHistory() {
+    if (syncCooldown.isCoolingDown) return
     if (!confirm('Sincronizar últimos 90 dias? Pode demorar 1-2 minutos e vai sobrescrever dados existentes com a lógica atual.')) return
     startSyncHistory(async () => {
       toast.info('Sincronizando histórico de 90 dias... aguarde')
-      const r = await syncMetaAccountHistoryAction(clientId)
-      if ('error' in r) {
-        toast.error(r.error)
-        return
+      try {
+        const r = await syncMetaAccountHistoryAction(clientId)
+        if ('error' in r) {
+          toast.error(r.error)
+          return
+        }
+        toast.success(`Histórico sincronizado! ${r.campaigns} campanhas, ${r.rows} dias`)
+        router.refresh()
+      } finally {
+        syncCooldown.startCooldown()
       }
-      toast.success(`Histórico sincronizado! ${r.campaigns} campanhas, ${r.rows} dias`)
-      router.refresh()
     })
   }
 
@@ -199,20 +213,20 @@ export function MetaIntegrationSection({
             <button
               type="button"
               onClick={handleSync}
-              disabled={anyLoading}
+              disabled={anyLoading || syncCooldown.isCoolingDown}
               className="inline-flex items-center gap-2 bg-[#EACE00] text-black font-semibold px-4 py-2 rounded-lg hover:bg-[#f5d800] disabled:opacity-50 transition-colors"
             >
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar agora
+              {syncCooldown.isCoolingDown ? `Aguarde ${syncCooldown.remaining}s...` : 'Sincronizar agora'}
             </button>
             <button
               type="button"
               onClick={handleSyncHistory}
-              disabled={anyLoading}
+              disabled={anyLoading || syncCooldown.isCoolingDown}
               className="inline-flex items-center gap-2 bg-[#1a1a1a] border border-[#222] text-[#ccc] px-4 py-2 rounded-lg hover:bg-[#222] disabled:opacity-50 transition-colors"
             >
               {isSyncingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarRange className="h-4 w-4" />}
-              Sincronizar 90 dias
+              {syncCooldown.isCoolingDown ? `Aguarde ${syncCooldown.remaining}s...` : 'Sincronizar 90 dias'}
             </button>
             <button
               type="button"
@@ -226,6 +240,12 @@ export function MetaIntegrationSection({
           </>
         )}
       </div>
+
+      {syncCooldown.isCoolingDown && (
+        <p className="text-xs text-[#888]">
+          Sincronização Meta disponível novamente em {syncCooldown.remaining}s
+        </p>
+      )}
 
       <p className="text-xs text-[#666] pt-2">
         Sincronização automática diária às 03:00 (BRT). Use &quot;Sincronizar agora&quot; pra atualização imediata.

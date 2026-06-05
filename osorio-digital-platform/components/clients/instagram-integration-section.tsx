@@ -15,6 +15,7 @@ import {
   syncIGAccountHistoryAction,
   disconnectIGAccountAction,
 } from '@/app/actions/instagram-sync'
+import { useCooldown } from '@/lib/hooks/use-cooldown'
 
 interface ExistingConnection {
   ig_user_id:       string
@@ -47,6 +48,9 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
   const [isSyncing,      startSync]      = useTransition()
   const [isSyncingHist,  startSyncHist]  = useTransition()
   const [isDisconnecting, startDisconnect] = useTransition()
+
+  // Cooldown compartilhado entre os 2 botões de sync IG (mesma quota Graph API IG).
+  const syncCooldown = useCooldown(60)
 
   const isConnected = !!connection
   const anyLoading  = isSearching || isConnecting || isSyncing || isSyncingHist || isDisconnecting
@@ -89,29 +93,39 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
   }
 
   function handleSync() {
+    if (syncCooldown.isCoolingDown) return
     startSync(async () => {
       toast.info('Sincronizando últimos 7 dias do IG...')
-      const r = await syncIGAccountNowAction(clientId, 7)
-      if ('error' in r) {
-        toast.error(r.error)
-        return
+      try {
+        const r = await syncIGAccountNowAction(clientId, 7)
+        if ('error' in r) {
+          toast.error(r.error)
+          return
+        }
+        toast.success(`Instagram sincronizado: ${r.days} dia${r.days !== 1 ? 's' : ''}`)
+        router.refresh()
+      } finally {
+        syncCooldown.startCooldown()
       }
-      toast.success(`Instagram sincronizado: ${r.days} dia${r.days !== 1 ? 's' : ''}`)
-      router.refresh()
     })
   }
 
   function handleSyncHistory() {
+    if (syncCooldown.isCoolingDown) return
     if (!confirm('Sincronizar histórico de 30 dias do Instagram? (limite da API)')) return
     startSyncHist(async () => {
       toast.info('Sincronizando histórico... aguarde')
-      const r = await syncIGAccountHistoryAction(clientId)
-      if ('error' in r) {
-        toast.error(r.error)
-        return
+      try {
+        const r = await syncIGAccountHistoryAction(clientId)
+        if ('error' in r) {
+          toast.error(r.error)
+          return
+        }
+        toast.success(`Histórico IG sincronizado: ${r.days} dias`)
+        router.refresh()
+      } finally {
+        syncCooldown.startCooldown()
       }
-      toast.success(`Histórico IG sincronizado: ${r.days} dias`)
-      router.refresh()
     })
   }
 
@@ -199,20 +213,20 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
             <button
               type="button"
               onClick={handleSync}
-              disabled={anyLoading}
+              disabled={anyLoading || syncCooldown.isCoolingDown}
               className="inline-flex items-center gap-2 bg-[#EACE00] text-black font-semibold px-4 py-2 rounded-lg hover:bg-[#f5d800] disabled:opacity-50 transition-colors"
             >
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar agora
+              {syncCooldown.isCoolingDown ? `Aguarde ${syncCooldown.remaining}s...` : 'Sincronizar agora'}
             </button>
             <button
               type="button"
               onClick={handleSyncHistory}
-              disabled={anyLoading}
+              disabled={anyLoading || syncCooldown.isCoolingDown}
               className="inline-flex items-center gap-2 bg-[#1a1a1a] border border-[#222] text-[#ccc] px-4 py-2 rounded-lg hover:bg-[#222] disabled:opacity-50 transition-colors"
             >
               {isSyncingHist ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarRange className="h-4 w-4" />}
-              Sincronizar 30 dias
+              {syncCooldown.isCoolingDown ? `Aguarde ${syncCooldown.remaining}s...` : 'Sincronizar 30 dias'}
             </button>
             <button
               type="button"
@@ -224,6 +238,12 @@ export function InstagramIntegrationSection({ clientId, connection }: Props) {
               Desconectar
             </button>
           </div>
+
+          {syncCooldown.isCoolingDown && (
+            <p className="text-xs text-[#888]">
+              Sincronização Instagram disponível novamente em {syncCooldown.remaining}s
+            </p>
+          )}
         </>
       ) : (
         <>
