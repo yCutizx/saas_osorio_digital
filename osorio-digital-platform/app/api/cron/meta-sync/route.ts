@@ -12,10 +12,10 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization')
-  const expectedSecret = process.env.META_CRON_SECRET
+  const expectedSecret = process.env.CRON_SECRET
 
   if (!expectedSecret) {
-    return NextResponse.json({ error: 'META_CRON_SECRET não configurado' }, { status: 500 })
+    return NextResponse.json({ error: 'CRON_SECRET não configurado' }, { status: 500 })
   }
 
   if (auth !== `Bearer ${expectedSecret}`) {
