@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
+  try {
   const admin = createAdminClient()
 
   // Etapa 15 — Módulo Financeiro (rodam ANTES do sync Meta; isoladas em
@@ -107,4 +108,11 @@ export async function GET(request: Request) {
       overdue:   financeOvd,
     },
   })
+  } catch (err) {
+    console.error('[meta-sync CRON ERRO FATAL]', err instanceof Error ? err.stack : err)
+    return NextResponse.json(
+      { error: 'cron failed', detail: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    )
+  }
 }

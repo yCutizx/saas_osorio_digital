@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
+  try {
   const admin = createAdminClient()
 
   // Clientes ativos com IG conectado (instagram_accounts.is_primary)
@@ -67,4 +68,11 @@ export async function GET(request: Request) {
     error_count:   results.filter((r) => !r.ok).length,
     results,
   })
+  } catch (err) {
+    console.error('[instagram-sync CRON ERRO FATAL]', err instanceof Error ? err.stack : err)
+    return NextResponse.json(
+      { error: 'cron failed', detail: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    )
+  }
 }
