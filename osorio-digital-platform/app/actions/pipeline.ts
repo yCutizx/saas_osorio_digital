@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePipelinePaths } from '@/lib/revalidate-helpers'
 import { createNotification } from '@/lib/notifications'
+import { sendCapiEvent, warnIfStageNamesMissing } from '@/lib/meta-capi'
+import { resolveCapiEventName, CAPI_TRACKED_STAGES } from '@/lib/capi-stage-map'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -527,6 +529,28 @@ export async function moveLeadAction(leadId: string, newStage: string, newPositi
       from: lead.stage,
       to:   newStage,
     })
+
+    // Meta CAPI semi-manual — só pipeline alvo (Site Pronto), só etapas mapeadas.
+    // AWAITED dentro de try/catch isolado: serverless da Vercel mata a função
+    // após o response, então fire-and-forget perderia o evento.
+    const capiPipelineId = process.env.META_CAPI_PIPELINE_ID
+    if (capiPipelineId && lead.pipeline_id === capiPipelineId) {
+      const eventName = resolveCapiEventName(newStage)
+      if (eventName) {
+        try {
+          await warnIfStageNamesMissing(ctx.admin, lead.pipeline_id, CAPI_TRACKED_STAGES)
+          const { data: fullLead } = await ctx.admin
+            .from('pipeline_leads')
+            .select('id, name, email, phone, whatsapp, estimated_value')
+            .eq('id', leadId)
+            .single()
+          if (fullLead) await sendCapiEvent(ctx.admin, fullLead, eventName)
+        } catch (e) {
+          // Failsafe: nunca quebra a movimentação.
+          console.error('[CAPI] erro ao despachar (move segue normal):', e instanceof Error ? e.message : e)
+        }
+      }
+    }
   }
 
   revalidatePipelinePaths(lead.pipeline_id)
