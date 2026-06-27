@@ -199,7 +199,7 @@ function SortableColumn({ col, cards, onAdd, onOpen, activeCardId, isContent, is
 
   return (
     <div ref={colRef} style={colStyle}
-      className={`flex flex-col min-h-[500px] w-72 shrink-0 rounded-2xl border transition-colors
+      className={`flex flex-col min-h-[500px] w-72 shrink-0 snap-start scroll-ml-4 rounded-2xl border transition-colors
         ${isDragging ? 'border-[#EACE00]/30 bg-[#0d0d0d]/50' : isOver ? 'border-[#EACE00]/40 bg-[#EACE00]/5' : 'border-[#222] bg-[#0d0d0d]'}`}>
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-[#222]">
@@ -688,7 +688,7 @@ export function KanbanBoard({ board, initialCards, members, boardMembers, client
       <div
         ref={containerRef}
         {...scrollHandlers}
-        className="overflow-x-auto pb-14 scrollbar-hide"
+        className="overflow-x-auto pb-14 scrollbar-hide scroll-smooth snap-x snap-mandatory sm:snap-none"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
         <DndContext sensors={sensors} collisionDetection={closestCorners}
