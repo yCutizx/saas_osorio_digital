@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -10,6 +11,11 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 // Apenas equipe interna acessa arquivos de cliente. 'client' (e qualquer outro)
 // fica bloqueado nesta versão.
 const ALLOWED_ROLES = ['admin', 'traffic_manager', 'social_media']
+
+const uuidSchema = z.string().uuid()
+function isValidId(id: string): boolean {
+  return uuidSchema.safeParse(id).success
+}
 
 type Ctx = {
   user:    { id: string }
@@ -62,6 +68,15 @@ async function assertClientAccess(
 }
 
 /**
+ * Remoção best-effort no Storage: nunca lança (supabase-js devolve { error }),
+ * mas loga falha pra permitir reconciliação de órfãos depois.
+ */
+async function removeFromStorage(admin: Ctx['admin'], path: string): Promise<void> {
+  const { error } = await admin.storage.from(BUCKET).remove([path])
+  if (error) console.error('[client-files] falha ao limpar storage:', path, error.message)
+}
+
+/**
  * Normaliza o nome do arquivo pro path do Storage: remove acentos, troca
  * caracteres problemáticos por '_' e preserva a extensão. Nunca retorna vazio.
  */
@@ -71,7 +86,7 @@ function sanitizeFileName(name: string): string {
   const rawExt  = lastDot > 0 ? name.slice(lastDot + 1) : ''
 
   const clean = (s: string) =>
-    s.normalize('NFD').replace(/[̀-ͯ]/g, '') // tira acentos (marcas combinantes)
+    s.normalize('NFD').replace(/[̀-ͯ]/g, '') // tira acentos (marcas combinantes U+0300–U+036F)
       .replace(/[^a-zA-Z0-9._-]/g, '_')                // inseguro -> _
       .replace(/_+/g, '_')                             // colapsa repetidos
       .replace(/^[._-]+|[._-]+$/g, '')                 // tira lixo nas pontas
@@ -101,6 +116,8 @@ export async function createUploadUrlAction(
 
   const ctx = await getCtx()
   if ('error' in ctx) return { error: ctx.error }
+
+  if (!isValidId(clientId)) return { error: 'Cliente inválido' }
 
   const access = await assertClientAccess(ctx, clientId)
   if ('error' in access) return { error: access.error }
@@ -132,15 +149,40 @@ export async function registerFileAction(
   fileSize: number,
   fileType: string,
 ) {
+  // fileSize é apenas dica do cliente; o tamanho gravado/validado vem do objeto
+  // real no Storage (abaixo). Mantido na assinatura por consistência da API.
+  void fileSize
+
   const ctx = await getCtx()
   if ('error' in ctx) return { error: ctx.error }
+
+  if (!isValidId(clientId)) return { error: 'Cliente inválido' }
 
   const access = await assertClientAccess(ctx, clientId)
   if ('error' in access) return { error: access.error }
 
-  // O upload já aconteceu client-side; se estourou o limite, limpa e recusa.
-  if (fileSize > MAX_FILE_SIZE) {
-    await ctx.admin.storage.from(BUCKET).remove([filePath])
+  // CRÍTICO: amarra o filePath ao clientId autorizado. Sem isso, um usuário com
+  // acesso ao cliente A poderia registrar/apontar pra um objeto do cliente B
+  // (service_role bypassa RLS — esta checagem é a única defesa).
+  if (!filePath.startsWith(`${clientId}/`)) {
+    return { error: 'Caminho inválido' }
+  }
+
+  // Tamanho REAL do objeto no Storage (fonte de verdade — não confiar no cliente).
+  const slash  = filePath.lastIndexOf('/')
+  const folder = filePath.slice(0, slash)
+  const base   = filePath.slice(slash + 1)
+
+  const { data: listed } = await ctx.admin.storage
+    .from(BUCKET)
+    .list(folder, { search: base, limit: 100 })
+
+  const obj = listed?.find((o) => o.name === base)
+  if (!obj) return { error: 'Upload não encontrado no storage' }
+
+  const realSize = Number(obj.metadata?.size ?? 0)
+  if (realSize > MAX_FILE_SIZE) {
+    await removeFromStorage(ctx.admin, filePath)
     return { error: 'Arquivo excede 50 MB' }
   }
 
@@ -150,7 +192,7 @@ export async function registerFileAction(
       client_id:   clientId,
       file_name:   fileName,
       file_path:   filePath,
-      file_size:   fileSize,
+      file_size:   realSize,
       file_type:   fileType || null,
       uploaded_by: ctx.user.id,
     })
@@ -159,7 +201,7 @@ export async function registerFileAction(
 
   if (error || !data) {
     // Insert falhou — evita arquivo órfão no Storage.
-    await ctx.admin.storage.from(BUCKET).remove([filePath])
+    await removeFromStorage(ctx.admin, filePath)
     return { error: 'Falha ao registrar arquivo' }
   }
 
@@ -175,6 +217,8 @@ export async function getFileDownloadUrlAction(fileId: string) {
   const ctx = await getCtx()
   if ('error' in ctx) return { error: ctx.error }
 
+  if (!isValidId(fileId)) return { error: 'Arquivo não encontrado' }
+
   const { data: file } = await ctx.admin
     .from('client_files')
     .select('client_id, file_path')
@@ -183,8 +227,9 @@ export async function getFileDownloadUrlAction(fileId: string) {
 
   if (!file) return { error: 'Arquivo não encontrado' }
 
+  // Erro uniforme: não revela a existência de arquivos fora do escopo do usuário.
   const access = await assertClientAccess(ctx, file.client_id)
-  if ('error' in access) return { error: access.error }
+  if ('error' in access) return { error: 'Arquivo não encontrado' }
 
   const { data, error } = await ctx.admin.storage
     .from(BUCKET)
@@ -196,12 +241,14 @@ export async function getFileDownloadUrlAction(fileId: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4) deleteFileAction — remove do Storage + apaga o metadado
+// 4) deleteFileAction — remove o metadado + objeto do Storage
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function deleteFileAction(fileId: string) {
   const ctx = await getCtx()
   if ('error' in ctx) return { error: ctx.error }
+
+  if (!isValidId(fileId)) return { error: 'Arquivo não encontrado' }
 
   const { data: file } = await ctx.admin
     .from('client_files')
@@ -211,19 +258,19 @@ export async function deleteFileAction(fileId: string) {
 
   if (!file) return { error: 'Arquivo não encontrado' }
 
+  // Erro uniforme (mesmo motivo do download).
   const access = await assertClientAccess(ctx, file.client_id)
-  if ('error' in access) return { error: access.error }
+  if ('error' in access) return { error: 'Arquivo não encontrado' }
 
-  const { error: rmErr } = await ctx.admin.storage
-    .from(BUCKET)
-    .remove([file.file_path])
-  if (rmErr) return { error: 'Falha ao remover arquivo do storage' }
-
+  // Deleta a LINHA primeiro: se o storage falhar depois, sobra no máximo um
+  // órfão (limpável) em vez de um registro visível apontando pra objeto morto.
   const { error: delErr } = await ctx.admin
     .from('client_files')
     .delete()
     .eq('id', fileId)
   if (delErr) return { error: 'Falha ao remover registro' }
+
+  await removeFromStorage(ctx.admin, file.file_path)
 
   revalidateClient(file.client_id)
   return { ok: true as const }
