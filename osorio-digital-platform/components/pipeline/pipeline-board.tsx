@@ -78,11 +78,11 @@ function SortableLeadCard({ lead, isOverdue, isSaving, onClick }: {
       <button
         type="button"
         {...listeners}
-        className="absolute top-2 right-2 z-10 h-7 w-7 rounded-md flex items-center justify-center text-[#666] hover:text-[#EACE00] hover:bg-[#1a1a1a] cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        className="absolute top-2 right-2 z-10 h-10 w-10 sm:h-7 sm:w-7 rounded-md flex items-center justify-center text-[#666] hover:text-[#EACE00] hover:bg-[#1a1a1a] cursor-grab active:cursor-grabbing opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity touch-none"
         aria-label="Arrastar card"
         onClick={(e) => e.stopPropagation()}
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-5 w-5 sm:h-4 sm:w-4" />
       </button>
 
       {isSaving && (

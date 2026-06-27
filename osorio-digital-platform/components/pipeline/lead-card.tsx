@@ -63,13 +63,13 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
 
       <p className="text-white font-semibold text-sm leading-tight pr-5 truncate">{lead.name}</p>
       {(lead.company || lead.role) && (
-        <p className="text-[#888] text-xs mt-0.5 truncate">
+        <p className="hidden sm:block text-[#888] text-xs mt-0.5 truncate">
           {[lead.role, lead.company].filter(Boolean).join(' · ')}
         </p>
       )}
 
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="hidden sm:flex flex-wrap gap-1 mt-2">
           {tags.slice(0, 3).map((t) => (
             <span
               key={t.id}
@@ -100,7 +100,7 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 mt-2 text-xs text-[#666]">
+      <div className="hidden sm:flex items-center gap-2 mt-2 text-xs text-[#666]">
         <span className="flex items-center gap-1">
           {sourceInfo.icon}
           <span>{sourceInfo.label}</span>
@@ -113,7 +113,7 @@ export function LeadCard({ lead, isOverdue, onClick }: LeadCardProps) {
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-3">
+      <div className="hidden sm:flex items-center justify-between mt-3">
         {responsible ? (
           <div className="flex items-center gap-1.5 min-w-0">
             <Avatar className="size-5 shrink-0">
