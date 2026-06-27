@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors,
   closestCorners, type DragStartEvent, type DragEndEvent, useDroppable,
 } from '@dnd-kit/core'
 import {
@@ -100,13 +100,13 @@ function SortableCard({ card, onOpen, isDragging, isContent, disabled }: {
       <div className="flex items-start gap-2">
         <button
           {...attributes} {...listeners}
-          className="mt-0.5 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0"
+          className="mt-0.5 h-10 w-10 sm:h-7 sm:w-7 flex items-center justify-center text-white/40 sm:text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing shrink-0 touch-none"
           onClick={(e) => e.stopPropagation()}>
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-5 w-5 sm:h-4 sm:w-4" />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-white font-medium leading-snug">{card.title}</p>
-          {card.description && <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
+          {card.description && <p className="hidden sm:block text-xs text-white/40 mt-0.5 line-clamp-2">{card.description}</p>}
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5 pl-6">
@@ -115,22 +115,22 @@ function SortableCard({ card, onOpen, isDragging, isContent, disabled }: {
           {PRIORITY_LABEL[card.priority]}
         </span>
         {isContent && card.format && (
-          <span className="flex items-center gap-1 text-[10px] text-purple-400">
+          <span className="hidden sm:flex items-center gap-1 text-[10px] text-purple-400">
             <Film className="h-3 w-3" />{FORMAT_LABEL[card.format] ?? card.format}
           </span>
         )}
         {isContent && card.platform && (
-          <span className="flex items-center gap-1 text-[10px] text-cyan-400">
+          <span className="hidden sm:flex items-center gap-1 text-[10px] text-cyan-400">
             <Globe className="h-3 w-3" />{PLATFORM_LABEL[card.platform] ?? card.platform}
           </span>
         )}
         {card.clients?.name && (
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
+          <span className="hidden sm:flex items-center gap-1 text-[10px] text-white/40">
             <Building2 className="h-3 w-3" />{card.clients.name}
           </span>
         )}
         {card.profiles?.full_name && (
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
+          <span className="hidden sm:flex items-center gap-1 text-[10px] text-white/40">
             <User className="h-3 w-3" />{card.profiles.full_name}
           </span>
         )}
@@ -524,7 +524,10 @@ export function KanbanBoard({ board, initialCards, members, boardMembers, client
     return () => { supabase.removeChannel(channel) }
   }, [boardId, router])
 
-  const sensors    = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors    = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 5 } }),
+  )
   const activeCard = cards.find((c) => c.id === activeId) ?? null
   const activeCol  = columns.find((c) => c.id === activeId) ?? null
   const isContent  = board.board_type === 'content'
