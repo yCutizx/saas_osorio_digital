@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useDragToScroll } from '@/hooks/use-drag-to-scroll'
@@ -57,17 +57,22 @@ function DroppableColumn({ stageName, children, isOver }: {
   )
 }
 
-function SortableLeadCard({ lead, isOverdue, onClick }: { lead: Lead; isOverdue: boolean; onClick: () => void }) {
+function SortableLeadCard({ lead, isOverdue, isSaving, onClick }: {
+  lead: Lead; isOverdue: boolean; isSaving: boolean; onClick: () => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lead.id,
     data: { type: 'card', stageName: lead.stage },
   })
+  // isDragging (arrastando) e isSaving (persistindo após soltar) são estados
+  // distintos: o primeiro tem prioridade visual; o segundo bloqueia interação.
+  const opacity = isDragging ? 0.4 : isSaving ? 0.6 : 1
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity }}
       {...attributes}
-      className="group relative"
+      className={`group relative ${isSaving ? 'pointer-events-none' : ''}`}
     >
       {/* Drag handle — só essa parte é arrastável */}
       <button
@@ -79,6 +84,12 @@ function SortableLeadCard({ lead, isOverdue, onClick }: { lead: Lead; isOverdue:
       >
         <GripVertical className="h-4 w-4" />
       </button>
+
+      {isSaving && (
+        <span className="absolute top-2 left-2 z-10 text-[#EACE00]" aria-label="Salvando">
+          <Loader2 className="h-3 w-3 animate-spin" />
+        </span>
+      )}
 
       <LeadCard lead={lead} isOverdue={isOverdue} onClick={onClick} />
     </div>
@@ -206,12 +217,21 @@ export function PipelineBoard({
 
   // Polling fallback enquanto Realtime do projeto está indisponível
   usePolling({ interval: 20000 })
-  const [, startTransition] = useTransition()
+  const [isMoving, startTransition] = useTransition()
+
+  // Estado local otimista — espelha `leads` (server) mas pode ir à frente do
+  // servidor durante um move. Re-sincroniza sempre que o server manda dados novos.
+  const [boardLeads, setBoardLeads] = useState(leads)
+  useEffect(() => { setBoardLeads(leads) }, [leads])
+
+  // Lead atualmente sendo persistido (feedback de "salvando" no card)
+  const [movingLeadId, setMovingLeadId] = useState<string | null>(null)
+
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const selectedLead = useMemo(
-    () => selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null,
-    [leads, selectedLeadId],
+    () => selectedLeadId ? boardLeads.find((l) => l.id === selectedLeadId) ?? null : null,
+    [boardLeads, selectedLeadId],
   )
   const [showCreate, setShowCreate] = useState(false)
   const [createDefaultStage, setCreateDefaultStage] = useState(stages[0]?.name ?? '')
@@ -232,13 +252,13 @@ export function PipelineBoard({
 
   const visibleLeads = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return leads.filter((l) => {
+    return boardLeads.filter((l) => {
       if (term && !`${l.name} ${l.company ?? ''} ${l.email ?? ''}`.toLowerCase().includes(term)) return false
       if (filterResp && l.responsible_id !== filterResp) return false
       if (filterTag && !(l.tags ?? []).some((t) => t.id === filterTag)) return false
       return true
     })
-  }, [leads, search, filterResp, filterTag])
+  }, [boardLeads, search, filterResp, filterTag])
 
   function leadsForStage(stageName: string) {
     return visibleLeads
@@ -248,8 +268,24 @@ export function PipelineBoard({
 
   function handleDragStart(event: DragStartEvent) {
     stop()
-    const lead = leads.find((l) => l.id === event.active.id)
+    const lead = boardLeads.find((l) => l.id === event.active.id)
     setActiveLead(lead ?? null)
+  }
+
+  // Aplica o move no array local: muda o stage do lead e reindexa a coluna de
+  // destino sequencialmente (lead movido vai pro fim), espelhando o que a server
+  // action grava (newPosition = nº de leads na coluna antes do move).
+  function applyOptimisticMove(current: Lead[], leadId: string, targetStage: string): Lead[] {
+    const moved = current.map((l) =>
+      l.id === leadId ? { ...l, stage: targetStage, position: Number.MAX_SAFE_INTEGER } : l,
+    )
+    const destOrder = moved
+      .filter((l) => l.stage === targetStage)
+      .sort((a, b) => a.position - b.position)
+    const posById = new Map(destOrder.map((l, i) => [l.id, i]))
+    return moved.map((l) =>
+      l.stage === targetStage ? { ...l, position: posById.get(l.id) ?? l.position } : l,
+    )
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -272,21 +308,32 @@ export function PipelineBoard({
     }
 
     if (!targetStage) return
-    const lead = leads.find((l) => l.id === leadId)
+    const lead = boardLeads.find((l) => l.id === leadId)
     if (!lead || lead.stage === targetStage) return
 
     const newPosition = leadsForStage(targetStage).length
 
+    // Optimistic: aplica já no estado local e guarda snapshot pra rollback.
+    const previous = boardLeads
+    setBoardLeads((curr) => applyOptimisticMove(curr, leadId, targetStage!))
+    setMovingLeadId(leadId)
+
     startTransition(async () => {
-      const result = await moveLeadAction(leadId, targetStage!, newPosition)
-      if (result.error) {
-        toast.error(result.error)
-        return
-      }
-      if (result.needs_lost_reason) {
-        setLostReasonLeadId(leadId)
-      } else {
-        router.refresh()
+      try {
+        const result = await moveLeadAction(leadId, targetStage!, newPosition)
+        if (result.error) {
+          setBoardLeads(previous) // rollback
+          toast.error(result.error)
+          return
+        }
+        if (result.needs_lost_reason) {
+          // Card já está otimisticamente em "Perdido" (consistente com o gravado)
+          setLostReasonLeadId(leadId)
+        } else {
+          router.refresh() // useEffect re-sincroniza boardLeads com o canônico
+        }
+      } finally {
+        setMovingLeadId(null)
       }
     })
   }
@@ -364,6 +411,7 @@ export function PipelineBoard({
       <div
         ref={containerRef}
         {...scrollHandlers}
+        aria-busy={isMoving}
         className="overflow-x-auto pb-14 scrollbar-hide"
         style={{ cursor: grabbing ? 'grabbing' : 'grab', scrollbarWidth: 'none' }}
       >
@@ -401,6 +449,7 @@ export function PipelineBoard({
                           key={lead.id}
                           lead={lead}
                           isOverdue={overdueSet.has(lead.id)}
+                          isSaving={movingLeadId === lead.id}
                           onClick={() => setSelectedLeadId(lead.id)}
                         />
                       ))}
