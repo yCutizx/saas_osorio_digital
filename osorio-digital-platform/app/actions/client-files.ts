@@ -180,7 +180,13 @@ export async function registerFileAction(
   const obj = listed?.find((o) => o.name === base)
   if (!obj) return { error: 'Upload não encontrado no storage' }
 
-  const realSize = Number(obj.metadata?.size ?? 0)
+  // Fail-CLOSED: tamanho desconhecido (metadata.size null/ausente) é rejeitado,
+  // nunca tratado como 0 — senão o limite de 50MB seria furável.
+  const realSize = obj.metadata?.size
+  if (typeof realSize !== 'number' || !Number.isFinite(realSize) || realSize <= 0) {
+    await removeFromStorage(ctx.admin, filePath)
+    return { error: 'Upload inválido' }
+  }
   if (realSize > MAX_FILE_SIZE) {
     await removeFromStorage(ctx.admin, filePath)
     return { error: 'Arquivo excede 50 MB' }
