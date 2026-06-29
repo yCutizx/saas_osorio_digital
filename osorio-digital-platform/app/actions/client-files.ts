@@ -1,77 +1,22 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  getClientCtx, assertClientAccess, isValidId, type ClientCtx,
+} from '@/lib/client-access'
 
 const BUCKET = 'client-files'
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
-
-// Apenas equipe interna acessa arquivos de cliente. 'client' (e qualquer outro)
-// fica bloqueado nesta versão.
-const ALLOWED_ROLES = ['admin', 'traffic_manager', 'social_media']
-
-const uuidSchema = z.string().uuid()
-function isValidId(id: string): boolean {
-  return uuidSchema.safeParse(id).success
-}
-
-type Ctx = {
-  user:    { id: string }
-  profile: { id: string; role: string }
-  admin:   ReturnType<typeof createAdminClient>
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function getCtx(): Promise<Ctx | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Não autenticado' }
-
-  const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile) return { error: 'Perfil não encontrado' }
-  if (!ALLOWED_ROLES.includes(profile.role)) return { error: 'Sem permissão' }
-
-  return { user, profile, admin }
-}
-
-/**
- * Defesa em profundidade: ctx.admin usa service_role e BYPASSA o RLS, então o
- * escopo por cliente precisa ser checado explicitamente aqui. Admin vê tudo;
- * traffic_manager/social_media só clientes a que estão atribuídos.
- */
-async function assertClientAccess(
-  ctx: Ctx,
-  clientId: string,
-): Promise<{ ok: true } | { error: string }> {
-  if (ctx.profile.role === 'admin') return { ok: true }
-
-  const { data } = await ctx.admin
-    .from('client_assignments')
-    .select('id')
-    .eq('client_id', clientId)
-    .eq('user_id', ctx.user.id)
-    .maybeSingle()
-
-  if (!data) return { error: 'Sem acesso a este cliente' }
-  return { ok: true }
-}
-
 /**
  * Remoção best-effort no Storage: nunca lança (supabase-js devolve { error }),
  * mas loga falha pra permitir reconciliação de órfãos depois.
  */
-async function removeFromStorage(admin: Ctx['admin'], path: string): Promise<void> {
+async function removeFromStorage(admin: ClientCtx['admin'], path: string): Promise<void> {
   const { error } = await admin.storage.from(BUCKET).remove([path])
   if (error) console.error('[client-files] falha ao limpar storage:', path, error.message)
 }
@@ -114,7 +59,7 @@ export async function createUploadUrlAction(
   // (validação de mime). Hoje o path/token não dependem dele.
   void fileType
 
-  const ctx = await getCtx()
+  const ctx = await getClientCtx()
   if ('error' in ctx) return { error: ctx.error }
 
   if (!isValidId(clientId)) return { error: 'Cliente inválido' }
@@ -153,7 +98,7 @@ export async function registerFileAction(
   // real no Storage (abaixo). Mantido na assinatura por consistência da API.
   void fileSize
 
-  const ctx = await getCtx()
+  const ctx = await getClientCtx()
   if ('error' in ctx) return { error: ctx.error }
 
   if (!isValidId(clientId)) return { error: 'Cliente inválido' }
@@ -220,7 +165,7 @@ export async function registerFileAction(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getFileDownloadUrlAction(fileId: string) {
-  const ctx = await getCtx()
+  const ctx = await getClientCtx()
   if ('error' in ctx) return { error: ctx.error }
 
   if (!isValidId(fileId)) return { error: 'Arquivo não encontrado' }
@@ -251,7 +196,7 @@ export async function getFileDownloadUrlAction(fileId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function deleteFileAction(fileId: string) {
-  const ctx = await getCtx()
+  const ctx = await getClientCtx()
   if ('error' in ctx) return { error: ctx.error }
 
   if (!isValidId(fileId)) return { error: 'Arquivo não encontrado' }
