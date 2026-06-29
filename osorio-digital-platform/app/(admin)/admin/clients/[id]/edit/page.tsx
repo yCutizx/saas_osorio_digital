@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FolderOpen } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/server'
@@ -11,8 +11,6 @@ import { InstagramIntegrationSection } from '@/components/clients/instagram-inte
 import { FinancialSection } from '@/components/finance/financial-section'
 import { ClientMembersSection } from '@/components/clients/client-members-section'
 import { CommercialSection } from '@/components/commercial/commercial-section'
-import { ClientFilesSection } from '@/components/client-files/client-files-section'
-import { ClientNotesSection } from '@/components/client-notes/client-notes-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -83,6 +81,18 @@ export default async function EditClientPage({ params }: { params: { id: string 
           Voltar para o cliente
         </Link>
 
+        <Link
+          href={`/admin/clients/${params.id}/space`}
+          className="flex items-center gap-3 rounded-xl bg-[#EACE00]/10 border border-[#EACE00]/25 px-4 py-3 hover:bg-[#EACE00]/15 transition-colors group"
+        >
+          <FolderOpen className="h-5 w-5 text-[#EACE00] shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[#F5F5F0]">Espaço do cliente</p>
+            <p className="text-xs text-[#888]">Notas e arquivos do cliente</p>
+          </div>
+          <ArrowLeft className="h-4 w-4 text-[#EACE00] rotate-180 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+
         <Card className="bg-[#111] border-[#222]">
           <CardContent className="p-6">
             <EditClientForm
@@ -115,10 +125,6 @@ export default async function EditClientPage({ params }: { params: { id: string 
         <FinancialSection clientId={clientRow.id} />
 
         <CommercialSection clientId={clientRow.id} />
-
-        <ClientNotesSection clientId={clientRow.id} />
-
-        <ClientFilesSection clientId={clientRow.id} />
       </div>
     </AppLayout>
   )

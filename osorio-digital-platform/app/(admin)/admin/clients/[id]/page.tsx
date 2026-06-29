@@ -3,7 +3,7 @@ import { format, parseISO, formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, Pencil, Mail, Phone, Building2, Calendar,
-  TrendingUp, Camera, BarChart2, CalendarDays, Clock, FileText,
+  TrendingUp, Camera, BarChart2, CalendarDays, Clock, FileText, FolderOpen,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
@@ -138,13 +138,22 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               </div>
             </div>
 
-            <Link
-              href={`/admin/clients/${clientRow.id}/edit`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium uppercase tracking-wider font-medium hover:bg-white/10 hover:text-white transition-colors shrink-0"
-            >
-              <Pencil className="h-4 w-4" />
-              Editar
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={`/admin/clients/${clientRow.id}/space`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#EACE00]/10 border border-[#EACE00]/25 text-[#EACE00] text-xs font-medium uppercase tracking-wider hover:bg-[#EACE00]/15 transition-colors"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Espaço
+              </Link>
+              <Link
+                href={`/admin/clients/${clientRow.id}/edit`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-[#888] text-xs font-medium uppercase tracking-wider font-medium hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Link>
+            </div>
           </div>
         </div>
 
