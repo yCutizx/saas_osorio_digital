@@ -12,6 +12,7 @@ import { FinancialSection } from '@/components/finance/financial-section'
 import { ClientMembersSection } from '@/components/clients/client-members-section'
 import { CommercialSection } from '@/components/commercial/commercial-section'
 import { ClientFilesSection } from '@/components/client-files/client-files-section'
+import { ClientNotesSection } from '@/components/client-notes/client-notes-section'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase      = await createClient()
@@ -114,6 +115,8 @@ export default async function EditClientPage({ params }: { params: { id: string 
         <FinancialSection clientId={clientRow.id} />
 
         <CommercialSection clientId={clientRow.id} />
+
+        <ClientNotesSection clientId={clientRow.id} />
 
         <ClientFilesSection clientId={clientRow.id} />
       </div>
