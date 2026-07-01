@@ -93,6 +93,7 @@ export async function registerFileAction(
   fileName: string,
   fileSize: number,
   fileType: string,
+  folderId: string | null = null,
 ) {
   // fileSize é apenas dica do cliente; o tamanho gravado/validado vem do objeto
   // real no Storage (abaixo). Mantido na assinatura por consistência da API.
@@ -111,6 +112,25 @@ export async function registerFileAction(
   // (service_role bypassa RLS — esta checagem é a única defesa).
   if (!filePath.startsWith(`${clientId}/`)) {
     return { error: 'Caminho inválido' }
+  }
+
+  // Pasta destino (se houver) DEVE pertencer ao mesmo cliente (anti-IDOR).
+  // O objeto já foi enviado client-side, então em erro removemos pra não deixar
+  // órfão — mesmo tratamento dos demais caminhos de falha desta action.
+  if (folderId !== null) {
+    if (!isValidId(folderId)) {
+      await removeFromStorage(ctx.admin, filePath)
+      return { error: 'Pasta inválida' }
+    }
+    const { data: folder } = await ctx.admin
+      .from('client_folders')
+      .select('client_id')
+      .eq('id', folderId)
+      .maybeSingle()
+    if (!folder || folder.client_id !== clientId) {
+      await removeFromStorage(ctx.admin, filePath)
+      return { error: 'Pasta inválida' }
+    }
   }
 
   // Tamanho REAL do objeto no Storage (fonte de verdade — não confiar no cliente).
@@ -145,9 +165,10 @@ export async function registerFileAction(
       file_path:   filePath,
       file_size:   realSize,
       file_type:   fileType || null,
+      folder_id:   folderId,
       uploaded_by: ctx.user.id,
     })
-    .select('id, client_id, file_name, file_path, file_size, file_type, uploaded_by, created_at')
+    .select('id, client_id, file_name, file_path, file_size, file_type, folder_id, uploaded_by, created_at')
     .single()
 
   if (error || !data) {
@@ -224,5 +245,51 @@ export async function deleteFileAction(fileId: string) {
   await removeFromStorage(ctx.admin, file.file_path)
 
   revalidateClient(file.client_id)
+  return { ok: true as const }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5) moveFileAction — troca o folder_id (etiqueta lógica; não toca no Storage)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function moveFileAction(fileId: string, newFolderId: string | null) {
+  const ctx = await getClientCtx()
+  if ('error' in ctx) return { error: ctx.error }
+
+  if (!isValidId(fileId)) return { error: 'Arquivo não encontrado' }
+
+  const { data: file } = await ctx.admin
+    .from('client_files')
+    .select('client_id, folder_id')
+    .eq('id', fileId)
+    .maybeSingle()
+
+  if (!file) return { error: 'Arquivo não encontrado' }
+
+  // Erro uniforme: não revela existência de arquivos fora do escopo.
+  const access = await assertClientAccess(ctx, file.client_id)
+  if ('error' in access) return { error: 'Arquivo não encontrado' }
+
+  // Pasta destino (se houver) DEVE ser do mesmo cliente do arquivo (anti-IDOR).
+  if (newFolderId !== null) {
+    if (!isValidId(newFolderId)) return { error: 'Pasta inválida' }
+    const { data: folder } = await ctx.admin
+      .from('client_folders')
+      .select('client_id')
+      .eq('id', newFolderId)
+      .maybeSingle()
+    if (!folder || folder.client_id !== file.client_id) return { error: 'Pasta inválida' }
+  }
+
+  const { error } = await ctx.admin
+    .from('client_files')
+    .update({ folder_id: newFolderId })
+    .eq('id', fileId)
+
+  if (error) return { error: 'Falha ao mover arquivo' }
+
+  revalidateClient(file.client_id)
+  revalidatePath(`/admin/clients/${file.client_id}/space`)
+  revalidatePath(`/admin/clients/${file.client_id}/space/files`)
   return { ok: true as const }
 }
