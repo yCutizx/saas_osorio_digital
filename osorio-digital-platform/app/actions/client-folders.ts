@@ -15,6 +15,9 @@ const FOLDER_SELECT = 'id, client_id, parent_id, name, created_by, created_at, u
 function revalidateSpace(clientId: string) {
   revalidatePath(`/admin/clients/${clientId}/space`)
   revalidatePath(`/admin/clients/${clientId}/space/files`)
+  // Rota dinâmica das pastas: revalida o TEMPLATE (todas as [folderId]) — sem
+  // isso o Router Cache do cliente serve conteúdo velho ao voltar a uma pasta.
+  revalidatePath('/admin/clients/[id]/space/files/[folderId]', 'page')
   revalidatePath(`/admin/clients/${clientId}/edit`)
   revalidatePath(`/admin/clients/${clientId}`)
 }

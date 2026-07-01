@@ -273,6 +273,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
     if (valid.length === 0) return
 
     setUploading(true)
+    let anySuccess = false
     const supabase = createClient()
 
     for (let i = 0; i < valid.length; i++) {
@@ -291,6 +292,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
         if ('error' in reg) { toast.error(reg.error ?? 'Falha ao registrar arquivo'); continue }
 
         setFiles((prev) => [reg.file as unknown as ClientFile, ...prev])
+        anySuccess = true
         toast.success(`${file.name} enviado`)
       } catch {
         toast.error(`Erro inesperado no upload de ${file.name}`)
@@ -300,6 +302,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
     setUploading(false)
     setUploadLabel(null)
     if (fileRef.current) fileRef.current.value = ''
+    if (anySuccess) router.refresh() // purga o Router Cache da rota atual
   }
 
   // ── Pastas ──
@@ -310,6 +313,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       .sort((a, b) => a.name.localeCompare(b.name)))
     setShowCreate(false)
     toast.success('Pasta criada')
+    router.refresh()
   }
 
   async function handleRenameFolder(folder: ClientFolder, name: string) {
@@ -319,6 +323,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       .sort((a, b) => a.name.localeCompare(b.name)))
     setRenameTarget(null)
     toast.success('Pasta renomeada')
+    router.refresh()
   }
 
   async function handleDeleteFolder(folder: ClientFolder) {
@@ -331,6 +336,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       setFolders((prev) => prev.filter((f) => f.id !== folder.id))
       const n = r.deletedFiles
       toast.success(`Pasta removida${n > 0 ? ` (${n} arquivo${n === 1 ? '' : 's'})` : ''}`)
+      router.refresh()
     } finally {
       setBusyId(null)
     }
@@ -344,6 +350,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       setFolders((prev) => prev.filter((f) => f.id !== folderId2)) // saiu desta pasta
       setMoveTarget(null)
       toast.success('Pasta movida')
+      router.refresh()
     } finally {
       setBusyId(null)
     }
@@ -373,6 +380,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       if ('error' in r) { toast.error(r.error ?? 'Falha ao remover'); return }
       setFiles((prev) => prev.filter((f) => f.id !== file.id))
       toast.success('Arquivo removido')
+      router.refresh()
     } finally {
       setBusyId(null)
     }
@@ -386,6 +394,7 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
       setFiles((prev) => prev.filter((f) => f.id !== fileId)) // saiu desta pasta
       setMoveTarget(null)
       toast.success('Arquivo movido')
+      router.refresh()
     } finally {
       setBusyId(null)
     }

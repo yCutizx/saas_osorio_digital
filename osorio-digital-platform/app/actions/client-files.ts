@@ -41,7 +41,13 @@ function sanitizeFileName(name: string): string {
   return safeExt ? `${safeBase}.${safeExt}` : safeBase
 }
 
-function revalidateClient(clientId: string) {
+function revalidateFiles(clientId: string) {
+  // Cobre a raiz do drive, as pastas dinâmicas ([folderId] via template 'page')
+  // e as telas do cliente que embutem contagem/preview de arquivos. Sem o
+  // template dinâmico, o Router Cache do cliente serve a pasta velha até o F5.
+  revalidatePath(`/admin/clients/${clientId}/space`)
+  revalidatePath(`/admin/clients/${clientId}/space/files`)
+  revalidatePath('/admin/clients/[id]/space/files/[folderId]', 'page')
   revalidatePath(`/admin/clients/${clientId}/edit`)
   revalidatePath(`/admin/clients/${clientId}`)
 }
@@ -177,7 +183,7 @@ export async function registerFileAction(
     return { error: 'Falha ao registrar arquivo' }
   }
 
-  revalidateClient(clientId)
+  revalidateFiles(clientId)
   return { ok: true as const, file: data }
 }
 
@@ -244,7 +250,7 @@ export async function deleteFileAction(fileId: string) {
 
   await removeFromStorage(ctx.admin, file.file_path)
 
-  revalidateClient(file.client_id)
+  revalidateFiles(file.client_id)
   return { ok: true as const }
 }
 
@@ -288,8 +294,6 @@ export async function moveFileAction(fileId: string, newFolderId: string | null)
 
   if (error) return { error: 'Falha ao mover arquivo' }
 
-  revalidateClient(file.client_id)
-  revalidatePath(`/admin/clients/${file.client_id}/space`)
-  revalidatePath(`/admin/clients/${file.client_id}/space/files`)
+  revalidateFiles(file.client_id)
   return { ok: true as const }
 }

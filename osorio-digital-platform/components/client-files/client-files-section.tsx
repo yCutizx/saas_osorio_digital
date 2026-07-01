@@ -67,6 +67,10 @@ export async function ClientFilesSection({
 
   return (
     <ClientFilesManager
+      // Remonta ao trocar de pasta: navegação pasta→pasta fica no mesmo segmento
+      // [folderId], então sem key o React reusa a instância e o useState do
+      // manager não re-semeia com os dados da nova pasta (conteúdo velho).
+      key={folderId ?? 'root'}
       clientId={clientId}
       folderId={folderId}
       breadcrumb={breadcrumb}
