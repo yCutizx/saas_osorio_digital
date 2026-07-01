@@ -45,6 +45,19 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     .eq('archived', false)
     .order('position', { ascending: true })
 
+  // Confirma que o usuário acessa o board (params.id) E que o cardId pertence a
+  // esse board. Mesmo padrão de ownership do updateCard — fecha IDOR cross-client.
+  async function assertCardAccess(admin: ReturnType<typeof createAdminClient>, userId: string, cardId: string) {
+    const [{ data: mem }, { data: brd }, { data: card }] = await Promise.all([
+      admin.from('kanban_board_members').select('board_id').eq('board_id', params.id).eq('profile_id', userId).maybeSingle(),
+      admin.from('kanban_boards').select('created_by').eq('id', params.id).maybeSingle(),
+      admin.from('kanban_cards').select('id').eq('id', cardId).eq('board_id', params.id).maybeSingle(),
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hasBoard = !!mem || (brd as any)?.created_by === userId
+    return hasBoard && !!card
+  }
+
   async function addComment(cardId: string, content: string) {
     'use server'
     const sb = await createClient()
@@ -53,6 +66,8 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
     const { data: p } = await sb.from('profiles').select('role, full_name').eq('id', u.id).single()
     if (p?.role !== 'client') return null
     const admin = createAdminClient()
+    // Ownership: card precisa pertencer a um board do usuário. Senão, nega.
+    if (!(await assertCardAccess(admin, u.id, cardId))) return null
     const { data, error } = await admin.from('kanban_comments')
       .insert({ card_id: cardId, user_id: u.id, content: content.trim() })
       .select('id, content, created_at, user_id')
@@ -76,7 +91,14 @@ export default async function ClientKanbanBoardPage({ params }: { params: { id: 
 
   async function getComments(cardId: string) {
     'use server'
+    const sb = await createClient()
+    const { data: { user: u } } = await sb.auth.getUser()
+    if (!u) return []
+    const { data: p } = await sb.from('profiles').select('role').eq('id', u.id).single()
+    if (p?.role !== 'client') return []
     const admin = createAdminClient()
+    // Ownership: só retorna comentários de card que pertence a um board do usuário.
+    if (!(await assertCardAccess(admin, u.id, cardId))) return []
     const { data } = await admin.from('kanban_comments')
       .select('id, content, created_at, user_id, profiles(full_name)')
       .eq('card_id', cardId)
