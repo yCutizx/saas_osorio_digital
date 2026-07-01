@@ -257,6 +257,16 @@ export function ClientFilesManager({ clientId, folderId, breadcrumb, initialFold
     { kind: 'file' | 'folder'; id: string; name: string; parentId: string | null } | null
   >(null)
 
+  // "Entrar pra ver": ao trocar de pasta, o Next 14 pode servir um RSC cacheado
+  // (Router Cache) capturado quando a pasta estava vazia. Um refresh no mount de
+  // cada pasta força a section a re-buscar do servidor, ignorando esse cache.
+  // Sem loop: a dependência é só [folderId] — router.refresh() re-renderiza a
+  // mesma rota (folderId não muda) → o efeito NÃO re-dispara. Só roda de novo
+  // quando você navega pra outra pasta.
+  useEffect(() => {
+    router.refresh()
+  }, [folderId, router])
+
   function navigate(id: string) {
     router.push(`${base}/${id}`)
   }
