@@ -20,12 +20,38 @@ export default async function ClientPipelinePage() {
     redirect('/admin/dashboard')
   }
 
+  // Resolve o cliente real do usuário via client_assignments (mesmo padrão de
+  // finance/ads/instagram). pipeline_projects.client_id guarda o clients.id,
+  // NÃO o auth uid — por isso filtrar por user.id direto retorna vazio.
+  const { data: assignment } = await supabase
+    .from('client_assignments')
+    .select('client_id')
+    .eq('user_id', user.id)
+    .eq('role', 'client')
+    .single()
+
+  const clientId = assignment?.client_id
+
+  // Sem vínculo de cliente: estado vazio (fail-closed — sem dados, não erro).
+  if (!clientId) {
+    return (
+      <AppLayout pageTitle="Meus Projetos">
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+            <FolderOpen className="h-8 w-8 text-white/20" />
+          </div>
+          <p className="text-white/40 text-sm">Nenhum projeto disponível no momento.</p>
+        </div>
+      </AppLayout>
+    )
+  }
+
   const admin = createAdminClient()
 
   const { data: projects } = await admin
     .from('pipeline_projects')
     .select('id, name, description, stage, value, start_date, end_date, created_at')
-    .eq('client_id', user.id)
+    .eq('client_id', clientId)
     .order('created_at', { ascending: false })
 
   // For each project, fetch deliverables

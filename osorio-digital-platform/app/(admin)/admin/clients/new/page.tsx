@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
@@ -27,6 +28,15 @@ async function getTeamMembers() {
 }
 
 export default async function NewClientPage() {
+  // Guard admin-only (defesa em profundidade — layout de borda bloqueia 'client';
+  // aqui bloqueamos staff não-admin). Fail-CLOSED via `profile?.role !== 'admin'`.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') redirect('/admin/dashboard')
+
   const { trafficManagers, socialMediaTeam } = await getTeamMembers()
 
   return (

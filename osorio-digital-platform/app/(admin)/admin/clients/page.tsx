@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { UserPlus, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { createClient } from '@/lib/supabase/server'
@@ -28,6 +29,15 @@ interface PageProps {
 }
 
 export default async function AdminClientsPage({ searchParams }: PageProps) {
+  // Guard admin-only (defesa em profundidade — layout de borda bloqueia 'client';
+  // aqui bloqueamos staff não-admin). Fail-CLOSED via `profile?.role !== 'admin'`.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') redirect('/admin/dashboard')
+
   const clients = await getClients()
   const showAlert = searchParams.created === '1'
 

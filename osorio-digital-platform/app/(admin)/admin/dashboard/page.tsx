@@ -1,4 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import Link from 'next/link'
 import {
@@ -41,6 +43,18 @@ function variation(current: number, previous: number) {
 }
 
 export default async function AdminDashboardPage() {
+  // Guard admin-only (defesa em profundidade). O layout de borda já bloqueia
+  // 'client'; aqui negamos staff não-admin ANTES de qualquer query com
+  // service_role — que agrega dados de TODA a agência (bypassa RLS).
+  // Fail-CLOSED: profile ausente/erro => role undefined !== 'admin' => redirect.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') redirect('/')
+
   const admin = createAdminClient()
 
   const now            = new Date()
